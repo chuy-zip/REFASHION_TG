@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Refashion IA
 
-## Getting Started
+Sistema de prototipado de uniformes corporativos asistido por IA. Permite editar
+imágenes de prendas y generar prototipos con modelos de difusión, sobre una jerarquía
+de clientes, proyectos y diseños. Proyecto de graduación — Universidad del Valle de
+Guatemala.
 
-First, run the development server:
+Herramienta **interna**: no hay registro público; los usuarios se crean a mano desde
+el dashboard de Supabase.
+
+## Stack
+
+- **Next.js 16** (App Router) + TypeScript — fullstack, sin backend separado. La API son
+  Route Handlers en `app/api/*`.
+- **Supabase** (Postgres + Auth) — datos y sesión; el acceso lo impone Row Level Security.
+- **Cloudflare R2** — object storage privado para las imágenes, vía presigned URLs.
+- **Tailwind CSS v4** — tokens de diseño en `app/globals.css`; estilos de componente en
+  CSS Modules colocados.
+- **Zod** — validación de los bodies de la API.
+
+## Principios de arquitectura
+
+- El frontend nunca habla directo con R2 ni con servicios de IA: todo pasa por `app/api/*`.
+- Las llaves secretas viven solo server-side (sin prefijo `NEXT_PUBLIC_`).
+- Toda ruta `app/api/*` exige un JWT válido; sin sesión, las páginas redirigen a `/login`.
+- Código, rutas, tablas y tipos en **inglés**; texto visible al usuario en **español**.
+
+## Variables de entorno
+
+Copia `.env.example` a `.env.local` y llénalo. La URL de Supabase debe ir sin barra final.
+
+| Variable | Uso |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Llave pública (browser) |
+| `SUPABASE_SECRET_KEY` | Llave secreta, solo servidor |
+| `R2_*` | Credenciales y endpoint de Cloudflare R2 |
+
+## Desarrollo
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre http://localhost:3000. Sin sesión, cualquier ruta redirige a `/login`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Otros scripts: `npm run build` (build de producción), `npm run lint`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Base de datos
 
-## Learn More
+Las migraciones están en `docs/`, numeradas y secuenciales. Se ejecutan en el SQL Editor
+de Supabase en orden:
 
-To learn more about Next.js, take a look at the following resources:
+- `001_initial_schema.sql` — tablas y RLS inicial.
+- `002_granular_rls_policies.sql` — políticas RLS por rol (`owner` / `editor` / `viewer`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Despliegue
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Vercel, conectado a la rama `main` (push despliega). Root Directory vacío, Framework
+Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `.env.local`.
 
-## Deploy on Vercel
+## Estado
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Paso 1 — base de autenticación:** completo. Login, protección de rutas (`proxy.ts`),
+  logout, y clientes de Supabase server/browser.
+- **Siguiente:** CRUD de clientes, proyectos y diseños; luego subida de imágenes a R2.

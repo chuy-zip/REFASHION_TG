@@ -1,0 +1,121 @@
+/**
+ * Domain types mirroring the database schema.
+ *
+ * Source of truth: docs/001_initial_schema.sql and docs/002_granular_rls_policies.sql
+ * Keep these in sync whenever a migration changes a table.
+ */
+
+/**
+ * Global role in the system (public.roles.name).
+ * Stored on profiles.role_id. Not what guards the data — see ClientRole.
+ */
+export type GlobalRole = "admin" | "editor" | "viewer";
+
+/**
+ * Role on a SPECIFIC client (client_members.role).
+ * This is the one RLS actually enforces. There is no owner_id anywhere:
+ * access exists if and only if a client_members row exists.
+ */
+export type ClientRole = "owner" | "editor" | "viewer";
+
+export type ProjectStatus = "draft" | "active" | "closed";
+
+export type AssetOrigin = "upload" | "generated";
+
+/** Assets hanging directly off a client — the catalog. */
+export type ClientAssetType =
+  | "logo"
+  | "base_garment"
+  | "model_photo"
+  | "tech_drawing";
+
+/** Assets produced against a design — masks and AI results. */
+export type DesignAssetType =
+  | "mask"
+  | "composition"
+  | "inpainting"
+  | "vton"
+  | "ai_model"
+  | "export_flat"
+  | "export_model"
+  | "export_ai";
+
+/** Must match the assets_type_check constraint exactly. */
+export type AssetType = ClientAssetType | DesignAssetType;
+
+export interface Profile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  nit: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientMember {
+  client_id: string;
+  user_id: string;
+  role: ClientRole;
+  created_at: string;
+}
+
+export interface Project {
+  id: string;
+  client_id: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Design {
+  id: string;
+  project_id: string;
+  name: string;
+  garment_type: string;
+  version: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Asset {
+  id: string;
+  /** Set for catalog assets, null for design-level ones. */
+  client_id: string | null;
+  /** Set for design-level assets, null for catalog ones. */
+  design_id: string | null;
+  asset_type: AssetType;
+  /**
+   * The object key inside the R2 bucket — not a URL, and not the binary.
+   * The bucket is private; read URLs are presigned on demand from this key.
+   */
+  r2_key: string;
+  mime_type: string;
+  file_size_bytes: number | null;
+  origin: AssetOrigin;
+  runware_task_id: string | null;
+  cost_usd: number | null;
+  generation_prompt: string | null;
+  /** Traces the iteration chain back to the source asset. */
+  parent_asset_id: string | null;
+  created_at: string;
+}
+
+/** Shape every failing Route Handler returns. Message is user-facing Spanish. */
+export interface ApiError {
+  error: string;
+}
