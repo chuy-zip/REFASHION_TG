@@ -1,0 +1,51 @@
+.dialog {
+  /* The UA centres a modal dialog with `margin: auto`, but Tailwind's reset
+     zeroes every margin — without this the dialog sticks to the top-left. */
+  margin: auto;
+  width: min(34rem, calc(100vw - 2rem));
+  padding: 0;
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+
+  /* Closed state. `allow-discrete` lets display/overlay animate too, which is
+     what makes the exit visible instead of an instant disappearance. */
+  opacity: 0;
+  transform: translateY(4px) scale(0.99);
+  transition: opacity var(--duration-enter) var(--ease-out),
+    transform var(--duration-enter) var(--ease-out),
+    overlay var(--duration-enter) allow-discrete,
+    display var(--duration-enter) allow-discrete;
+}
+
+.dialog[open] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Entry values: without this the dialog would pop in already visible. */
+@starting-style {
+  .dialog[open] {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
+}
+
+.dialog::backdrop {
+  background: transparent;
+  transition: background-color var(--duration-enter) var(--ease-out),
+    overlay var(--duration-enter) allow-discrete,
+    display var(--duration-enter) allow-discrete;
+}
+
+.dialog[open]::backdrop {
+  background: var(--color-backdrop);
+}
+
+@starting-style {
+  .dialog[open]::backdrop {
+    background: transparent;
+  }
+}

@@ -1,9 +1,3 @@
-.page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
 .header {
   display: flex;
   align-items: center;
@@ -18,6 +12,7 @@
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--color-text-primary);
+  text-decoration: none;
 }
 
 .session {
@@ -29,18 +24,5 @@
 .email {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
-.body {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-}
-
-.placeholder {
-  font-size: var(--text-base);
   color: var(--color-text-secondary);
 }

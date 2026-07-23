@@ -5,8 +5,5 @@
 
 export const LOGIN_PATH = "/login";
 
-/**
- * Where a user lands after signing in.
- * Step 1 uses "/" as a placeholder; this becomes "/clients" in step 2.
- */
-export const POST_LOGIN_PATH = "/";
+/** Where a user lands after signing in. */
+export const POST_LOGIN_PATH = "/clients";

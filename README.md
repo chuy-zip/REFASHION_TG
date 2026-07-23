@@ -54,6 +54,14 @@ de Supabase en orden:
 
 - `001_initial_schema.sql` — tablas y RLS inicial.
 - `002_granular_rls_policies.sql` — políticas RLS por rol (`owner` / `editor` / `viewer`).
+- `003_create_client_with_owner.sql` — crea un cliente y su membresía `owner` en una sola
+  transacción.
+- `004_data_api_grants.sql` — permisos de tabla para el rol `authenticated`.
+
+Al agregar una tabla nueva hacen falta **cuatro** pasos, no dos: crearla, habilitar RLS,
+escribir las políticas **y** otorgar los `GRANT` a `authenticated`. El proyecto tiene
+desactivado *"Automatically expose new tables"*, así que las tablas nacen sin permisos y
+quedan ilegibles aunque el RLS sea correcto.
 
 ## Despliegue
 
@@ -62,6 +70,8 @@ Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `
 
 ## Estado
 
-- **Paso 1 — base de autenticación:** completo. Login, protección de rutas (`proxy.ts`),
-  logout, y clientes de Supabase server/browser.
-- **Siguiente:** CRUD de clientes, proyectos y diseños; luego subida de imágenes a R2.
+- **Base de autenticación:** completa. Login, logout y protección de rutas (`proxy.ts`).
+- **CRUD de clientes:** completo. Crear, listar, ver, editar y eliminar desde la UI, con
+  el RLS imponiendo los permisos por rol.
+- **Siguiente:** administración de usuarios y permisos. Después, CRUD de proyectos y
+  diseños, y por último la subida de imágenes a R2.

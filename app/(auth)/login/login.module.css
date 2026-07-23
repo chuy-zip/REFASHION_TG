@@ -87,7 +87,7 @@
   background: var(--color-accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color 120ms ease;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .submit:hover:not(:disabled) {
