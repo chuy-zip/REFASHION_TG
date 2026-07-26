@@ -4,16 +4,19 @@ import { useState } from "react";
 import { ClientActionsMenu } from "@/components/clients/ClientActionsMenu/ClientActionsMenu";
 import { MembersSection } from "@/components/clients/MembersSection/MembersSection";
 import { ProjectsSection } from "@/components/projects/ProjectsSection/ProjectsSection";
+import { AssetsSection } from "@/components/assets/AssetsSection/AssetsSection";
+import type { AssetWithUrl } from "@/lib/assets";
 import type { ClientMemberView } from "@/lib/members";
 import type { Client, Project } from "@/lib/types";
 import styles from "./ClientDetailView.module.css";
 
-type Tab = "info" | "members" | "projects";
+type Tab = "info" | "members" | "projects" | "assets";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "info", label: "Información" },
   { id: "members", label: "Miembros" },
   { id: "projects", label: "Proyectos" },
+  { id: "assets", label: "Recursos" },
 ];
 
 interface ClientDetailViewProps {
@@ -23,6 +26,7 @@ interface ClientDetailViewProps {
   members: ClientMemberView[];
   canManageMembers: boolean;
   projects: Project[];
+  assets: AssetWithUrl[];
   currentUserId: string;
 }
 
@@ -38,6 +42,7 @@ export function ClientDetailView({
   members,
   canManageMembers,
   projects,
+  assets,
   currentUserId,
 }: ClientDetailViewProps) {
   const [tab, setTab] = useState<Tab>("info");
@@ -85,6 +90,14 @@ export function ClientDetailView({
           <ProjectsSection
             clientId={client.id}
             projects={projects}
+            canManage={canEdit}
+          />
+        )}
+
+        {tab === "assets" && (
+          <AssetsSection
+            clientId={client.id}
+            assets={assets}
             canManage={canEdit}
           />
         )}

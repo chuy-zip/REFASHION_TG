@@ -122,6 +122,8 @@ export interface Asset {
    * The bucket is private; read URLs are presigned on demand from this key.
    */
   r2_key: string;
+  /** The file name the user picked at upload time — display/search only, never used as the R2 key. Null for assets uploaded before migration 008. */
+  original_filename: string | null;
   mime_type: string;
   file_size_bytes: number | null;
   origin: AssetOrigin;

@@ -3,6 +3,7 @@ import {
   createClient as createSupabaseClient,
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
+import { deleteObject } from "@/lib/r2";
 import { updateClientSchema } from "@/lib/validation";
 import {
   jsonError,
@@ -79,13 +80,26 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   return NextResponse.json(data as Client);
 }
 
-/** DELETE /api/clients/:id — owner only (enforced by RLS). */
+/**
+ * DELETE /api/clients/:id — owner only (enforced by RLS).
+ *
+ * The client's catalog assets cascade-delete inside Postgres as part of the
+ * DELETE below (`on delete cascade`) — that happens entirely inside the
+ * database engine, with no hook for application code to catch which rows
+ * disappeared. Reading their r2_key here, before the cascade runs, is the
+ * only chance to know what to clean up in R2 afterward.
+ */
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const user = await getAuthenticatedUser();
   if (!user) return unauthorized();
 
   const { id } = await params;
   const supabase = await createSupabaseClient();
+
+  const { data: assetsToClean } = await supabase
+    .from("assets")
+    .select("r2_key")
+    .eq("client_id", id);
 
   // .select() is required to learn how many rows the policy actually matched.
   const { data, error } = await supabase
@@ -100,6 +114,18 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       "No se pudo eliminar el cliente. Solo el owner puede hacerlo.",
       403
     );
+  }
+
+  // Best-effort: the client is already gone from the user's point of view.
+  // A failed R2 delete here is an invisible orphaned blob, not an error to
+  // surface — one failure must not stop the rest from being cleaned up.
+  const results = await Promise.allSettled(
+    (assetsToClean ?? []).map((asset) => deleteObject(asset.r2_key))
+  );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error(`Failed to delete R2 object while deleting client ${id}:`, result.reason);
+    }
   }
 
   return new NextResponse(null, { status: 204 });

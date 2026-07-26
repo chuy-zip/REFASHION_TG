@@ -7,6 +7,7 @@ import {
 import { ClientDetailView } from "@/components/clients/ClientDetailView/ClientDetailView";
 import { Icon } from "@/components/ui/Icon/Icon";
 import { getClientAccess } from "@/lib/access";
+import { listClientAssets } from "@/lib/assets";
 import { listClientMembers } from "@/lib/members";
 import { listClientProjects } from "@/lib/projects";
 import type { Client } from "@/lib/types";
@@ -25,14 +26,16 @@ export default async function ClientDetailPage({ params }: PageProps) {
   const user = await getAuthenticatedUser();
   const userId = user?.id ?? "";
 
-  // Client row, the caller's access, members and projects — in parallel. The
-  // access flags decide which actions the UI offers; RLS enforces them anyway.
-  const [clientResult, access, membersResult, projectsResult] =
+  // Client row, the caller's access, members, projects and assets — in
+  // parallel. The access flags decide which actions the UI offers; RLS
+  // enforces them anyway.
+  const [clientResult, access, membersResult, projectsResult, assetsResult] =
     await Promise.all([
       supabase.from("clients").select("*").eq("id", id).maybeSingle(),
       getClientAccess(supabase, id, userId),
       listClientMembers(supabase, id),
       listClientProjects(supabase, id),
+      listClientAssets(supabase, id),
     ]);
 
   if (!clientResult.data) notFound();
@@ -53,6 +56,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
         members={membersResult.members}
         canManageMembers={access.canManage}
         projects={projectsResult.projects}
+        assets={assetsResult.assets}
         currentUserId={userId}
       />
     </main>

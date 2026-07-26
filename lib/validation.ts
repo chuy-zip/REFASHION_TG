@@ -173,3 +173,42 @@ export const updateDesignSchema = z
   });
 
 export type UpdateDesignInput = z.infer<typeof updateDesignSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Assets (client-level catalog only, for now)                                */
+/* -------------------------------------------------------------------------- */
+
+const clientAssetType = z.enum(["logo", "base_garment", "model_photo", "tech_drawing"], {
+  message: "Selecciona un tipo de recurso válido.",
+});
+
+/** Kept narrow on purpose: the R2 key extension is derived from this list. */
+const uploadableMimeType = z.enum(["image/png", "image/jpeg", "image/webp"], {
+  message: "Formato de imagen no soportado. Usa PNG, JPEG o WEBP.",
+});
+
+export const presignUploadSchema = z.object({
+  client_id: z.uuid("El cliente seleccionado no es válido."),
+  content_type: uploadableMimeType,
+});
+
+export type PresignUploadInput = z.infer<typeof presignUploadSchema>;
+
+export const confirmAssetSchema = z.object({
+  asset_id: z.uuid("El asset no es válido."),
+  client_id: z.uuid("El cliente seleccionado no es válido."),
+  r2_key: z.string().trim().min(1, "Falta la key del objeto en R2."),
+  asset_type: clientAssetType,
+  original_filename: z
+    .string()
+    .trim()
+    .min(1, "Falta el nombre del archivo.")
+    .max(255, "El nombre del archivo es demasiado largo."),
+  mime_type: uploadableMimeType,
+  file_size_bytes: z.coerce
+    .number()
+    .int()
+    .positive("El tamaño del archivo no es válido."),
+});
+
+export type ConfirmAssetInput = z.infer<typeof confirmAssetSchema>;
