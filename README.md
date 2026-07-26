@@ -57,6 +57,10 @@ de Supabase en orden:
 - `003_create_client_with_owner.sql` — crea un cliente y su membresía `owner` en una sola
   transacción.
 - `004_data_api_grants.sql` — permisos de tabla para el rol `authenticated`.
+- `005_global_roles.sql` — hace valer el rol global (`profiles.role_id`): bypass de admin,
+  default `viewer`, trigger anti-escalada, `email` en `profiles`.
+- `006_role_descriptions_and_grants.sql` — descripciones de rol + `EXECUTE` de los helpers.
+- `007_service_role_grants.sql` — permisos de `service_role` (para los flujos de admin).
 
 Al agregar una tabla nueva hacen falta **cuatro** pasos, no dos: crearla, habilitar RLS,
 escribir las políticas **y** otorgar los `GRANT` a `authenticated`. El proyecto tiene
@@ -71,7 +75,8 @@ Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `
 ## Estado
 
 - **Base de autenticación:** completa. Login, logout y protección de rutas (`proxy.ts`).
-- **CRUD de clientes:** completo. Crear, listar, ver, editar y eliminar desde la UI, con
-  el RLS imponiendo los permisos por rol.
-- **Siguiente:** administración de usuarios y permisos. Después, CRUD de proyectos y
-  diseños, y por último la subida de imágenes a R2.
+- **CRUD de clientes:** completo, con permisos por rol impuestos por RLS.
+- **Usuarios y permisos:** completo. Roles globales (`admin` / `editor` / `viewer`),
+  administración de usuarios (solo admin), y gestión de miembros por cliente (invitar,
+  cambiar rol, quitar, reasignar owner) manteniendo siempre ≥1 owner por cliente.
+- **Siguiente:** CRUD de proyectos y diseños. Después, la subida de imágenes a R2.

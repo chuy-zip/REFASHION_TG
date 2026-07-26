@@ -1,0 +1,107 @@
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  width: 15rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-surface-raised);
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.brand {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.navLink {
+  padding: 0.5rem 0.75rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.navLink:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-sunken);
+}
+
+.navLink[aria-current="page"] {
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.email {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* On narrow screens the sidebar reflows into a top bar so it never eats half
+   the viewport. */
+@media (max-width: 48rem) {
+  .sidebar {
+    position: static;
+    height: auto;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.5rem;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .top {
+    flex: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .nav {
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+
+  .bottom {
+    flex-direction: row;
+    align-items: center;
+  }
+}

@@ -1,0 +1,33 @@
+.page {
+  width: 100%;
+  max-width: 90rem;
+  padding: 1.5rem 2rem;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  width: 12rem;
+  height: 1.75rem;
+}
+
+.action {
+  width: 8rem;
+  height: 2.25rem;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row {
+  height: 3.75rem;
+}

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
-import { AppHeader } from "@/components/layout/AppHeader/AppHeader";
 import { ClientFormDialog } from "@/components/clients/ClientFormDialog/ClientFormDialog";
 import type { Client } from "@/lib/types";
 import styles from "./page.module.css";
@@ -36,14 +35,27 @@ export default async function ClientsPage() {
 
   const clients = (data ?? []) as Client[];
 
+  // Same check the RPC enforces server-side; here it only drives the UI so a
+  // viewer sees a disabled button instead of a modal that will fail on submit.
+  const { data: canCreate } = await supabase.rpc("can_create_clients");
+
   return (
-    <>
-      <AppHeader />
-      <main className={styles.page}>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>Clientes</h1>
-          <ClientFormDialog triggerLabel="Crear cliente" />
+    <main className={styles.page}>
+      <div className={styles.titleRow}>
+        <h1 className={styles.title}>Clientes</h1>
+          <ClientFormDialog
+            triggerLabel="Crear cliente"
+            disabled={canCreate !== true}
+            disabledReason="No tienes permisos para crear clientes."
+          />
         </div>
+
+        {canCreate !== true && (
+          <p className={styles.permissionHint}>
+            Tu rol no permite crear clientes. Solicítalo a un administrador o
+            editor.
+          </p>
+        )}
 
         {error && (
           <p className={styles.error} role="alert">
@@ -76,7 +88,6 @@ export default async function ClientsPage() {
             ))}
           </ul>
         )}
-      </main>
-    </>
+    </main>
   );
 }

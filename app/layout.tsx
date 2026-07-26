@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { ToastProvider } from "@/components/ui/Toast/ToastProvider";
 import "./globals.css";
 
 // Interface text. Neutral, legible at small sizes, good tabular figures.
@@ -29,7 +30,9 @@ export default function RootLayout({
       lang="es"
       className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

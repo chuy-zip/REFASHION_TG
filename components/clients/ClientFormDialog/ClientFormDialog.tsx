@@ -4,6 +4,8 @@ import { useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button, type ButtonVariant } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
+import { useToast } from "@/components/ui/Toast/ToastProvider";
+import { apiPatch, apiPost } from "@/lib/api-client";
 import type { Client } from "@/lib/types";
 import styles from "./ClientFormDialog.module.css";
 
@@ -12,6 +14,9 @@ interface ClientFormDialogProps {
   client?: Client;
   triggerLabel: string;
   triggerVariant?: ButtonVariant;
+  /** When set, the trigger is disabled and shows this reason on hover. */
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 type FormState = {
@@ -44,8 +49,11 @@ export function ClientFormDialog({
   client,
   triggerLabel,
   triggerVariant = "primary",
+  disabled = false,
+  disabledReason,
 }: ClientFormDialogProps) {
   const router = useRouter();
+  const { notify } = useToast();
   const isEdit = client !== undefined;
 
   const [isOpen, setIsOpen] = useState(false);
@@ -68,37 +76,32 @@ export function ClientFormDialog({
     setError(null);
     setIsSubmitting(true);
 
-    const response = await fetch(
-      isEdit ? `/api/clients/${client.id}` : "/api/clients",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          // Empty inputs become null so the column stays NULL, never "".
-          nit: form.nit.trim() || null,
-          city: form.city.trim() || null,
-          country: form.country.trim() || null,
-          address: form.address.trim() || null,
-          notes: form.notes.trim() || null,
-        }),
-      }
-    );
+    const body = {
+      name: form.name,
+      // Empty inputs become null so the column stays NULL, never "".
+      nit: form.nit.trim() || null,
+      city: form.city.trim() || null,
+      country: form.country.trim() || null,
+      address: form.address.trim() || null,
+      notes: form.notes.trim() || null,
+    };
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      setError(
-        payload?.error ??
-          (isEdit
-            ? "No se pudo guardar el cliente."
-            : "No se pudo crear el cliente.")
-      );
+    const result = isEdit
+      ? await apiPatch(`/api/clients/${client.id}`, body)
+      : await apiPost("/api/clients", body);
+
+    if (!result.ok) {
+      setError(result.error);
       setIsSubmitting(false);
       return;
     }
 
     setIsSubmitting(false);
     setIsOpen(false);
+    notify({
+      type: "success",
+      message: isEdit ? "Cliente actualizado." : "Cliente creado.",
+    });
     // Re-runs the server component so the list/detail shows the new data.
     router.refresh();
   }
@@ -107,7 +110,12 @@ export function ClientFormDialog({
 
   return (
     <>
-      <Button variant={triggerVariant} onClick={open}>
+      <Button
+        variant={triggerVariant}
+        onClick={open}
+        disabled={disabled}
+        title={disabled ? disabledReason : undefined}
+      >
         {triggerLabel}
       </Button>
 

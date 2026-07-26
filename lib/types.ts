@@ -43,13 +43,31 @@ export type DesignAssetType =
 /** Must match the assets_type_check constraint exactly. */
 export type AssetType = ClientAssetType | DesignAssetType;
 
+export interface Role {
+  id: number;
+  name: GlobalRole;
+  description: string | null;
+}
+
 export interface Profile {
   id: string;
+  /** Copied from auth.users by trigger, so it can be searched under RLS. */
+  email: string | null;
   first_name: string;
   last_name: string;
   role_id: number;
   created_at: string;
   updated_at: string;
+}
+
+/** A profile with its global role resolved — what the user screens list. */
+export interface UserSummary {
+  id: string;
+  email: string | null;
+  first_name: string;
+  last_name: string;
+  role_id: number;
+  role_name: GlobalRole;
 }
 
 export interface Client {

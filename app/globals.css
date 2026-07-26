@@ -35,6 +35,7 @@
 
   /* Semantic state — never decorative */
   --color-success: #157f4b;
+  --color-success-subtle: #e7f4ee;
   --color-warning: #9a6700;
   --color-danger: #c0392b;
   --color-danger-subtle: #fdecea;

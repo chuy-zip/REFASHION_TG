@@ -1,0 +1,18 @@
+.shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100vh;
+}
+
+/* Fills the space beside the sidebar. min-width:0 lets wide children (tables,
+   grids) shrink instead of forcing the whole page to scroll sideways. */
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 48rem) {
+  .shell {
+    flex-direction: column;
+  }
+}

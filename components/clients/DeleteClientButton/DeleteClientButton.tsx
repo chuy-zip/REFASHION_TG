@@ -4,22 +4,31 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
+import { useToast } from "@/components/ui/Toast/ToastProvider";
+import { apiDelete } from "@/lib/api-client";
 import styles from "./DeleteClientButton.module.css";
 
 interface DeleteClientButtonProps {
   clientId: string;
   clientName: string;
+  /** When set, the trigger is disabled and shows this reason on hover. */
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 /**
- * Deletes a client after explicit confirmation. Only the owner can do it; a
- * non-owner gets the 403 message from the API rendered in place.
+ * Deletes a client after explicit confirmation. Only the owner (or a global
+ * admin) can do it; the button is disabled for anyone else, and RLS is the
+ * backstop if the disabled state is ever bypassed.
  */
 export function DeleteClientButton({
   clientId,
   clientName,
+  disabled = false,
+  disabledReason,
 }: DeleteClientButtonProps) {
   const router = useRouter();
+  const { notify } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -28,19 +37,17 @@ export function DeleteClientButton({
     setError(null);
     setIsDeleting(true);
 
-    const response = await fetch(`/api/clients/${clientId}`, {
-      method: "DELETE",
-    });
+    const result = await apiDelete(`/api/clients/${clientId}`);
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      setError(payload?.error ?? "No se pudo eliminar el cliente.");
+    if (!result.ok) {
+      setError(result.error);
       setIsDeleting(false);
       return;
     }
 
     setIsDeleting(false);
     setIsOpen(false);
+    notify({ type: "success", message: `${clientName} se eliminó.` });
     // The client no longer exists, so going back to its detail page would 404.
     router.replace("/clients");
     router.refresh();
@@ -52,6 +59,8 @@ export function DeleteClientButton({
     <>
       <Button
         variant="danger"
+        disabled={disabled}
+        title={disabled ? disabledReason : undefined}
         onClick={() => {
           setError(null);
           setIsOpen(true);
