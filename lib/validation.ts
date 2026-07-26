@@ -86,3 +86,90 @@ export const updateMemberRoleSchema = z.object({
 });
 
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Projects                                                                    */
+/* -------------------------------------------------------------------------- */
+
+const projectStatus = z.enum(["draft", "active", "closed"], {
+  message: "Selecciona un estado válido.",
+});
+
+export const createProjectSchema = z.object({
+  client_id: z.uuid("El cliente seleccionado no es válido."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "El nombre del proyecto es obligatorio.")
+    .max(200, "El nombre no puede superar los 200 caracteres."),
+  description: z.string().trim().max(2000).nullish(),
+  // Optional on create; the column defaults to 'draft'.
+  status: projectStatus.optional(),
+});
+
+export type CreateProjectInput = z.infer<typeof createProjectSchema>;
+
+export const updateProjectSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "El nombre del proyecto es obligatorio.")
+      .max(200, "El nombre no puede superar los 200 caracteres.")
+      .optional(),
+    description: z.string().trim().max(2000).nullish(),
+    status: projectStatus.optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "No hay campos para actualizar.",
+  });
+
+export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Designs                                                                     */
+/* -------------------------------------------------------------------------- */
+
+const garmentType = z.enum(["shirt", "polo", "hoodie"], {
+  message: "Selecciona un tipo de prenda válido.",
+});
+
+export const createDesignSchema = z.object({
+  project_id: z.uuid("El proyecto seleccionado no es válido."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "El nombre del diseño es obligatorio.")
+    .max(200, "El nombre no puede superar los 200 caracteres."),
+  garment_type: garmentType.optional(),
+  version: z.coerce
+    .number()
+    .int()
+    .positive("La versión debe ser un número positivo.")
+    .optional(),
+  notes: z.string().trim().max(2000).nullish(),
+});
+
+export type CreateDesignInput = z.infer<typeof createDesignSchema>;
+
+export const updateDesignSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "El nombre del diseño es obligatorio.")
+      .max(200, "El nombre no puede superar los 200 caracteres.")
+      .optional(),
+    garment_type: garmentType.optional(),
+    version: z.coerce
+      .number()
+      .int()
+      .positive("La versión debe ser un número positivo.")
+      .optional(),
+    notes: z.string().trim().max(2000).nullish(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "No hay campos para actualizar.",
+  });
+
+export type UpdateDesignInput = z.infer<typeof updateDesignSchema>;

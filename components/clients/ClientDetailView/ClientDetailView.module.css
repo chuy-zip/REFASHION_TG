@@ -13,11 +13,6 @@
   color: var(--color-text-primary);
 }
 
-.actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
 /* Horizontal tabs for the client's sections, above the content. */
 .tabs {
   display: flex;
@@ -89,28 +84,6 @@
 
 .emptyValue {
   color: var(--color-text-disabled);
-}
-
-.placeholder {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 3rem 1.5rem;
-  text-align: center;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-}
-
-.placeholderTitle {
-  font-size: var(--text-lg);
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.placeholderHint {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
 }
 
 @media (max-width: 40rem) {

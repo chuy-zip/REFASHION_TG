@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ClientFormDialog } from "@/components/clients/ClientFormDialog/ClientFormDialog";
-import { DeleteClientButton } from "@/components/clients/DeleteClientButton/DeleteClientButton";
+import { ClientActionsMenu } from "@/components/clients/ClientActionsMenu/ClientActionsMenu";
 import { MembersSection } from "@/components/clients/MembersSection/MembersSection";
+import { ProjectsSection } from "@/components/projects/ProjectsSection/ProjectsSection";
 import type { ClientMemberView } from "@/lib/members";
-import type { Client } from "@/lib/types";
+import type { Client, Project } from "@/lib/types";
 import styles from "./ClientDetailView.module.css";
 
 type Tab = "info" | "members" | "projects";
@@ -22,6 +22,7 @@ interface ClientDetailViewProps {
   canDelete: boolean;
   members: ClientMemberView[];
   canManageMembers: boolean;
+  projects: Project[];
   currentUserId: string;
 }
 
@@ -36,6 +37,7 @@ export function ClientDetailView({
   canDelete,
   members,
   canManageMembers,
+  projects,
   currentUserId,
 }: ClientDetailViewProps) {
   const [tab, setTab] = useState<Tab>("info");
@@ -44,21 +46,13 @@ export function ClientDetailView({
     <div>
       <div className={styles.header}>
         <h1 className={styles.title}>{client.name}</h1>
-        <div className={styles.actions}>
-          <ClientFormDialog
+        {(canEdit || canDelete) && (
+          <ClientActionsMenu
             client={client}
-            triggerLabel="Editar"
-            triggerVariant="secondary"
-            disabled={!canEdit}
-            disabledReason="Tu rol en este cliente no permite editarlo."
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
-          <DeleteClientButton
-            clientId={client.id}
-            clientName={client.name}
-            disabled={!canDelete}
-            disabledReason="Solo el owner del cliente puede eliminarlo."
-          />
-        </div>
+        )}
       </div>
 
       <nav className={styles.tabs} aria-label="Secciones del cliente">
@@ -88,13 +82,11 @@ export function ClientDetailView({
         )}
 
         {tab === "projects" && (
-          <div className={styles.placeholder}>
-            <p className={styles.placeholderTitle}>Proyectos</p>
-            <p className={styles.placeholderHint}>
-              Aquí vivirán los proyectos de este cliente. Se habilita en el
-              siguiente paso.
-            </p>
-          </div>
+          <ProjectsSection
+            clientId={client.id}
+            projects={projects}
+            canManage={canEdit}
+          />
         )}
       </div>
     </div>

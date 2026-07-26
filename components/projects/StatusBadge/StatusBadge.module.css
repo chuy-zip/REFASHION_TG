@@ -1,0 +1,26 @@
+.badge {
+  display: inline-block;
+  padding: 0.0625rem 0.5rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+/* Neutral: not started. */
+.draft {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+}
+
+/* In progress. */
+.active {
+  color: var(--color-success);
+  background: var(--color-success-subtle);
+}
+
+/* Done / archived — muted. */
+.closed {
+  color: var(--color-text-disabled);
+  background: var(--color-surface-sunken);
+}

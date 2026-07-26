@@ -5,8 +5,11 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { ClientDetailView } from "@/components/clients/ClientDetailView/ClientDetailView";
+import { Icon } from "@/components/ui/Icon/Icon";
+import { getClientAccess } from "@/lib/access";
 import { listClientMembers } from "@/lib/members";
-import type { Client, ClientRole } from "@/lib/types";
+import { listClientProjects } from "@/lib/projects";
+import type { Client } from "@/lib/types";
 import styles from "./page.module.css";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -20,47 +23,37 @@ export default async function ClientDetailPage({ params }: PageProps) {
 
   const supabase = await createSupabaseClient();
   const user = await getAuthenticatedUser();
+  const userId = user?.id ?? "";
 
-  // Client row, this user's role on it, whether they are a global admin, and
-  // the member list — in parallel. The role/admin flags decide which actions
-  // the UI offers; RLS still enforces them regardless.
-  const [clientResult, membershipResult, adminResult, membersResult] =
+  // Client row, the caller's access, members and projects — in parallel. The
+  // access flags decide which actions the UI offers; RLS enforces them anyway.
+  const [clientResult, access, membersResult, projectsResult] =
     await Promise.all([
       supabase.from("clients").select("*").eq("id", id).maybeSingle(),
-      supabase
-        .from("client_members")
-        .select("role")
-        .eq("client_id", id)
-        .eq("user_id", user?.id ?? "")
-        .maybeSingle(),
-      supabase.rpc("is_global_admin"),
+      getClientAccess(supabase, id, userId),
       listClientMembers(supabase, id),
+      listClientProjects(supabase, id),
     ]);
 
   if (!clientResult.data) notFound();
 
   const client = clientResult.data as Client;
 
-  const clientRole = membershipResult.data?.role as ClientRole | undefined;
-  const isAdmin = adminResult.data === true;
-  // owner/editor may edit; only owner may delete or manage members. Admin
-  // bypasses all three, matching the RLS helpers.
-  const canEdit = isAdmin || clientRole === "owner" || clientRole === "editor";
-  const canDelete = isAdmin || clientRole === "owner";
-
   return (
     <main className={styles.page}>
       <Link className={styles.back} href="/clients">
+        <Icon name="arrowBack" size={16} />
         Volver a clientes
       </Link>
 
       <ClientDetailView
         client={client}
-        canEdit={canEdit}
-        canDelete={canDelete}
+        canEdit={access.canEdit}
+        canDelete={access.canManage}
         members={membersResult.members}
-        canManageMembers={canDelete}
-        currentUserId={user?.id ?? ""}
+        canManageMembers={access.canManage}
+        projects={projectsResult.projects}
+        currentUserId={userId}
       />
     </main>
   );

@@ -79,4 +79,6 @@ Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `
 - **Usuarios y permisos:** completo. Roles globales (`admin` / `editor` / `viewer`),
   administración de usuarios (solo admin), y gestión de miembros por cliente (invitar,
   cambiar rol, quitar, reasignar owner) manteniendo siempre ≥1 owner por cliente.
-- **Siguiente:** CRUD de proyectos y diseños. Después, la subida de imágenes a R2.
+- **Proyectos:** completo. Crear, listar, ver, editar y eliminar; estado
+  draft/active/closed; acciones agrupadas en un menú por recurso.
+- **Siguiente:** CRUD de diseños (cuelgan del proyecto). Después, la subida de imágenes a R2.

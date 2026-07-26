@@ -1,7 +1,12 @@
 import Link from "next/link";
-import { getAuthenticatedUser } from "@/lib/supabase/server";
+import {
+  createClient as createSupabaseClient,
+  getAuthenticatedUser,
+} from "@/lib/supabase/server";
 import { isCurrentUserAdmin } from "@/lib/authz";
+import { listEditableClients } from "@/lib/access";
 import { LogoutButton } from "@/components/auth/LogoutButton/LogoutButton";
+import { NewDesignWizard } from "@/components/designs/NewDesignWizard/NewDesignWizard";
 import { SidebarNav } from "./SidebarNav";
 import { POST_LOGIN_PATH } from "@/lib/routes";
 import styles from "./AppSidebar.module.css";
@@ -18,12 +23,20 @@ export async function AppSidebar() {
     isCurrentUserAdmin(),
   ]);
 
+  const supabase = await createSupabaseClient();
+  const editableClients = user
+    ? await listEditableClients(supabase, user.id, isAdmin)
+    : [];
+
   return (
     <aside className={styles.sidebar}>
       <div className={styles.top}>
         <Link href={POST_LOGIN_PATH} className={styles.brand}>
           Refashion IA
         </Link>
+        {editableClients.length > 0 && (
+          <NewDesignWizard clients={editableClients} />
+        )}
         <SidebarNav isAdmin={isAdmin} />
       </div>
 

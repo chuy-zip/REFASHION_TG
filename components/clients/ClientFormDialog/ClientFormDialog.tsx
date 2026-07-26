@@ -12,11 +12,19 @@ import styles from "./ClientFormDialog.module.css";
 interface ClientFormDialogProps {
   /** Present => edit that client (PATCH). Absent => create a new one (POST). */
   client?: Client;
-  triggerLabel: string;
+  /** Uncontrolled mode: label of the trigger button this renders. */
+  triggerLabel?: string;
   triggerVariant?: ButtonVariant;
   /** When set, the trigger is disabled and shows this reason on hover. */
   disabled?: boolean;
   disabledReason?: string;
+  /**
+   * Controlled mode: when `open` is provided the component renders no trigger
+   * and the parent drives visibility (e.g. from a menu). Mount it conditionally
+   * so each open starts with a fresh form.
+   */
+  open?: boolean;
+  onClose?: () => void;
 }
 
 type FormState = {
@@ -51,12 +59,16 @@ export function ClientFormDialog({
   triggerVariant = "primary",
   disabled = false,
   disabledReason,
+  open: controlledOpen,
+  onClose,
 }: ClientFormDialogProps) {
   const router = useRouter();
   const { notify } = useToast();
   const isEdit = client !== undefined;
+  const isControlled = controlledOpen !== undefined;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = isControlled ? controlledOpen : internalOpen;
   const [form, setForm] = useState<FormState>(() => initialState(client));
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,10 +77,15 @@ export function ClientFormDialog({
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function close() {
+    if (isControlled) onClose?.();
+    else setInternalOpen(false);
+  }
+
   function open() {
     setForm(initialState(client));
     setError(null);
-    setIsOpen(true);
+    setInternalOpen(true);
   }
 
   async function handleSubmit(event: SyntheticEvent) {
@@ -97,7 +114,7 @@ export function ClientFormDialog({
     }
 
     setIsSubmitting(false);
-    setIsOpen(false);
+    close();
     notify({
       type: "success",
       message: isEdit ? "Cliente actualizado." : "Cliente creado.",
@@ -110,18 +127,20 @@ export function ClientFormDialog({
 
   return (
     <>
-      <Button
-        variant={triggerVariant}
-        onClick={open}
-        disabled={disabled}
-        title={disabled ? disabledReason : undefined}
-      >
-        {triggerLabel}
-      </Button>
+      {!isControlled && (
+        <Button
+          variant={triggerVariant}
+          onClick={open}
+          disabled={disabled}
+          title={disabled ? disabledReason : undefined}
+        >
+          {triggerLabel}
+        </Button>
+      )}
 
       <Dialog
         open={isOpen}
-        onClose={() => setIsOpen(false)}
+        onClose={close}
         labelledBy={titleId}
       >
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
@@ -221,7 +240,7 @@ export function ClientFormDialog({
           <div className={styles.actions}>
             <Button
               variant="secondary"
-              onClick={() => setIsOpen(false)}
+              onClick={close}
               disabled={isSubmitting}
             >
               Cancelar

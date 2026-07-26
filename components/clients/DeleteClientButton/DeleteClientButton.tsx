@@ -14,24 +14,35 @@ interface DeleteClientButtonProps {
   /** When set, the trigger is disabled and shows this reason on hover. */
   disabled?: boolean;
   disabledReason?: string;
+  /** Controlled mode: parent drives visibility and renders no trigger. */
+  open?: boolean;
+  onClose?: () => void;
 }
 
 /**
  * Deletes a client after explicit confirmation. Only the owner (or a global
- * admin) can do it; the button is disabled for anyone else, and RLS is the
- * backstop if the disabled state is ever bypassed.
+ * admin) can do it; RLS is the backstop if the guard is ever bypassed.
  */
 export function DeleteClientButton({
   clientId,
   clientName,
   disabled = false,
   disabledReason,
+  open: controlledOpen,
+  onClose,
 }: DeleteClientButtonProps) {
   const router = useRouter();
   const { notify } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = isControlled ? controlledOpen : internalOpen;
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  function close() {
+    if (isControlled) onClose?.();
+    else setInternalOpen(false);
+  }
 
   async function handleDelete() {
     setError(null);
@@ -46,7 +57,7 @@ export function DeleteClientButton({
     }
 
     setIsDeleting(false);
-    setIsOpen(false);
+    close();
     notify({ type: "success", message: `${clientName} se eliminó.` });
     // The client no longer exists, so going back to its detail page would 404.
     router.replace("/clients");
@@ -57,23 +68,21 @@ export function DeleteClientButton({
 
   return (
     <>
-      <Button
-        variant="danger"
-        disabled={disabled}
-        title={disabled ? disabledReason : undefined}
-        onClick={() => {
-          setError(null);
-          setIsOpen(true);
-        }}
-      >
-        Eliminar
-      </Button>
+      {!isControlled && (
+        <Button
+          variant="danger"
+          disabled={disabled}
+          title={disabled ? disabledReason : undefined}
+          onClick={() => {
+            setError(null);
+            setInternalOpen(true);
+          }}
+        >
+          Eliminar
+        </Button>
+      )}
 
-      <Dialog
-        open={isOpen}
-        onClose={() => setIsOpen(false)}
-        labelledBy={titleId}
-      >
+      <Dialog open={isOpen} onClose={close} labelledBy={titleId}>
         <div className={styles.content}>
           <h2 className={styles.title} id={titleId}>
             Eliminar {clientName}
@@ -91,11 +100,7 @@ export function DeleteClientButton({
           )}
 
           <div className={styles.actions}>
-            <Button
-              variant="secondary"
-              onClick={() => setIsOpen(false)}
-              disabled={isDeleting}
-            >
+            <Button variant="secondary" onClick={close} disabled={isDeleting}>
               Cancelar
             </Button>
             <Button

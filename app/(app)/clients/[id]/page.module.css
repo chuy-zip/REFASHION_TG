@@ -5,7 +5,9 @@
 }
 
 .back {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   margin-bottom: 1rem;
   font-size: var(--text-sm);
   color: var(--color-accent);
