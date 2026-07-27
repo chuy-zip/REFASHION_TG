@@ -55,6 +55,16 @@ export function extensionForMimeType(mimeType: string): string {
   return extension;
 }
 
+/**
+ * Strips the trailing extension so the UI can offer an editable "base name"
+ * while the extension stays fixed (derived from the real mime type, never
+ * from user input — see extensionForMimeType).
+ */
+export function stripExtension(filename: string): string {
+  const lastDot = filename.lastIndexOf(".");
+  return lastDot > 0 ? filename.slice(0, lastDot) : filename;
+}
+
 /** Assets uploaded before migration 008 have no original_filename to show. */
 export function assetDisplayName(asset: Pick<Asset, "asset_type" | "mime_type" | "original_filename">): string {
   if (asset.original_filename) return asset.original_filename;

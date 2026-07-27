@@ -4,10 +4,55 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { deleteObject } from "@/lib/r2";
-import { jsonError, translateDbError, unauthorized } from "@/lib/api";
+import { renameAssetSchema } from "@/lib/validation";
+import {
+  jsonError,
+  readJsonBody,
+  translateDbError,
+  unauthorized,
+} from "@/lib/api";
 import type { Asset } from "@/lib/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+/** PATCH /api/assets/:id — rename only (owner/editor of the client, via RLS). */
+export async function PATCH(request: Request, { params }: RouteContext) {
+  const user = await getAuthenticatedUser();
+  if (!user) return unauthorized();
+
+  const { id } = await params;
+
+  const body = await readJsonBody(request);
+  if (body === null) {
+    return jsonError("El cuerpo de la petición no es JSON válido.", 400);
+  }
+
+  const parsed = renameAssetSchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(
+      parsed.error.issues[0]?.message ?? "Los datos enviados no son válidos.",
+      400
+    );
+  }
+
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .update(parsed.data)
+    .eq("id", id)
+    .select()
+    .maybeSingle();
+
+  if (error) return translateDbError(error);
+  if (!data) {
+    return jsonError(
+      "No se pudo renombrar el recurso. No existe o no tienes permisos.",
+      403
+    );
+  }
+
+  return NextResponse.json(data as Asset);
+}
 
 /**
  * DELETE /api/assets/:id — owner/editor of the parent client (RLS).

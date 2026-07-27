@@ -15,6 +15,8 @@ export const createClientSchema = z.object({
     .min(1, "El nombre del cliente es obligatorio.")
     .max(200, "El nombre no puede superar los 200 caracteres."),
   nit: optionalText,
+  phone: optionalText,
+  email: z.email("El correo no es válido.").nullish(),
   address: optionalText,
   city: optionalText,
   country: optionalText,
@@ -212,3 +214,14 @@ export const confirmAssetSchema = z.object({
 });
 
 export type ConfirmAssetInput = z.infer<typeof confirmAssetSchema>;
+
+/** PATCH /api/assets/:id — rename only; the extension is fixed app-side. */
+export const renameAssetSchema = z.object({
+  original_filename: z
+    .string()
+    .trim()
+    .min(1, "El nombre del archivo es obligatorio.")
+    .max(255, "El nombre del archivo es demasiado largo."),
+});
+
+export type RenameAssetInput = z.infer<typeof renameAssetSchema>;

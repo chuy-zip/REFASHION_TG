@@ -29,6 +29,8 @@ interface ClientFormDialogProps {
 
 type FormState = {
   name: string;
+  phone: string;
+  email: string;
   nit: string;
   city: string;
   country: string;
@@ -39,6 +41,8 @@ type FormState = {
 function initialState(client?: Client): FormState {
   return {
     name: client?.name ?? "",
+    phone: client?.phone ?? "",
+    email: client?.email ?? "",
     nit: client?.nit ?? "",
     city: client?.city ?? "",
     country: client?.country ?? "Guatemala",
@@ -96,6 +100,8 @@ export function ClientFormDialog({
     const body = {
       name: form.name,
       // Empty inputs become null so the column stays NULL, never "".
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
       nit: form.nit.trim() || null,
       city: form.city.trim() || null,
       country: form.country.trim() || null,
@@ -167,6 +173,36 @@ export function ClientFormDialog({
               required
               disabled={isSubmitting}
             />
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor={`${titleId}-phone`}>
+                Teléfono <span className={styles.optional}>(opcional)</span>
+              </label>
+              <input
+                id={`${titleId}-phone`}
+                className={styles.input}
+                type="tel"
+                value={form.phone}
+                onChange={(event) => setField("phone", event.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor={`${titleId}-email`}>
+                Correo <span className={styles.optional}>(opcional)</span>
+              </label>
+              <input
+                id={`${titleId}-email`}
+                className={styles.input}
+                type="email"
+                value={form.email}
+                onChange={(event) => setField("email", event.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
           </div>
 
           <div className={styles.row}>

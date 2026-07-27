@@ -106,25 +106,63 @@ export function ClientDetailView({
   );
 }
 
+type DetailGroup = {
+  title: string;
+  details: { label: string; value: string | null }[];
+};
+
+/**
+ * Grouped instead of one flat grid: unrelated fields (NIT next to Notas)
+ * sitting at the same visual weight was what made the tab feel empty/
+ * unstructured. Contacto/Ubicación/Otros mirrors the field order in
+ * ClientFormDialog, so the edit form and this read view build the same
+ * mental model.
+ */
 function InfoPanel({ client }: { client: Client }) {
-  const details: { label: string; value: string | null }[] = [
-    { label: "NIT", value: client.nit },
-    { label: "Ciudad", value: client.city },
-    { label: "País", value: client.country },
-    { label: "Dirección", value: client.address },
-    { label: "Notas", value: client.notes },
+  const groups: DetailGroup[] = [
+    {
+      title: "Contacto",
+      details: [
+        { label: "Teléfono", value: client.phone },
+        { label: "Correo", value: client.email },
+      ],
+    },
+    {
+      title: "Ubicación",
+      details: [
+        { label: "Dirección", value: client.address },
+        { label: "Ciudad", value: client.city },
+        { label: "País", value: client.country },
+      ],
+    },
+    {
+      title: "Otros",
+      details: [
+        { label: "NIT", value: client.nit },
+        { label: "Notas", value: client.notes },
+      ],
+    },
   ];
 
   return (
-    <dl className={styles.details}>
-      {details.map(({ label, value }) => (
-        <div className={styles.detail} key={label}>
-          <dt className={styles.detailLabel}>{label}</dt>
-          <dd className={styles.detailValue}>
-            {value || <span className={styles.emptyValue}>Sin datos</span>}
-          </dd>
-        </div>
+    <div className={styles.infoGroups}>
+      {groups.map((group) => (
+        <section key={group.title}>
+          <h3 className={styles.groupTitle}>{group.title}</h3>
+          <dl className={styles.details}>
+            {group.details.map(({ label, value }) => (
+              <div className={styles.detail} key={label}>
+                <dt className={styles.detailLabel}>{label}</dt>
+                <dd className={styles.detailValue}>
+                  {value || (
+                    <span className={styles.emptyValue}>Sin datos</span>
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       ))}
-    </dl>
+    </div>
   );
 }

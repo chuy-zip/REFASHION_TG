@@ -6,7 +6,12 @@ import { Button, type ButtonVariant } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiPost } from "@/lib/api-client";
-import { ASSET_TYPE_COPY, type AssetWithUrl } from "@/lib/assets";
+import {
+  ASSET_TYPE_COPY,
+  extensionForMimeType,
+  stripExtension,
+  type AssetWithUrl,
+} from "@/lib/assets";
 import type { ClientAssetType } from "@/lib/types";
 import styles from "./AssetUploadDialog.module.css";
 
@@ -44,6 +49,7 @@ export function AssetUploadDialog({
 
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [baseName, setBaseName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -51,6 +57,7 @@ export function AssetUploadDialog({
 
   function open() {
     setFile(null);
+    setBaseName("");
     setError(null);
     setIsOpen(true);
   }
@@ -59,9 +66,16 @@ export function AssetUploadDialog({
     setIsOpen(false);
   }
 
+  function handleFileChange(selected: File | null) {
+    setFile(selected);
+    // Seed an editable name from the picked file — "screenshot-2026" instead
+    // of a name the user never chose. The extension is never taken from here.
+    setBaseName(selected ? stripExtension(selected.name) : "");
+  }
+
   async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
-    if (!file) return;
+    if (!file || baseName.trim().length === 0) return;
 
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       setError("Formato no soportado. Usa PNG, JPEG o WEBP.");
@@ -112,7 +126,7 @@ export function AssetUploadDialog({
       client_id: clientId,
       r2_key,
       asset_type: assetType,
-      original_filename: file.name,
+      original_filename: `${baseName.trim()}.${extensionForMimeType(file.type)}`,
       mime_type: file.type,
       file_size_bytes: file.size,
     });
@@ -163,13 +177,35 @@ export function AssetUploadDialog({
               className={styles.input}
               type="file"
               accept={ALLOWED_MIME_TYPES.join(",")}
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              onChange={(event) =>
+                handleFileChange(event.target.files?.[0] ?? null)
+              }
               disabled={isSubmitting}
               autoFocus
               required
             />
             <p className={styles.hint}>PNG, JPEG o WEBP. Máximo 10 MB.</p>
           </div>
+
+          {file && (
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor={`${titleId}-name`}>
+                Nombre
+              </label>
+              <input
+                id={`${titleId}-name`}
+                className={styles.input}
+                value={baseName}
+                onChange={(event) => setBaseName(event.target.value)}
+                required
+                disabled={isSubmitting}
+              />
+              <p className={styles.hint}>
+                Se guardará como {baseName.trim() || "…"}.
+                {extensionForMimeType(file.type)}
+              </p>
+            </div>
+          )}
 
           <div className={styles.actions}>
             <Button
@@ -182,7 +218,7 @@ export function AssetUploadDialog({
             <Button
               type="submit"
               variant="primary"
-              disabled={isSubmitting || !file}
+              disabled={isSubmitting || !file || baseName.trim().length === 0}
             >
               {isSubmitting ? "Subiendo…" : "Subir"}
             </Button>

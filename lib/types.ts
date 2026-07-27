@@ -74,6 +74,8 @@ export interface Client {
   id: string;
   name: string;
   nit: string | null;
+  phone: string | null;
+  email: string | null;
   address: string | null;
   city: string | null;
   country: string | null;
