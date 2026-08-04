@@ -58,6 +58,35 @@
   resize: vertical;
 }
 
+/* The picker step shows a thumbnail grid; the form-sized default is too narrow. */
+.dialogWide {
+  width: min(48rem, calc(100vw - 2rem));
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.pickerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.pickerValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;

@@ -2,6 +2,11 @@
   width: 100%;
 }
 
+/* The picker step shows a thumbnail grid; the form-sized default is too narrow. */
+.dialogWide {
+  width: min(48rem, calc(100vw - 2rem));
+}
+
 .form {
   display: flex;
   flex-direction: column;

@@ -125,7 +125,7 @@ export function AddMemberDialog({
               </option>
               {candidates.map((user) => (
                 <option key={user.id} value={user.id}>
-                  {displayName(user)} — {user.email}
+                  {displayName(user)} · {user.email}
                 </option>
               ))}
             </select>

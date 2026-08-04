@@ -23,46 +23,8 @@
   margin-bottom: 1rem;
 }
 
-.pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
-}
-
-.pill:hover {
-  color: var(--color-text-primary);
-  border-color: var(--color-border-strong);
-}
-
-.pill[aria-selected="true"] {
-  color: var(--color-accent);
-  background: var(--color-accent-subtle);
-  border-color: var(--color-accent);
-}
-
-.count {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: inherit;
-  opacity: 0.75;
-}
+/* Pills and the grid/empty state now live in components/ui (PillTabs,
+   ThumbnailGrid) — shared with the starting-point picker. */
 
 .search {
   position: relative;
@@ -89,32 +51,4 @@
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 0.75rem;
-}
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 3rem 1.5rem;
-  text-align: center;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-}
-
-.emptyTitle {
-  font-size: var(--text-lg);
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.emptyHint {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
 }

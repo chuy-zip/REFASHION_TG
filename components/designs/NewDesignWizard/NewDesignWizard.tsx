@@ -5,8 +5,18 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
+import {
+  StartingPointPicker,
+  type StartingPoint,
+} from "@/components/designs/StartingPointPicker/StartingPointPicker";
 import { apiGet, apiPost } from "@/lib/api-client";
-import { GARMENT_TYPE_COPY, type GarmentType } from "@/lib/designs";
+import {
+  GARMENT_TYPE_COPY,
+  toDesignOptions,
+  type DesignOption,
+  type GarmentType,
+} from "@/lib/designs";
+import type { AssetWithUrl } from "@/lib/assets";
 import type { Design, Project } from "@/lib/types";
 import styles from "./NewDesignWizard.module.css";
 
@@ -15,12 +25,13 @@ const GARMENT_TYPES: GarmentType[] = ["shirt", "polo", "hoodie"];
 /** Sentinel value for "no existing project selected — create one instead". */
 const NEW_PROJECT = "__new__";
 
-type Step = "client" | "project" | "design";
+type Step = "client" | "project" | "start" | "design";
 
 const STEP_LABEL: Record<Step, string> = {
-  client: "Paso 1 de 3 · Cliente",
-  project: "Paso 2 de 3 · Proyecto",
-  design: "Paso 3 de 3 · Diseño",
+  client: "Paso 1 de 4 · Cliente",
+  project: "Paso 2 de 4 · Proyecto",
+  start: "Paso 3 de 4 · Punto de partida",
+  design: "Paso 4 de 4 · Diseño",
 };
 
 interface NewDesignWizardProps {
@@ -31,8 +42,8 @@ interface NewDesignWizardProps {
 /**
  * Sidebar shortcut to create a design without first navigating
  * cliente → proyecto by hand. Walks client → project (existing or new) →
- * design fields, then posts to the same /api/designs the per-project dialog
- * uses, and lands on the project detail page (no design detail page yet).
+ * starting point → design fields, posts to the same /api/designs the
+ * per-project dialog uses, and lands on the design's editing screen.
  */
 export function NewDesignWizard({ clients }: NewDesignWizardProps) {
   const router = useRouter();
@@ -50,14 +61,26 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
     null
   );
 
+  const [assets, setAssets] = useState<AssetWithUrl[]>([]);
+  const [designOptions, setDesignOptions] = useState<DesignOption[]>([]);
+  const [startingPoint, setStartingPoint] = useState<StartingPoint | null>(null);
+
   const [name, setName] = useState("");
   const [garmentType, setGarmentType] = useState<GarmentType>("shirt");
-  const [version, setVersion] = useState(1);
   const [notes, setNotes] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  /** The parent design, when the starting point is an iteration. */
+  const parentDesign =
+    startingPoint?.kind === "design"
+      ? designOptions.find((option) => option.id === startingPoint.id) ?? null
+      : null;
+
+  // Mirrors what the server will derive on insert (see POST /api/designs).
+  const nextVersion = parentDesign ? parentDesign.version + 1 : 1;
 
   function open() {
     setStep("client");
@@ -66,9 +89,11 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
     setProjectId(NEW_PROJECT);
     setNewProjectName("");
     setResolvedProjectId(null);
+    setAssets([]);
+    setDesignOptions([]);
+    setStartingPoint(null);
     setName("");
     setGarmentType("shirt");
-    setVersion(1);
     setNotes("");
     setError(null);
     setIsOpen(true);
@@ -83,48 +108,77 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
     setError(null);
     setIsLoadingProjects(true);
 
-    const result = await apiGet<Project[]>(
-      `/api/projects?client_id=${clientId}`
-    );
+    // Assets are best-effort: the starting point is optional, so a failure
+    // there shouldn't block moving on.
+    const [projectsResult, assetsResult] = await Promise.all([
+      apiGet<Project[]>(`/api/projects?client_id=${clientId}`),
+      apiGet<AssetWithUrl[]>(`/api/assets?client_id=${clientId}`),
+    ]);
 
     setIsLoadingProjects(false);
 
-    if (!result.ok) {
-      setError(result.error);
+    if (!projectsResult.ok) {
+      setError(projectsResult.error);
       return;
     }
 
-    setProjects(result.data);
-    setProjectId(result.data[0]?.id ?? NEW_PROJECT);
+    setProjects(projectsResult.data);
+    setProjectId(projectsResult.data[0]?.id ?? NEW_PROJECT);
+    setAssets(assetsResult.ok ? assetsResult.data : []);
+    setStartingPoint(null);
     setStep("project");
   }
 
   async function handleProjectNext() {
     setError(null);
+    setIsSubmitting(true);
+
+    let targetProjectId = projectId;
 
     if (projectId === NEW_PROJECT) {
       if (newProjectName.trim().length === 0) {
+        setIsSubmitting(false);
         setError("El nombre del proyecto es obligatorio.");
         return;
       }
 
-      setIsSubmitting(true);
       const result = await apiPost<Project>("/api/projects", {
         client_id: clientId,
         name: newProjectName,
       });
-      setIsSubmitting(false);
 
       if (!result.ok) {
+        setIsSubmitting(false);
         setError(result.error);
         return;
       }
 
-      setResolvedProjectId(result.data.id);
-    } else {
-      setResolvedProjectId(projectId);
+      targetProjectId = result.data.id;
     }
 
+    setResolvedProjectId(targetProjectId);
+
+    // Existing designs of this project become the iteration candidates. Their
+    // previews resolve against the assets already fetched — no second signing.
+    const designsResult = await apiGet<Design[]>(
+      `/api/designs?project_id=${targetProjectId}`
+    );
+    setDesignOptions(
+      designsResult.ok ? toDesignOptions(designsResult.data, assets) : []
+    );
+
+    setIsSubmitting(false);
+    setStartingPoint(null);
+    setStep("start");
+  }
+
+  function handleStartNext() {
+    // Iterating carries the parent's identity forward: same name and garment,
+    // next version. All three stay editable except the version.
+    if (parentDesign) {
+      setName(parentDesign.name);
+      setGarmentType(parentDesign.garment_type as GarmentType);
+    }
     setStep("design");
   }
 
@@ -139,7 +193,10 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
       project_id: resolvedProjectId,
       name,
       garment_type: garmentType,
-      version,
+      base_asset_id:
+        startingPoint?.kind === "asset" ? startingPoint.id : null,
+      parent_design_id:
+        startingPoint?.kind === "design" ? startingPoint.id : null,
       notes: notes.trim() || null,
     });
 
@@ -152,22 +209,23 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
 
     close();
     notify({ type: "success", message: "Diseño creado." });
-    router.push(`/projects/${resolvedProjectId}`);
+    router.push(`/designs/${result.data.id}/edit`);
   }
 
   const titleId = "new-design-wizard";
 
   return (
     <>
-      <Button
-        variant="primary"
-        className={styles.trigger}
-        onClick={open}
-      >
+      <Button variant="primary" className={styles.trigger} onClick={open}>
         + Nuevo diseño
       </Button>
 
-      <Dialog open={isOpen} onClose={close} labelledBy={titleId}>
+      <Dialog
+        open={isOpen}
+        onClose={close}
+        labelledBy={titleId}
+        className={step === "start" ? styles.dialogWide : undefined}
+      >
         {step === "client" && (
           <div className={styles.form}>
             <h2 className={styles.title} id={titleId}>
@@ -289,6 +347,35 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
           </div>
         )}
 
+        {step === "start" && (
+          <div className={styles.form}>
+            <h2 className={styles.title} id={titleId}>
+              Nuevo diseño
+            </h2>
+            <p className={styles.stepLabel}>{STEP_LABEL.start}</p>
+            <p className={styles.hint}>
+              Elige una imagen del catálogo, o un diseño existente para crear su
+              siguiente versión. También puedes continuar sin punto de partida.
+            </p>
+
+            <StartingPointPicker
+              assets={assets}
+              designs={designOptions}
+              value={startingPoint}
+              onChange={setStartingPoint}
+            />
+
+            <div className={`${styles.actions} ${styles.spread}`}>
+              <Button variant="secondary" onClick={() => setStep("project")}>
+                Atrás
+              </Button>
+              <Button variant="primary" onClick={handleStartNext}>
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        )}
+
         {step === "design" && (
           <form
             className={styles.form}
@@ -306,6 +393,13 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
               </p>
             )}
 
+            {parentDesign && (
+              <p className={styles.hint}>
+                Iteración de <strong>{parentDesign.name}</strong> v
+                {parentDesign.version}.
+              </p>
+            )}
+
             <div className={styles.field}>
               <label className={styles.label} htmlFor={`${titleId}-name`}>
                 Nombre
@@ -319,23 +413,6 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
                 required
                 disabled={isSubmitting}
               />
-            </div>
-
-            <div className={styles.field}>
-              <label
-                className={styles.label}
-                htmlFor={`${titleId}-base-garment`}
-              >
-                Prenda base <span className={styles.optional}>(opcional)</span>
-              </label>
-              <Button
-                id={`${titleId}-base-garment`}
-                variant="ghost"
-                disabled
-                title="Próximamente: elegir una prenda del catálogo del cliente como punto de partida."
-              >
-                Elegir del catálogo — próximamente
-              </Button>
             </div>
 
             <div className={styles.row}>
@@ -367,14 +444,9 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
                 <input
                   id={`${titleId}-version`}
                   className={styles.input}
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={version}
-                  onChange={(event) =>
-                    setVersion(Math.max(1, Number(event.target.value) || 1))
-                  }
-                  disabled={isSubmitting}
+                  value={nextVersion}
+                  readOnly
+                  disabled
                 />
               </div>
             </div>
@@ -396,7 +468,7 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
             <div className={`${styles.actions} ${styles.spread}`}>
               <Button
                 variant="secondary"
-                onClick={() => setStep("project")}
+                onClick={() => setStep("start")}
                 disabled={isSubmitting}
               >
                 Atrás

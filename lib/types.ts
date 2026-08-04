@@ -20,6 +20,13 @@ export type ClientRole = "owner" | "editor" | "viewer";
 
 export type ProjectStatus = "draft" | "active" | "closed";
 
+/**
+ * Where a design sits in its session. Unlike `version` this is not derived:
+ * it records the user's intent ("I consider this finished"), which the
+ * design's assets cannot tell us. See migration 011.
+ */
+export type DesignStatus = "draft" | "active" | "completed";
+
 export type AssetOrigin = "upload" | "generated";
 
 /** Assets hanging directly off a client — the catalog. */
@@ -106,7 +113,19 @@ export interface Design {
   project_id: string;
   name: string;
   garment_type: string;
+  /**
+   * Derived, never typed by hand: 1 for a new design, parent.version + 1 for
+   * an iteration. See parent_design_id.
+   */
   version: number;
+  status: DesignStatus;
+  /** The catalog image this design starts from. Null when it has none. */
+  base_asset_id: string | null;
+  /**
+   * The design this one iterates on (v1 -> v2). Traces design-level lineage;
+   * assets.parent_asset_id traces image-level lineage. Both exist on purpose.
+   */
+  parent_design_id: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

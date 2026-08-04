@@ -136,6 +136,15 @@ const garmentType = z.enum(["shirt", "polo", "hoodie"], {
   message: "Selecciona un tipo de prenda válido.",
 });
 
+const designStatus = z.enum(["draft", "active", "completed"], {
+  message: "Selecciona un estado válido.",
+});
+
+/**
+ * `version` is deliberately absent from both schemas: it is derived server-side
+ * (1, or parent.version + 1 for an iteration), never sent by the client. See
+ * migration 010.
+ */
 export const createDesignSchema = z.object({
   project_id: z.uuid("El proyecto seleccionado no es válido."),
   name: z
@@ -144,11 +153,12 @@ export const createDesignSchema = z.object({
     .min(1, "El nombre del diseño es obligatorio.")
     .max(200, "El nombre no puede superar los 200 caracteres."),
   garment_type: garmentType.optional(),
-  version: z.coerce
-    .number()
-    .int()
-    .positive("La versión debe ser un número positivo.")
-    .optional(),
+  /** Catalog image to start from. Ignored when parent_design_id is present. */
+  base_asset_id: z.uuid("La prenda base seleccionada no es válida.").nullish(),
+  /** Design this one iterates on; its version and starting image are inherited. */
+  parent_design_id: z
+    .uuid("El diseño seleccionado no es válido.")
+    .nullish(),
   notes: z.string().trim().max(2000).nullish(),
 });
 
@@ -163,11 +173,8 @@ export const updateDesignSchema = z
       .max(200, "El nombre no puede superar los 200 caracteres.")
       .optional(),
     garment_type: garmentType.optional(),
-    version: z.coerce
-      .number()
-      .int()
-      .positive("La versión debe ser un número positivo.")
-      .optional(),
+    status: designStatus.optional(),
+    base_asset_id: z.uuid("La prenda base seleccionada no es válida.").nullish(),
     notes: z.string().trim().max(2000).nullish(),
   })
   .refine((data) => Object.keys(data).length > 0, {

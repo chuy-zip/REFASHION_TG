@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { AssetCard } from "@/components/assets/AssetCard/AssetCard";
 import { AssetUploadDialog } from "@/components/assets/AssetUploadDialog/AssetUploadDialog";
 import { Icon } from "@/components/ui/Icon/Icon";
+import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
+import { ThumbnailGrid } from "@/components/ui/ThumbnailGrid/ThumbnailGrid";
 import { ASSET_TYPE_COPY, CLIENT_ASSET_TYPES, type AssetWithUrl } from "@/lib/assets";
 import type { ClientAssetType } from "@/lib/types";
 import styles from "./AssetsSection.module.css";
@@ -69,21 +71,16 @@ export function AssetsSection({
       </div>
 
       <div className={styles.toolbar}>
-        <div className={styles.pills} role="tablist" aria-label="Tipo de recurso">
-          {CLIENT_ASSET_TYPES.map((type) => (
-            <button
-              key={type}
-              type="button"
-              role="tab"
-              aria-selected={selectedType === type}
-              className={styles.pill}
-              onClick={() => selectType(type)}
-            >
-              {ASSET_TYPE_COPY[type].labelPlural}
-              <span className={styles.count}>{countByType[type] ?? 0}</span>
-            </button>
-          ))}
-        </div>
+        <PillTabs
+          label="Tipo de recurso"
+          selected={selectedType}
+          onSelect={(key) => selectType(key as ClientAssetType)}
+          options={CLIENT_ASSET_TYPES.map((type) => ({
+            key: type,
+            label: ASSET_TYPE_COPY[type].labelPlural,
+            count: countByType[type] ?? 0,
+          }))}
+        />
 
         {canManage && (
           <AssetUploadDialog clientId={clientId} assetType={selectedType} />
@@ -104,26 +101,23 @@ export function AssetsSection({
         </div>
       )}
 
-      {visibleAssets.length === 0 ? (
-        <div className={styles.empty}>
-          <p className={styles.emptyTitle}>
-            {trimmedQuery
-              ? `No se encontraron resultados para "${query.trim()}".`
-              : copy.empty}
-          </p>
-          {!trimmedQuery && canManage && (
-            <p className={styles.emptyHint}>
-              Subí el primero con el botón de arriba.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className={styles.grid}>
-          {visibleAssets.map((asset) => (
-            <AssetCard key={asset.id} asset={asset} canEdit={canManage} />
-          ))}
-        </div>
-      )}
+      <ThumbnailGrid
+        isEmpty={visibleAssets.length === 0}
+        emptyTitle={
+          trimmedQuery
+            ? `No se encontraron resultados para "${query.trim()}".`
+            : copy.empty
+        }
+        emptyHint={
+          !trimmedQuery && canManage
+            ? "Sube el primero con el botón de arriba."
+            : undefined
+        }
+      >
+        {visibleAssets.map((asset) => (
+          <AssetCard key={asset.id} asset={asset} canEdit={canManage} />
+        ))}
+      </ThumbnailGrid>
     </section>
   );
 }

@@ -5,9 +5,11 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { getClientAccess } from "@/lib/access";
-import { listProjectDesigns } from "@/lib/designs";
+import { listClientAssets } from "@/lib/assets";
+import { listProjectDesigns, toDesignOptions } from "@/lib/designs";
 import { ProjectActionsMenu } from "@/components/projects/ProjectActionsMenu/ProjectActionsMenu";
-import { StatusBadge } from "@/components/projects/StatusBadge/StatusBadge";
+import { Badge } from "@/components/ui/Badge/Badge";
+import { PROJECT_STATUS_COPY } from "@/lib/projects";
 import { DesignsSection } from "@/components/designs/DesignsSection/DesignsSection";
 import { Icon } from "@/components/ui/Icon/Icon";
 import type { Client, Project } from "@/lib/types";
@@ -35,18 +37,22 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const project = projectData as Project;
 
   // Parent client name (for the breadcrumb), this user's edit rights on it,
-  // and the project's designs.
-  const [{ data: clientData }, access, { designs }] = await Promise.all([
-    supabase
-      .from("clients")
-      .select("id, name")
-      .eq("id", project.client_id)
-      .maybeSingle(),
-    getClientAccess(supabase, project.client_id, user?.id ?? ""),
-    listProjectDesigns(supabase, project.id),
-  ]);
+  // the project's designs, and the client's catalog — the last two feed the
+  // "Crear diseño" starting-point picker.
+  const [{ data: clientData }, access, { designs }, { assets }] =
+    await Promise.all([
+      supabase
+        .from("clients")
+        .select("id, name")
+        .eq("id", project.client_id)
+        .maybeSingle(),
+      getClientAccess(supabase, project.client_id, user?.id ?? ""),
+      listProjectDesigns(supabase, project.id),
+      listClientAssets(supabase, project.client_id),
+    ]);
 
   const client = clientData as Pick<Client, "id" | "name"> | null;
+  const designOptions = toDesignOptions(designs, assets);
 
   return (
     <main className={styles.page}>
@@ -58,7 +64,9 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       <div className={styles.header}>
         <div className={styles.heading}>
           <h1 className={styles.title}>{project.name}</h1>
-          <StatusBadge status={project.status} />
+          <Badge tone={PROJECT_STATUS_COPY[project.status].tone}>
+            {PROJECT_STATUS_COPY[project.status].label}
+          </Badge>
         </div>
         {access.canEdit && (
           <ProjectActionsMenu project={project} canEdit={access.canEdit} />
@@ -72,6 +80,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       <DesignsSection
         projectId={project.id}
         designs={designs}
+        assets={assets}
+        designOptions={designOptions}
         canManage={access.canEdit}
       />
     </main>

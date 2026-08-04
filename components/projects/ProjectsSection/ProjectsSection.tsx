@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog/ProjectFormDialog";
-import { StatusBadge } from "@/components/projects/StatusBadge/StatusBadge";
+import { Badge } from "@/components/ui/Badge/Badge";
+import { PROJECT_STATUS_COPY } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 import styles from "./ProjectsSection.module.css";
 
@@ -57,7 +58,9 @@ export function ProjectsSection({
                     </span>
                   )}
                 </div>
-                <StatusBadge status={project.status} />
+                <Badge tone={PROJECT_STATUS_COPY[project.status].tone}>
+                  {PROJECT_STATUS_COPY[project.status].label}
+                </Badge>
               </Link>
             </li>
           ))}

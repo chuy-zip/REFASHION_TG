@@ -1,0 +1,35 @@
+.page {
+  width: 100%;
+  max-width: 90rem;
+  padding: 1.5rem 2rem;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.header {
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.subtitle {
+  margin-top: 0.125rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}

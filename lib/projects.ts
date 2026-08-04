@@ -1,11 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { BadgeTone } from "@/components/ui/Badge/Badge";
 import type { Project, ProjectStatus } from "@/lib/types";
 
 /** User-facing Spanish copy for project statuses (code/DB keep English). */
-export const PROJECT_STATUS_COPY: Record<ProjectStatus, { label: string }> = {
-  draft: { label: "Borrador" },
-  active: { label: "Activo" },
-  closed: { label: "Cerrado" },
+export const PROJECT_STATUS_COPY: Record<
+  ProjectStatus,
+  { label: string; tone: BadgeTone }
+> = {
+  draft: { label: "Borrador", tone: "neutral" },
+  active: { label: "Activo", tone: "success" },
+  closed: { label: "Cerrado", tone: "muted" },
 };
 
 export function projectStatusLabel(status: ProjectStatus): string {

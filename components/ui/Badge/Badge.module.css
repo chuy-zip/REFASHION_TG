@@ -7,20 +7,20 @@
   white-space: nowrap;
 }
 
-/* Neutral: not started. */
-.draft {
+/* Not started yet. */
+.neutral {
   color: var(--color-text-secondary);
   background: var(--color-surface-sunken);
 }
 
-/* In progress. */
-.active {
+/* Under way. */
+.success {
   color: var(--color-success);
   background: var(--color-success-subtle);
 }
 
-/* Done / archived — muted. */
-.closed {
+/* Finished or archived — deliberately quiet, it needs no attention. */
+.muted {
   color: var(--color-text-disabled);
   background: var(--color-surface-sunken);
 }
