@@ -1,3 +1,13 @@
+/* The sidebar's trigger spans the rail; a section header's sits inline. */
+.triggerFullWidth {
+  width: 100%;
+}
+
+/* The picker step shows a thumbnail grid; the form-sized default is too narrow. */
+.dialogWide {
+  width: min(48rem, calc(100vw - 2rem));
+}
+
 .form {
   display: flex;
   flex-direction: column;
@@ -9,6 +19,12 @@
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.stepLabel {
+  margin-top: -0.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
 }
 
 .row {
@@ -58,33 +74,23 @@
   resize: vertical;
 }
 
-/* The picker step shows a thumbnail grid; the form-sized default is too narrow. */
-.dialogWide {
-  width: min(48rem, calc(100vw - 2rem));
-}
-
 .hint {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
 }
 
-.pickerRow {
+/* Holds the picker's height while its images are on the way, so the dialog
+   does not resize under the pointer once they land. */
+.loading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-}
-
-.pickerValue {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  justify-content: center;
+  min-height: 18rem;
   font-size: var(--text-sm);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
 }
 
 .actions {
@@ -92,6 +98,10 @@
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.25rem;
+}
+
+.actions.spread {
+  justify-content: space-between;
 }
 
 .error {

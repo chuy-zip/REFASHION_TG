@@ -87,6 +87,42 @@ export function toDesignOptions(
   });
 }
 
+/**
+ * Whether a catalog asset may be referenced as a design's starting image.
+ *
+ * Foreign keys are verified below RLS (APRENDIZAJES §2.5b), so the FK on
+ * `designs.base_asset_id` would happily accept an asset belonging to another
+ * client. Reading the asset here *does* go through RLS, so this answers both
+ * questions at once: can this user see it, and is it in the right catalog.
+ *
+ * Lives in lib/ because two endpoints need the identical check (POST /api/designs
+ * and PATCH /api/designs/:id) and getting it wrong in one of them is invisible
+ * until cross-client references show up in the data.
+ */
+export async function assetBelongsToProjectClient(
+  supabase: SupabaseClient,
+  assetId: string,
+  projectId: string
+): Promise<boolean> {
+  const [{ data: assetData }, { data: projectData }] = await Promise.all([
+    supabase.from("assets").select("client_id").eq("id", assetId).maybeSingle(),
+    supabase
+      .from("projects")
+      .select("client_id")
+      .eq("id", projectId)
+      .maybeSingle(),
+  ]);
+
+  const assetClientId = (assetData as { client_id: string | null } | null)
+    ?.client_id;
+  const projectClientId = (projectData as { client_id: string } | null)
+    ?.client_id;
+
+  return Boolean(
+    assetClientId && projectClientId && assetClientId === projectClientId
+  );
+}
+
 /** Designs of a project, newest first. RLS returns only what the user may see. */
 export async function listProjectDesigns(
   supabase: SupabaseClient,

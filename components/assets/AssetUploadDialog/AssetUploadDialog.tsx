@@ -5,24 +5,14 @@ import { useRouter } from "next/navigation";
 import { Button, type ButtonVariant } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
-import { apiPost } from "@/lib/api-client";
+import { UPLOAD_ACCEPT, uploadClientAsset } from "@/lib/asset-upload";
 import {
   ASSET_TYPE_COPY,
   extensionForMimeType,
   stripExtension,
-  type AssetWithUrl,
 } from "@/lib/assets";
 import type { ClientAssetType } from "@/lib/types";
 import styles from "./AssetUploadDialog.module.css";
-
-const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-
-interface PresignResponse {
-  upload_url: string;
-  r2_key: string;
-  asset_id: string;
-}
 
 interface AssetUploadDialogProps {
   clientId: string;
@@ -33,9 +23,9 @@ interface AssetUploadDialogProps {
 }
 
 /**
- * Upload flow for one client-level catalog asset: presign -> PUT straight to
- * R2 -> confirm. Reused across the four catalog types; only `assetType`
- * changes, so the R2 key and the copy stay correct without four components.
+ * Dialog wrapper around `uploadClientAsset` for the client's Recursos tab.
+ * Reused across the four catalog types; only `assetType` changes, so the R2 key
+ * and the copy stay correct without four components.
  */
 export function AssetUploadDialog({
   clientId,
@@ -77,64 +67,20 @@ export function AssetUploadDialog({
     event.preventDefault();
     if (!file || baseName.trim().length === 0) return;
 
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      setError("Formato no soportado. Usa PNG, JPEG o WEBP.");
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setError("No se pudo subir la imagen. El archivo supera los 10 MB.");
-      return;
-    }
-
     setError(null);
     setIsSubmitting(true);
 
-    const presign = await apiPost<PresignResponse>(
-      "/api/assets/presign-upload",
-      { client_id: clientId, content_type: file.type }
-    );
-
-    if (!presign.ok) {
-      setError(presign.error);
-      setIsSubmitting(false);
-      return;
-    }
-
-    const { upload_url, r2_key, asset_id } = presign.data;
-
-    let putResponse: Response;
-    try {
-      putResponse = await fetch(upload_url, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-    } catch {
-      setError("No se pudo subir la imagen. Revisa tu conexión.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!putResponse.ok) {
-      setError("No se pudo subir la imagen a almacenamiento.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const confirm = await apiPost<AssetWithUrl>("/api/assets/confirm", {
-      asset_id,
-      client_id: clientId,
-      r2_key,
-      asset_type: assetType,
-      original_filename: `${baseName.trim()}.${extensionForMimeType(file.type)}`,
-      mime_type: file.type,
-      file_size_bytes: file.size,
+    const result = await uploadClientAsset({
+      clientId,
+      assetType,
+      file,
+      baseName,
     });
 
     setIsSubmitting(false);
 
-    if (!confirm.ok) {
-      setError(confirm.error);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
 
@@ -176,7 +122,7 @@ export function AssetUploadDialog({
               id={`${titleId}-file`}
               className={styles.input}
               type="file"
-              accept={ALLOWED_MIME_TYPES.join(",")}
+              accept={UPLOAD_ACCEPT}
               onChange={(event) =>
                 handleFileChange(event.target.files?.[0] ?? null)
               }

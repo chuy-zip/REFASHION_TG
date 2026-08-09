@@ -3,6 +3,7 @@
 import { useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PasswordInput } from "@/components/ui/PasswordInput/PasswordInput";
 import { POST_LOGIN_PATH } from "@/lib/routes";
 import styles from "./login.module.css";
 
@@ -82,10 +83,9 @@ export default function LoginPage() {
           <label className={styles.label} htmlFor="password">
             Contraseña
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             className={styles.input}
             value={password}
             onChange={(event) => setPassword(event.target.value)}

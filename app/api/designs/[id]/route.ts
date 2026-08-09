@@ -4,6 +4,7 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { updateDesignSchema } from "@/lib/validation";
+import { assetBelongsToProjectClient } from "@/lib/designs";
 import {
   jsonError,
   notFound,
@@ -56,6 +57,35 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 
   const supabase = await createSupabaseClient();
+
+  // Assigning a base garment from the editing screen sends this. The FK is
+  // verified below RLS (APRENDIZAJES §2.5b), so without this check it would
+  // accept an asset from another client — the same guard POST /api/designs
+  // already applies on create.
+  if (parsed.data.base_asset_id) {
+    const { data: designData } = await supabase
+      .from("designs")
+      .select("project_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    const projectId = (designData as { project_id: string } | null)?.project_id;
+    if (!projectId) return notFound("El diseño");
+
+    const belongs = await assetBelongsToProjectClient(
+      supabase,
+      parsed.data.base_asset_id,
+      projectId
+    );
+
+    if (!belongs) {
+      return jsonError(
+        "La imagen elegida no pertenece al catálogo de este cliente.",
+        400
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from("designs")
     .update(parsed.data)

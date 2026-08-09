@@ -18,7 +18,7 @@ import {
 } from "@/lib/designs";
 import type { AssetWithUrl } from "@/lib/assets";
 import type { Design, Project } from "@/lib/types";
-import styles from "./NewDesignWizard.module.css";
+import styles from "./DesignWizard.module.css";
 
 const GARMENT_TYPES: GarmentType[] = ["shirt", "polo", "hoodie"];
 
@@ -27,32 +27,62 @@ const NEW_PROJECT = "__new__";
 
 type Step = "client" | "project" | "start" | "design";
 
-const STEP_LABEL: Record<Step, string> = {
-  client: "Paso 1 de 4 · Cliente",
-  project: "Paso 2 de 4 · Proyecto",
-  start: "Paso 3 de 4 · Punto de partida",
-  design: "Paso 4 de 4 · Diseño",
+const STEP_TITLE: Record<Step, string> = {
+  client: "Cliente",
+  project: "Proyecto",
+  start: "Punto de partida",
+  design: "Diseño",
 };
 
-interface NewDesignWizardProps {
-  /** Clients the signed-in user may create projects/designs on. */
-  clients: { id: string; name: string }[];
+/** Client and project already resolved by where the wizard was opened from. */
+export interface DesignWizardContext {
+  clientId: string;
+  projectId: string;
+}
+
+interface DesignWizardProps {
+  /**
+   * Clients the signed-in user may create projects/designs on. Required for
+   * the sidebar entry point, where picking one is the first step. Ignored when
+   * `context` is given.
+   */
+  clients?: { id: string; name: string }[];
+  /** Project entry point: skips the client and project steps. */
+  context?: DesignWizardContext;
+  triggerLabel?: string;
+  /** The sidebar's trigger spans the rail; a section header's does not. */
+  fullWidthTrigger?: boolean;
 }
 
 /**
- * Sidebar shortcut to create a design without first navigating
- * cliente → proyecto by hand. Walks client → project (existing or new) →
- * starting point → design fields, posts to the same /api/designs the
- * per-project dialog uses, and lands on the design's editing screen.
+ * The single path for creating a design, with two entry points:
+ *
+ * - Sidebar shortcut: client -> project (existing or new) -> starting point ->
+ *   design fields, so nobody has to navigate cliente → proyecto by hand.
+ * - A project's "Crear diseño": the same wizard with `context`, starting at the
+ *   starting point because client and project are already known.
+ *
+ * Both post to the same /api/designs and land on the design's working screen.
+ * There is deliberately no second create form: DesignDataDialog only edits.
  */
-export function NewDesignWizard({ clients }: NewDesignWizardProps) {
+export function DesignWizard({
+  clients = [],
+  context,
+  triggerLabel = "+ Nuevo diseño",
+  fullWidthTrigger = false,
+}: DesignWizardProps) {
   const router = useRouter();
   const { notify } = useToast();
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState<Step>("client");
+  // With a context there is nothing to ask before the starting point.
+  const steps: Step[] = context
+    ? ["start", "design"]
+    : ["client", "project", "start", "design"];
 
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "");
+  const [isOpen, setIsOpen] = useState(false);
+  const [step, setStep] = useState<Step>(steps[0]);
+
+  const [clientId, setClientId] = useState(context?.clientId ?? "");
 
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [projectId, setProjectId] = useState<string>(NEW_PROJECT);
@@ -71,6 +101,7 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
 
   const [error, setError] = useState<string | null>(null);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [isLoadingStart, setIsLoadingStart] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   /** The parent design, when the starting point is an iteration. */
@@ -82,13 +113,39 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
   // Mirrors what the server will derive on insert (see POST /api/designs).
   const nextVersion = parentDesign ? parentDesign.version + 1 : 1;
 
-  function open() {
-    setStep("client");
-    setClientId(clients[0]?.id ?? "");
+  function stepLabel(current: Step): string {
+    const index = steps.indexOf(current);
+    return `Paso ${index + 1} de ${steps.length} · ${STEP_TITLE[current]}`;
+  }
+
+  /**
+   * What the starting-point step shows: the client's catalog and the project's
+   * existing designs. Fetched when the step is reached rather than handed down
+   * from the server, so the signed thumbnail URLs are always fresh and a page
+   * left open overnight does not open a picker full of broken images.
+   */
+  async function loadStartingPoint(forClient: string, forProject: string) {
+    const [assetsResult, designsResult] = await Promise.all([
+      apiGet<AssetWithUrl[]>(`/api/assets?client_id=${forClient}`),
+      apiGet<Design[]>(`/api/designs?project_id=${forProject}`),
+    ]);
+
+    // Both are best-effort: the starting point is optional, so a failure here
+    // must not block creating the design.
+    const nextAssets = assetsResult.ok ? assetsResult.data : [];
+    setAssets(nextAssets);
+    setDesignOptions(
+      designsResult.ok ? toDesignOptions(designsResult.data, nextAssets) : []
+    );
+  }
+
+  async function open() {
+    setStep(steps[0]);
+    setClientId(context?.clientId ?? clients[0]?.id ?? "");
     setProjects(null);
     setProjectId(NEW_PROJECT);
     setNewProjectName("");
-    setResolvedProjectId(null);
+    setResolvedProjectId(context?.projectId ?? null);
     setAssets([]);
     setDesignOptions([]);
     setStartingPoint(null);
@@ -97,6 +154,12 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
     setNotes("");
     setError(null);
     setIsOpen(true);
+
+    if (context) {
+      setIsLoadingStart(true);
+      await loadStartingPoint(context.clientId, context.projectId);
+      setIsLoadingStart(false);
+    }
   }
 
   function close() {
@@ -108,12 +171,9 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
     setError(null);
     setIsLoadingProjects(true);
 
-    // Assets are best-effort: the starting point is optional, so a failure
-    // there shouldn't block moving on.
-    const [projectsResult, assetsResult] = await Promise.all([
-      apiGet<Project[]>(`/api/projects?client_id=${clientId}`),
-      apiGet<AssetWithUrl[]>(`/api/assets?client_id=${clientId}`),
-    ]);
+    const projectsResult = await apiGet<Project[]>(
+      `/api/projects?client_id=${clientId}`
+    );
 
     setIsLoadingProjects(false);
 
@@ -124,7 +184,6 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
 
     setProjects(projectsResult.data);
     setProjectId(projectsResult.data[0]?.id ?? NEW_PROJECT);
-    setAssets(assetsResult.ok ? assetsResult.data : []);
     setStartingPoint(null);
     setStep("project");
   }
@@ -157,15 +216,7 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
     }
 
     setResolvedProjectId(targetProjectId);
-
-    // Existing designs of this project become the iteration candidates. Their
-    // previews resolve against the assets already fetched — no second signing.
-    const designsResult = await apiGet<Design[]>(
-      `/api/designs?project_id=${targetProjectId}`
-    );
-    setDesignOptions(
-      designsResult.ok ? toDesignOptions(designsResult.data, assets) : []
-    );
+    await loadStartingPoint(clientId, targetProjectId);
 
     setIsSubmitting(false);
     setStartingPoint(null);
@@ -180,6 +231,12 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
       setGarmentType(parentDesign.garment_type as GarmentType);
     }
     setStep("design");
+  }
+
+  /** A newly uploaded catalog image joins the list and becomes the selection. */
+  function handleAssetUploaded(asset: AssetWithUrl) {
+    setAssets((current) => [asset, ...current]);
+    setStartingPoint({ kind: "asset", id: asset.id });
   }
 
   async function handleCreateDesign(event: SyntheticEvent) {
@@ -212,12 +269,16 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
     router.push(`/designs/${result.data.id}/edit`);
   }
 
-  const titleId = "new-design-wizard";
+  const titleId = "design-wizard";
 
   return (
     <>
-      <Button variant="primary" className={styles.trigger} onClick={open}>
-        + Nuevo diseño
+      <Button
+        variant="primary"
+        className={fullWidthTrigger ? styles.triggerFullWidth : undefined}
+        onClick={open}
+      >
+        {triggerLabel}
       </Button>
 
       <Dialog
@@ -231,7 +292,7 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
             <h2 className={styles.title} id={titleId}>
               Nuevo diseño
             </h2>
-            <p className={styles.stepLabel}>{STEP_LABEL.client}</p>
+            <p className={styles.stepLabel}>{stepLabel("client")}</p>
 
             {error && (
               <p className={styles.error} role="alert">
@@ -278,7 +339,7 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
             <h2 className={styles.title} id={titleId}>
               Nuevo diseño
             </h2>
-            <p className={styles.stepLabel}>{STEP_LABEL.project}</p>
+            <p className={styles.stepLabel}>{stepLabel("project")}</p>
 
             {error && (
               <p className={styles.error} role="alert">
@@ -352,24 +413,38 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
             <h2 className={styles.title} id={titleId}>
               Nuevo diseño
             </h2>
-            <p className={styles.stepLabel}>{STEP_LABEL.start}</p>
+            <p className={styles.stepLabel}>{stepLabel("start")}</p>
             <p className={styles.hint}>
-              Elige una imagen del catálogo, o un diseño existente para crear su
-              siguiente versión. También puedes continuar sin punto de partida.
+              Elige una imagen del catálogo, sube una nueva, o parte de un
+              diseño existente para crear su siguiente versión. También puedes
+              continuar sin punto de partida.
             </p>
 
-            <StartingPointPicker
-              assets={assets}
-              designs={designOptions}
-              value={startingPoint}
-              onChange={setStartingPoint}
-            />
+            {isLoadingStart ? (
+              <div className={styles.loading}>Cargando el catálogo…</div>
+            ) : (
+              <StartingPointPicker
+                clientId={clientId}
+                assets={assets}
+                designs={designOptions}
+                value={startingPoint}
+                onChange={setStartingPoint}
+                onAssetUploaded={handleAssetUploaded}
+              />
+            )}
 
             <div className={`${styles.actions} ${styles.spread}`}>
-              <Button variant="secondary" onClick={() => setStep("project")}>
-                Atrás
+              <Button
+                variant="secondary"
+                onClick={context ? close : () => setStep("project")}
+              >
+                {context ? "Cancelar" : "Atrás"}
               </Button>
-              <Button variant="primary" onClick={handleStartNext}>
+              <Button
+                variant="primary"
+                onClick={handleStartNext}
+                disabled={isLoadingStart}
+              >
                 Siguiente
               </Button>
             </div>
@@ -385,7 +460,7 @@ export function NewDesignWizard({ clients }: NewDesignWizardProps) {
             <h2 className={styles.title} id={titleId}>
               Nuevo diseño
             </h2>
-            <p className={styles.stepLabel}>{STEP_LABEL.design}</p>
+            <p className={styles.stepLabel}>{stepLabel("design")}</p>
 
             {error && (
               <p className={styles.error} role="alert">

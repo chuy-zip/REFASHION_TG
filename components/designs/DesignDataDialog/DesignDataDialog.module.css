@@ -1,12 +1,3 @@
-.trigger {
-  width: 100%;
-}
-
-/* The picker step shows a thumbnail grid; the form-sized default is too narrow. */
-.dialogWide {
-  width: min(48rem, calc(100vw - 2rem));
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -18,12 +9,6 @@
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--color-text-primary);
-}
-
-.stepLabel {
-  margin-top: -0.5rem;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
 }
 
 .row {
@@ -73,20 +58,11 @@
   resize: vertical;
 }
 
-.hint {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.25rem;
-}
-
-.actions.spread {
-  justify-content: space-between;
 }
 
 .error {

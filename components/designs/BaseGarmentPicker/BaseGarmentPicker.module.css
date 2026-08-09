@@ -1,0 +1,51 @@
+/* The picker shows a thumbnail grid; the form-sized default is too narrow. */
+.dialogWide {
+  width: min(48rem, calc(100vw - 2rem));
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Holds the picker's height while its images are on the way. */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.error {
+  padding: 0.625rem 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+}

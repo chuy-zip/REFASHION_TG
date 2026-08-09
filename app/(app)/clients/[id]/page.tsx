@@ -7,7 +7,7 @@ import {
 import { ClientDetailView } from "@/components/clients/ClientDetailView/ClientDetailView";
 import { Icon } from "@/components/ui/Icon/Icon";
 import { getClientAccess } from "@/lib/access";
-import { listClientAssets } from "@/lib/assets";
+import { listClientAssets } from "@/lib/assets-server";
 import { listClientMembers } from "@/lib/members";
 import { listClientProjects } from "@/lib/projects";
 import type { Client } from "@/lib/types";

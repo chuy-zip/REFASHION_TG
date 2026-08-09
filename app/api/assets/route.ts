@@ -4,7 +4,7 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { jsonError, unauthorized } from "@/lib/api";
-import { listClientAssets } from "@/lib/assets";
+import { listClientAssets } from "@/lib/assets-server";
 
 /** GET /api/assets?client_id=... — catalog assets with presigned GET URLs. */
 export async function GET(request: Request) {

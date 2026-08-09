@@ -10,7 +10,11 @@ import {
   translateDbError,
   unauthorized,
 } from "@/lib/api";
-import { listProjectDesigns, resolveDesignImageAssetId } from "@/lib/designs";
+import {
+  assetBelongsToProjectClient,
+  listProjectDesigns,
+  resolveDesignImageAssetId,
+} from "@/lib/designs";
 import type { Design } from "@/lib/types";
 
 /** GET /api/designs?project_id=... — designs of a project (RLS filters). */
@@ -90,29 +94,13 @@ export async function POST(request: Request) {
     version = parent.version + 1;
     startingAssetId = resolveDesignImageAssetId(parent);
   } else if (startingAssetId) {
-    // Foreign keys are enforced below RLS, so the FK alone would happily accept
-    // an asset id belonging to another client. Verify the asset is both visible
-    // to this user (RLS) and part of this project's client before storing it.
-    const { data: assetData, error: assetError } = await supabase
-      .from("assets")
-      .select("id, client_id")
-      .eq("id", startingAssetId)
-      .maybeSingle();
+    const belongs = await assetBelongsToProjectClient(
+      supabase,
+      startingAssetId,
+      project_id
+    );
 
-    if (assetError) return translateDbError(assetError);
-
-    const { data: projectData } = await supabase
-      .from("projects")
-      .select("client_id")
-      .eq("id", project_id)
-      .maybeSingle();
-
-    const assetClientId = (assetData as { client_id: string | null } | null)
-      ?.client_id;
-    const projectClientId = (projectData as { client_id: string } | null)
-      ?.client_id;
-
-    if (!assetData || !projectClientId || assetClientId !== projectClientId) {
+    if (!belongs) {
       return jsonError(
         "La imagen elegida no pertenece al catálogo de este cliente.",
         400

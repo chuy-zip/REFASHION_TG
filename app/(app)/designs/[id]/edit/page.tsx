@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient as createSupabaseClient } from "@/lib/supabase/server";
+import {
+  createClient as createSupabaseClient,
+  getAuthenticatedUser,
+} from "@/lib/supabase/server";
+import { getClientAccess } from "@/lib/access";
 import { getReadUrl } from "@/lib/r2";
 import { garmentTypeLabel, resolveDesignImageAssetId } from "@/lib/designs";
+import { BaseGarmentPicker } from "@/components/designs/BaseGarmentPicker/BaseGarmentPicker";
 import { Icon } from "@/components/ui/Icon/Icon";
 import buttonStyles from "@/components/ui/Button/Button.module.css";
 import type { Asset, Client, Design, Project } from "@/lib/types";
@@ -41,11 +46,16 @@ export default async function DesignEditPage({ params }: PageProps) {
   if (!projectData) notFound();
   const project = projectData as Pick<Project, "id" | "name" | "client_id">;
 
-  const { data: clientData } = await supabase
-    .from("clients")
-    .select("id, name")
-    .eq("id", project.client_id)
-    .maybeSingle();
+  const user = await getAuthenticatedUser();
+
+  const [{ data: clientData }, access] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, name")
+      .eq("id", project.client_id)
+      .maybeSingle(),
+    getClientAccess(supabase, project.client_id, user?.id ?? ""),
+  ]);
   const client = clientData as Pick<Client, "id" | "name"> | null;
 
   // The starting image is persisted on the design (migration 010), so a
@@ -91,14 +101,44 @@ export default async function DesignEditPage({ params }: PageProps) {
             <div className={styles.canvasEmpty}>
               <p className={styles.canvasEmptyTitle}>Sin prenda base todavía</p>
               <p className={styles.canvasEmptyHint}>
-                Elige una desde la pestaña Recursos del cliente, o al crear el
-                diseño.
+                Elige una imagen del catálogo del cliente o sube una nueva para
+                empezar a trabajar.
               </p>
+              <div className={styles.canvasEmptyAction}>
+                <BaseGarmentPicker
+                  designId={design.id}
+                  clientId={project.client_id}
+                  baseAssetId={design.base_asset_id}
+                  canEdit={access.canEdit}
+                  triggerLabel="Elegir prenda base"
+                  triggerVariant="primary"
+                />
+              </div>
             </div>
           )}
         </div>
 
         <div className={styles.toolbar}>
+          {/* Only once there is one to change: with an empty canvas the empty
+              state already carries the primary action, and two buttons for the
+              same thing would compete. */}
+          {canvasImageUrl && (
+            <>
+              <span className={styles.toolbarLabel}>Prenda</span>
+              {/* secondary, not ghost: the mocked tools below are ghost AND
+                  disabled, so a ghost control here differed from dead
+                  placeholders by one shade of grey and read as a label. */}
+              <BaseGarmentPicker
+                designId={design.id}
+                clientId={project.client_id}
+                baseAssetId={design.base_asset_id}
+                canEdit={access.canEdit}
+                triggerLabel="Cambiar prenda base"
+                triggerVariant="secondary"
+              />
+            </>
+          )}
+
           <span className={styles.toolbarLabel}>Herramientas</span>
           {MOCK_TOOLS.map((tool) => (
             <button
@@ -115,8 +155,12 @@ export default async function DesignEditPage({ params }: PageProps) {
       </div>
 
       <div className={styles.actions}>
+        {/* Demoted while the canvas is empty: choosing a garment is the action
+            of the screen then, and the guide allows one primary at a time. */}
         <Link
-          className={`${buttonStyles.base} ${buttonStyles.primary}`}
+          className={`${buttonStyles.base} ${
+            canvasImageUrl ? buttonStyles.primary : buttonStyles.secondary
+          }`}
           href={`/designs/${design.id}/present`}
         >
           Continuar a presentación →

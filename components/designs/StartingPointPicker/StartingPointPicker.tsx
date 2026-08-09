@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { ThumbnailGrid } from "@/components/ui/ThumbnailGrid/ThumbnailGrid";
-import { assetDisplayName, type AssetWithUrl } from "@/lib/assets";
+import { UPLOAD_ACCEPT, uploadClientAsset } from "@/lib/asset-upload";
+import { assetDisplayName, stripExtension, type AssetWithUrl } from "@/lib/assets";
 import { garmentTypeLabel, type DesignOption } from "@/lib/designs";
 import styles from "./StartingPointPicker.module.css";
 
@@ -16,9 +17,9 @@ export type StartingPoint =
   | { kind: "asset"; id: string }
   | { kind: "design"; id: string };
 
-type Source = "base_garment" | "tech_drawing" | "design";
+type Source = "base_garment" | "tech_drawing" | "design" | "upload";
 
-const SOURCE_COPY: Record<Source, { label: string; empty: string }> = {
+const SOURCE_COPY: Record<Source, { label: string; empty?: string }> = {
   base_garment: {
     label: "Prendas base",
     empty: "Este cliente no tiene prendas base.",
@@ -31,17 +32,30 @@ const SOURCE_COPY: Record<Source, { label: string; empty: string }> = {
     label: "Diseños existentes",
     empty: "Este proyecto todavía no tiene diseños.",
   },
+  upload: { label: "Subir nueva" },
 };
 
-const SOURCES: Source[] = ["base_garment", "tech_drawing", "design"];
-
 interface StartingPointPickerProps {
+  /** Owner of the catalog, and where an uploaded image is filed. */
+  clientId: string;
   /** Catalog assets of the client; filtered here to the two usable types. */
   assets: AssetWithUrl[];
   /** Designs of the project, offered as iteration parents. */
-  designs: DesignOption[];
+  designs?: DesignOption[];
+  /**
+   * Whether starting from an existing design is on the table. False when the
+   * picker only assigns a base garment: iterating is a decision made when the
+   * design is created, not afterwards.
+   */
+  includeDesigns?: boolean;
   value: StartingPoint | null;
   onChange: (value: StartingPoint | null) => void;
+  /**
+   * A freshly uploaded catalog image. The caller owns the asset list, so it is
+   * responsible for both adding this to `assets` and selecting it via
+   * `onChange` — this component never mutates either behind its back.
+   */
+  onAssetUploaded: (asset: AssetWithUrl) => void;
 }
 
 /**
@@ -52,26 +66,42 @@ interface StartingPointPickerProps {
  * Logos and model photos are deliberately absent — a logo is composited *onto*
  * a garment (Módulo 1) and a model photo is the VTON target (Módulo 3);
  * neither is a canvas to start from.
+ *
+ * "Subir nueva" is a source like the others rather than a button beside them:
+ * an empty catalog used to be a dead end that forced a trip to the Recursos
+ * tab and back. What it uploads still lands in the client's catalog, so there
+ * is no second lifecycle for images that arrived this way.
  */
 export function StartingPointPicker({
+  clientId,
   assets,
-  designs,
+  designs = [],
+  includeDesigns = true,
   value,
   onChange,
+  onAssetUploaded,
 }: StartingPointPickerProps) {
+  const fieldId = useId();
   const [source, setSource] = useState<Source>("base_garment");
+
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const sources: Source[] = includeDesigns
+    ? ["base_garment", "tech_drawing", "design", "upload"]
+    : ["base_garment", "tech_drawing", "upload"];
 
   const assetsOfSource = (type: Source) =>
     assets.filter((asset) => asset.asset_type === type);
 
-  const counts: Record<Source, number> = {
+  const counts: Partial<Record<Source, number>> = {
     base_garment: assetsOfSource("base_garment").length,
     tech_drawing: assetsOfSource("tech_drawing").length,
     design: designs.length,
   };
 
-  const visibleAssets = source === "design" ? [] : assetsOfSource(source);
-  const copy = SOURCE_COPY[source];
+  const visibleAssets =
+    source === "design" || source === "upload" ? [] : assetsOfSource(source);
 
   const selectedLabel = (() => {
     if (!value) return null;
@@ -88,80 +118,163 @@ export function StartingPointPicker({
     onChange(isSame ? null : next);
   }
 
+  /**
+   * Uploads as soon as a file is picked, with no confirm button.
+   *
+   * There used to be one, and it was a trap: picking the file already *is* the
+   * decision, so a second button only asks the user to confirm something they
+   * already chose. People pressed "Siguiente" with a file selected and never
+   * uploaded, losing it in silence. A button whose only job is to confirm a
+   * decision already made is the kind that gets forgotten.
+   *
+   * The name is taken from the file. Renaming lives in the client's Recursos
+   * tab, which already does it, rather than adding a second thing to press.
+   */
+  async function handleFileChange(file: File | null) {
+    if (!file) return;
+
+    setUploadError(null);
+    setIsUploading(true);
+
+    // Always filed as a base garment: this panel exists to supply the canvas
+    // an image to start from, whatever the file happens to depict.
+    const result = await uploadClientAsset({
+      clientId,
+      assetType: "base_garment",
+      file,
+      baseName: stripExtension(file.name),
+    });
+
+    setIsUploading(false);
+
+    if (!result.ok) {
+      setUploadError(result.error);
+      return;
+    }
+
+    onAssetUploaded(result.data);
+    // Land on the tab where it now lives. The selection bar below then names
+    // it, which is the confirmation that the upload worked.
+    setSource("base_garment");
+  }
+
   return (
     <div className={styles.picker}>
       <PillTabs
         label="Origen del diseño"
         selected={source}
         onSelect={(key) => setSource(key as Source)}
-        options={SOURCES.map((key) => ({
+        options={sources.map((key) => ({
           key,
           label: SOURCE_COPY[key].label,
           count: counts[key],
         }))}
       />
 
-      <div className={styles.scroll}>
-        <ThumbnailGrid
-          isEmpty={
-            source === "design" ? designs.length === 0 : visibleAssets.length === 0
-          }
-          emptyTitle={copy.empty}
-        >
-          {source === "design"
-            ? designs.map((design) => (
-                <button
-                  key={design.id}
-                  type="button"
-                  className={styles.card}
-                  aria-pressed={value?.kind === "design" && value.id === design.id}
-                  onClick={() => toggle({ kind: "design", id: design.id })}
-                >
-                  <div className={styles.thumbWrap}>
-                    {design.previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
+      {source === "upload" ? (
+        <div className={styles.upload}>
+          {uploadError && (
+            <p className={styles.uploadError} role="alert">
+              {uploadError}
+            </p>
+          )}
+
+          <div className={styles.uploadField}>
+            <label className={styles.uploadLabel} htmlFor={`${fieldId}-file`}>
+              Archivo
+            </label>
+            <input
+              id={`${fieldId}-file`}
+              className={styles.uploadInput}
+              type="file"
+              accept={UPLOAD_ACCEPT}
+              onChange={(event) =>
+                handleFileChange(event.target.files?.[0] ?? null)
+              }
+              disabled={isUploading}
+            />
+            <p className={styles.uploadHint}>
+              PNG, JPEG o WEBP. Máximo 10 MB. Se sube al elegirla y queda en el
+              catálogo del cliente como prenda base.
+            </p>
+          </div>
+
+          {isUploading && (
+            <p className={styles.uploadStatus} role="status">
+              Subiendo la imagen…
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className={styles.scroll}>
+          <ThumbnailGrid
+            isEmpty={
+              source === "design"
+                ? designs.length === 0
+                : visibleAssets.length === 0
+            }
+            emptyTitle={SOURCE_COPY[source].empty ?? ""}
+          >
+            {source === "design"
+              ? designs.map((design) => (
+                  <button
+                    key={design.id}
+                    type="button"
+                    className={styles.card}
+                    aria-pressed={
+                      value?.kind === "design" && value.id === design.id
+                    }
+                    onClick={() => toggle({ kind: "design", id: design.id })}
+                  >
+                    <div className={styles.thumbWrap}>
+                      {design.previewUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
+                        <img
+                          className={styles.thumb}
+                          src={design.previewUrl}
+                          alt={design.name}
+                        />
+                      ) : (
+                        <span className={styles.noThumb}>Sin imagen</span>
+                      )}
+                    </div>
+                    <div className={styles.meta}>
+                      <span className={styles.name}>{design.name}</span>
+                      <span className={styles.sub}>
+                        {garmentTypeLabel(design.garment_type)} · v
+                        {design.version}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              : visibleAssets.map((asset) => (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    className={styles.card}
+                    aria-pressed={
+                      value?.kind === "asset" && value.id === asset.id
+                    }
+                    onClick={() => toggle({ kind: "asset", id: asset.id })}
+                  >
+                    <div className={styles.thumbWrap}>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
                       <img
                         className={styles.thumb}
-                        src={design.previewUrl}
-                        alt={design.name}
+                        src={asset.url}
+                        alt={assetDisplayName(asset)}
                       />
-                    ) : (
-                      <span className={styles.noThumb}>Sin imagen</span>
-                    )}
-                  </div>
-                  <div className={styles.meta}>
-                    <span className={styles.name}>{design.name}</span>
-                    <span className={styles.sub}>
-                      {garmentTypeLabel(design.garment_type)} · v{design.version}
-                    </span>
-                  </div>
-                </button>
-              ))
-            : visibleAssets.map((asset) => (
-                <button
-                  key={asset.id}
-                  type="button"
-                  className={styles.card}
-                  aria-pressed={value?.kind === "asset" && value.id === asset.id}
-                  onClick={() => toggle({ kind: "asset", id: asset.id })}
-                >
-                  <div className={styles.thumbWrap}>
-                    {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
-                    <img
-                      className={styles.thumb}
-                      src={asset.url}
-                      alt={assetDisplayName(asset)}
-                    />
-                  </div>
-                  <div className={styles.meta}>
-                    <span className={`${styles.name} ${styles.filename}`}>
-                      {assetDisplayName(asset)}
-                    </span>
-                  </div>
-                </button>
-              ))}
-        </ThumbnailGrid>
-      </div>
+                    </div>
+                    <div className={styles.meta}>
+                      <span className={`${styles.name} ${styles.filename}`}>
+                        {assetDisplayName(asset)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+          </ThumbnailGrid>
+        </div>
+      )}
 
       <div className={styles.selection}>
         <span>

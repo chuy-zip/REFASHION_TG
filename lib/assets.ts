@@ -1,5 +1,11 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { getDownloadUrl, getReadUrl } from "@/lib/r2";
+/**
+ * Asset vocabulary and pure helpers, safe to import from the browser.
+ *
+ * Nothing here may import `lib/r2` (or anything else server-only): client
+ * components import this file, and `lib/r2` reads R2 credentials. The queries
+ * that sign URLs live in `lib/assets-server.ts` for exactly that reason.
+ */
+
 import type { Asset, ClientAssetType } from "@/lib/types";
 
 /** Order mirrors objetivo específico 1: prendas base, logotipos, fotos de modelo. */
@@ -83,32 +89,4 @@ export interface AssetWithUrl extends Asset {
   url: string;
   /** Presigned GET URL that forces a download (Content-Disposition: attachment). */
   downloadUrl: string;
-}
-
-/**
- * Catalog assets of a client (client_id set, design_id null), newest first,
- * each with freshly-signed read/download URLs. RLS returns only what the user
- * may see.
- */
-export async function listClientAssets(
-  supabase: SupabaseClient,
-  clientId: string
-): Promise<{ assets: AssetWithUrl[]; error: string | null }> {
-  const { data, error } = await supabase
-    .from("assets")
-    .select("*")
-    .eq("client_id", clientId)
-    .order("created_at", { ascending: false });
-
-  if (error) return { assets: [], error: error.message };
-
-  const assets = await Promise.all(
-    (data as Asset[]).map(async (asset) => ({
-      ...asset,
-      url: await getReadUrl(asset.r2_key),
-      downloadUrl: await getDownloadUrl(asset.r2_key, assetDisplayName(asset)),
-    }))
-  );
-
-  return { assets, error: null };
 }

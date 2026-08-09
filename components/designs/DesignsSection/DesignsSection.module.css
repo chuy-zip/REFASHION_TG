@@ -26,7 +26,13 @@
   list-style: none;
 }
 
+/*
+ * Anchor for the stretched link below. The gear menu is a <button>, which
+ * cannot live inside an <a>, so the row itself is not the link: a link covering
+ * only the name would leave most of a card-looking row inert.
+ */
 .row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -35,6 +41,17 @@
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.row:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* Focus lands on the link, but the ring has to read as the whole row. */
+.row:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .rowMain {
@@ -42,6 +59,18 @@
   flex-direction: column;
   gap: 0.125rem;
   min-width: 0;
+  text-decoration: none;
+}
+
+.rowMain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+}
+
+.rowMain:focus-visible {
+  outline: none;
 }
 
 .rowName {
@@ -55,10 +84,17 @@
   color: var(--color-text-secondary);
 }
 
+/* Left unpositioned on purpose: the badge sits *under* the link overlay, so
+   clicking it navigates like the rest of the row. Only the menu opts out. */
 .rowActions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+/* Positioned, so it paints above the overlay and stays clickable. */
+.rowMenu {
+  position: relative;
 }
 
 .empty {

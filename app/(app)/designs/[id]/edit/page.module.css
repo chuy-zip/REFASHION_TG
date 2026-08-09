@@ -77,6 +77,10 @@
   color: var(--color-text-secondary);
 }
 
+.canvasEmptyAction {
+  margin-top: 0.75rem;
+}
+
 .toolbar {
   display: flex;
   flex-direction: column;

@@ -4,6 +4,7 @@ import { useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
+import { PasswordInput } from "@/components/ui/PasswordInput/PasswordInput";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiPost } from "@/lib/api-client";
 import { roleDescription, roleLabel } from "@/lib/roles";
@@ -148,9 +149,8 @@ export function CreateUserDialog({
             <label className={styles.label} htmlFor="user-password">
               Contraseña provisional
             </label>
-            <input
+            <PasswordInput
               id="user-password"
-              type="text"
               className={styles.input}
               value={password}
               onChange={(event) => setPassword(event.target.value)}

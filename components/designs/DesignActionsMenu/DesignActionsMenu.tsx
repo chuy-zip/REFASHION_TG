@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Menu, type MenuItem } from "@/components/ui/Menu/Menu";
-import { DesignFormDialog } from "@/components/designs/DesignFormDialog/DesignFormDialog";
+import { DesignDataDialog } from "@/components/designs/DesignDataDialog/DesignDataDialog";
 import { DeleteDesignButton } from "@/components/designs/DeleteDesignButton/DeleteDesignButton";
 import type { Design } from "@/lib/types";
 
@@ -18,7 +18,9 @@ export function DesignActionsMenu({ design, canEdit }: DesignActionsMenuProps) {
 
   const items: MenuItem[] = [
     {
-      label: "Editar diseño",
+      // "Editar datos", not "Editar diseño": the design itself is edited on
+      // /designs/[id]/edit, which the row now links to.
+      label: "Editar datos",
       onSelect: () => setAction("edit"),
       disabled: !canEdit,
       disabledReason: "Tu rol en este cliente no permite editar el diseño.",
@@ -37,8 +39,7 @@ export function DesignActionsMenu({ design, canEdit }: DesignActionsMenuProps) {
       <Menu label="Opciones del diseño" header={design.name} items={items} />
 
       {action === "edit" && (
-        <DesignFormDialog
-          projectId={design.project_id}
+        <DesignDataDialog
           design={design}
           open
           onClose={() => setAction(null)}

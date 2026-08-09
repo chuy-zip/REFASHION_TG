@@ -6,7 +6,7 @@ import {
 import { isCurrentUserAdmin } from "@/lib/authz";
 import { listEditableClients } from "@/lib/access";
 import { LogoutButton } from "@/components/auth/LogoutButton/LogoutButton";
-import { NewDesignWizard } from "@/components/designs/NewDesignWizard/NewDesignWizard";
+import { DesignWizard } from "@/components/designs/DesignWizard/DesignWizard";
 import { SidebarNav } from "./SidebarNav";
 import { POST_LOGIN_PATH } from "@/lib/routes";
 import styles from "./AppSidebar.module.css";
@@ -35,7 +35,7 @@ export async function AppSidebar() {
           Refashion IA
         </Link>
         {editableClients.length > 0 && (
-          <NewDesignWizard clients={editableClients} />
+          <DesignWizard clients={editableClients} fullWidthTrigger />
         )}
         <SidebarNav isAdmin={isAdmin} />
       </div>

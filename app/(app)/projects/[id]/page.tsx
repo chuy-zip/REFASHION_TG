@@ -5,8 +5,7 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { getClientAccess } from "@/lib/access";
-import { listClientAssets } from "@/lib/assets";
-import { listProjectDesigns, toDesignOptions } from "@/lib/designs";
+import { listProjectDesigns } from "@/lib/designs";
 import { ProjectActionsMenu } from "@/components/projects/ProjectActionsMenu/ProjectActionsMenu";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { PROJECT_STATUS_COPY } from "@/lib/projects";
@@ -36,23 +35,21 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   if (!projectData) notFound();
   const project = projectData as Project;
 
-  // Parent client name (for the breadcrumb), this user's edit rights on it,
-  // the project's designs, and the client's catalog — the last two feed the
-  // "Crear diseño" starting-point picker.
-  const [{ data: clientData }, access, { designs }, { assets }] =
-    await Promise.all([
-      supabase
-        .from("clients")
-        .select("id, name")
-        .eq("id", project.client_id)
-        .maybeSingle(),
-      getClientAccess(supabase, project.client_id, user?.id ?? ""),
-      listProjectDesigns(supabase, project.id),
-      listClientAssets(supabase, project.client_id),
-    ]);
+  // Parent client name (for the breadcrumb), this user's edit rights on it, and
+  // the project's designs. The catalog is deliberately NOT fetched here: only
+  // the "Crear diseño" wizard needs it, and it loads it when opened, so a page
+  // view no longer signs a URL per catalog image just in case.
+  const [{ data: clientData }, access, { designs }] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, name")
+      .eq("id", project.client_id)
+      .maybeSingle(),
+    getClientAccess(supabase, project.client_id, user?.id ?? ""),
+    listProjectDesigns(supabase, project.id),
+  ]);
 
   const client = clientData as Pick<Client, "id" | "name"> | null;
-  const designOptions = toDesignOptions(designs, assets);
 
   return (
     <main className={styles.page}>
@@ -78,10 +75,9 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       )}
 
       <DesignsSection
+        clientId={project.client_id}
         projectId={project.id}
         designs={designs}
-        assets={assets}
-        designOptions={designOptions}
         canManage={access.canEdit}
       />
     </main>
