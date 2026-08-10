@@ -3,6 +3,8 @@ import {
   createClient as createSupabaseClient,
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
+import { deleteObject } from "@/lib/r2";
+import { listR2KeysUnderDesign } from "@/lib/assets-server";
 import { updateDesignSchema } from "@/lib/validation";
 import { assetBelongsToProjectClient } from "@/lib/designs";
 import {
@@ -104,13 +106,21 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   return NextResponse.json(data as Design);
 }
 
-/** DELETE /api/designs/:id — owner/editor of the parent client (RLS). */
+/**
+ * DELETE /api/designs/:id — owner/editor of the parent client (RLS).
+ *
+ * The design's own assets cascade inside Postgres, so their R2 keys are read
+ * first. The design's *base garment* is deliberately untouched: it belongs to
+ * the client's catalog and may be shared with other designs.
+ */
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const user = await getAuthenticatedUser();
   if (!user) return unauthorized();
 
   const { id } = await params;
   const supabase = await createSupabaseClient();
+
+  const keysToClean = await listR2KeysUnderDesign(supabase, id);
 
   const { data, error } = await supabase
     .from("designs")
@@ -124,6 +134,19 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       "No se pudo eliminar el diseño. No existe o no tienes permisos.",
       403
     );
+  }
+
+  // Best-effort: the design is already gone from the user's point of view.
+  const results = await Promise.allSettled(
+    keysToClean.map((key) => deleteObject(key))
+  );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error(
+        `Failed to delete R2 object while deleting design ${id}:`,
+        result.reason
+      );
+    }
   }
 
   return new NextResponse(null, { status: 204 });

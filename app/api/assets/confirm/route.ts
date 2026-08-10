@@ -16,7 +16,9 @@ import type { Asset } from "@/lib/types";
 /**
  * POST /api/assets/confirm — registers the asset row once the browser's PUT to
  * R2 succeeded. Unlike presign-upload, this is a real INSERT, so RLS enforces
- * can_edit_client the normal way (a rejection surfaces as 42501 -> 403).
+ * can_edit_client the normal way (a rejection surfaces as 42501 -> 403), for
+ * both the client_id and the design_id branch: the policies in migration 002
+ * already resolve the owning client either way.
  */
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -38,11 +40,14 @@ export async function POST(request: Request) {
   const {
     asset_id,
     client_id,
+    design_id,
     r2_key,
     asset_type,
     original_filename,
     mime_type,
     file_size_bytes,
+    origin,
+    parent_asset_id,
   } = parsed.data;
   const supabase = await createSupabaseClient();
 
@@ -50,13 +55,15 @@ export async function POST(request: Request) {
     .from("assets")
     .insert({
       id: asset_id,
-      client_id,
+      client_id: client_id ?? null,
+      design_id: design_id ?? null,
       r2_key,
       asset_type,
       original_filename,
       mime_type,
       file_size_bytes,
-      origin: "upload",
+      origin: origin ?? "upload",
+      parent_asset_id: parent_asset_id ?? null,
     })
     .select()
     .single();
@@ -64,6 +71,26 @@ export async function POST(request: Request) {
   if (error) return translateDbError(error);
 
   const created = data as Asset;
+
+  // A design stops being a draft the moment it has something of its own. Only
+  // from 'draft': 'completed' records a decision the user made and nothing
+  // automatic may undo it (see APRENDIZAJES §3.9). Best-effort on purpose — the
+  // asset is already registered, and a failure here must not undo that.
+  if (design_id) {
+    const { error: statusError } = await supabase
+      .from("designs")
+      .update({ status: "active" })
+      .eq("id", design_id)
+      .eq("status", "draft");
+
+    if (statusError) {
+      console.error(
+        `Failed to advance design ${design_id} to 'active':`,
+        statusError.message
+      );
+    }
+  }
+
   const [url, downloadUrl] = await Promise.all([
     getReadUrl(created.r2_key),
     getDownloadUrl(created.r2_key, created.original_filename ?? created.r2_key),

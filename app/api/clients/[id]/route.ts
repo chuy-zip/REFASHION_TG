@@ -4,6 +4,7 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { deleteObject } from "@/lib/r2";
+import { listR2KeysUnderClient } from "@/lib/assets-server";
 import { updateClientSchema } from "@/lib/validation";
 import {
   jsonError,
@@ -83,11 +84,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 /**
  * DELETE /api/clients/:id — owner only (enforced by RLS).
  *
- * The client's catalog assets cascade-delete inside Postgres as part of the
- * DELETE below (`on delete cascade`) — that happens entirely inside the
- * database engine, with no hook for application code to catch which rows
- * disappeared. Reading their r2_key here, before the cascade runs, is the
- * only chance to know what to clean up in R2 afterward.
+ * The client's assets cascade-delete inside Postgres as part of the DELETE
+ * below (`on delete cascade`) — that happens entirely inside the database
+ * engine, with no hook for application code to catch which rows disappeared.
+ * Reading their r2_key here, before the cascade runs, is the only chance to
+ * know what to clean up in R2 afterward.
+ *
+ * "The client's assets" means the catalog *and* every design asset under its
+ * projects; see listR2KeysUnderClient for why the second half is easy to miss.
  */
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const user = await getAuthenticatedUser();
@@ -96,10 +100,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   const { id } = await params;
   const supabase = await createSupabaseClient();
 
-  const { data: assetsToClean } = await supabase
-    .from("assets")
-    .select("r2_key")
-    .eq("client_id", id);
+  const keysToClean = await listR2KeysUnderClient(supabase, id);
 
   // .select() is required to learn how many rows the policy actually matched.
   const { data, error } = await supabase
@@ -120,7 +121,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   // A failed R2 delete here is an invisible orphaned blob, not an error to
   // surface — one failure must not stop the rest from being cleaned up.
   const results = await Promise.allSettled(
-    (assetsToClean ?? []).map((asset) => deleteObject(asset.r2_key))
+    keysToClean.map((key) => deleteObject(key))
   );
   for (const result of results) {
     if (result.status === "rejected") {

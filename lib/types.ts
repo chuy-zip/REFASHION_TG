@@ -27,7 +27,17 @@ export type ProjectStatus = "draft" | "active" | "closed";
  */
 export type DesignStatus = "draft" | "active" | "completed";
 
-export type AssetOrigin = "upload" | "generated";
+/**
+ * Who produced the binary (migration 012):
+ * - `upload`    a person uploaded it
+ * - `derived`   the app produced it deterministically in the browser (Canvas)
+ * - `generated` an external model produced it (Runware)
+ *
+ * `derived` exists because Módulo 1 is defined as "composición clásica, NO
+ * generativo": storing its compositions as `generated` would make the data
+ * contradict the protocol.
+ */
+export type AssetOrigin = "upload" | "derived" | "generated";
 
 /** Assets hanging directly off a client — the catalog. */
 export type ClientAssetType =

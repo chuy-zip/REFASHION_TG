@@ -6,15 +6,32 @@
  * that sign URLs live in `lib/assets-server.ts` for exactly that reason.
  */
 
-import type { Asset, ClientAssetType } from "@/lib/types";
+import type { Asset, ClientAssetType, DesignAssetType } from "@/lib/types";
 
-/** Order mirrors objetivo específico 1: prendas base, logotipos, fotos de modelo. */
-export const CLIENT_ASSET_TYPES: ClientAssetType[] = [
+/**
+ * Order mirrors objetivo específico 1: prendas base, logotipos, fotos de modelo.
+ *
+ * `as const` so the Zod schemas in lib/validation.ts can build their enums from
+ * this list instead of repeating it. One place adds a type, both agree.
+ */
+export const CLIENT_ASSET_TYPES = [
   "base_garment",
   "logo",
   "model_photo",
   "tech_drawing",
-];
+] as const satisfies readonly ClientAssetType[];
+
+/** Produced against a design, never uploaded to a catalog. Same `as const` reason. */
+export const DESIGN_ASSET_TYPES = [
+  "composition",
+  "mask",
+  "inpainting",
+  "vton",
+  "ai_model",
+  "export_flat",
+  "export_model",
+  "export_ai",
+] as const satisfies readonly DesignAssetType[];
 
 export const ASSET_TYPE_COPY: Record<
   ClientAssetType,
@@ -42,9 +59,34 @@ export const ASSET_TYPE_COPY: Record<
   },
 };
 
+/**
+ * Spanish copy for the eight design-level types. They had none until now
+ * because nothing produced them; `assetTypeLabel` fell through to printing the
+ * raw English column value.
+ *
+ * The vocabulary follows STYLE_GUIDE §6: "Máscara", "Prueba virtual". Where the
+ * guide has no word (the three exports) the label says what it is *for*, since
+ * the three differ only by presentation (objetivo específico 3).
+ */
+export const DESIGN_ASSET_TYPE_COPY: Record<
+  DesignAssetType,
+  { label: string; labelPlural: string }
+> = {
+  composition: { label: "Composición", labelPlural: "Composiciones" },
+  mask: { label: "Máscara", labelPlural: "Máscaras" },
+  inpainting: { label: "Edición por zonas", labelPlural: "Ediciones por zonas" },
+  vton: { label: "Prueba virtual", labelPlural: "Pruebas virtuales" },
+  ai_model: { label: "Modelo IA", labelPlural: "Modelos IA" },
+  export_flat: { label: "Export · prenda plana", labelPlural: "Exports · prenda plana" },
+  export_model: { label: "Export · sobre modelo", labelPlural: "Exports · sobre modelo" },
+  export_ai: { label: "Export · modelo IA", labelPlural: "Exports · modelo IA" },
+};
+
 export function assetTypeLabel(assetType: string): string {
   return (
-    ASSET_TYPE_COPY[assetType as ClientAssetType]?.label ?? assetType
+    ASSET_TYPE_COPY[assetType as ClientAssetType]?.label ??
+    DESIGN_ASSET_TYPE_COPY[assetType as DesignAssetType]?.label ??
+    assetType
   );
 }
 

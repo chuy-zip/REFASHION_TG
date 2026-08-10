@@ -87,6 +87,42 @@ export function toDesignOptions(
   });
 }
 
+/** Where a design sits in the hierarchy: which project, and whose client. */
+export interface DesignPath {
+  projectId: string;
+  clientId: string;
+}
+
+/**
+ * Walks design → project → client in one round trip.
+ *
+ * Two callers need it and for different reasons, which is why it is here and
+ * not inlined: `presign-upload` needs both ids to build the R2 key
+ * (`clients/{client}/projects/{project}/designs/{design}/...`) *and* the
+ * client to authorise by hand, since that route never touches the database and
+ * so RLS never runs for it. Returns null when the design does not exist or RLS
+ * hides it, which the callers treat the same way on purpose.
+ */
+export async function resolveDesignPath(
+  supabase: SupabaseClient,
+  designId: string
+): Promise<DesignPath | null> {
+  const { data } = await supabase
+    .from("designs")
+    .select("project_id, projects(client_id)")
+    .eq("id", designId)
+    .maybeSingle();
+
+  const row = data as {
+    project_id: string;
+    projects: { client_id: string } | null;
+  } | null;
+
+  if (!row?.projects) return null;
+
+  return { projectId: row.project_id, clientId: row.projects.client_id };
+}
+
 /**
  * Whether a catalog asset may be referenced as a design's starting image.
  *

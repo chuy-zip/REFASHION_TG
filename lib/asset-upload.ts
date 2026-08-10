@@ -1,13 +1,21 @@
 import { apiPost } from "@/lib/api-client";
 import { extensionForMimeType, type AssetWithUrl } from "@/lib/assets";
-import type { ClientAssetType } from "@/lib/types";
+import type {
+  AssetOrigin,
+  ClientAssetType,
+  DesignAssetType,
+} from "@/lib/types";
 
 /**
- * The browser side of uploading one catalog image: presign -> PUT straight to
- * R2 -> confirm. Extracted here because two screens need it (the client's
- * Recursos tab and the starting-point picker's "Subir nueva"), and because the
+ * The browser side of registering one image: presign -> PUT straight to R2 ->
+ * confirm. Extracted here because several screens need it, and because the
  * three-step order is a rule worth having in exactly one place: an asset row
  * must never exist without its binary.
+ *
+ * Two entry points, mirroring `assets_owner_check`: an image can belong to a
+ * client's catalog or to a design, never both. The binary itself is a `Blob`,
+ * not a `File`, because a design asset usually never was a file — it comes out
+ * of `canvas.toBlob()` in Módulo 1.
  *
  * Returns the same discriminated result as `lib/api-client`, so callers branch
  * with `if (!result.ok)` instead of try/catch.
@@ -35,37 +43,48 @@ interface PresignResponse {
   asset_id: string;
 }
 
-interface UploadClientAssetInput {
-  clientId: string;
-  assetType: ClientAssetType;
-  file: File;
-  /** File name without extension; the extension comes from the mime type. */
-  baseName: string;
-}
+/** Whichever side of `assets_owner_check` this upload lands on. */
+type Owner = { client_id: string } | { design_id: string };
 
-export function validateUploadFile(file: File): string | null {
-  if (!UPLOADABLE_MIME_TYPES.includes(file.type as (typeof UPLOADABLE_MIME_TYPES)[number])) {
+export function validateUploadBlob(blob: Blob): string | null {
+  if (
+    !UPLOADABLE_MIME_TYPES.includes(
+      blob.type as (typeof UPLOADABLE_MIME_TYPES)[number]
+    )
+  ) {
     return "Formato no soportado. Usa PNG, JPEG o WEBP.";
   }
-  if (file.size > MAX_UPLOAD_BYTES) {
+  if (blob.size > MAX_UPLOAD_BYTES) {
     return "No se pudo subir la imagen. El archivo supera los 10 MB.";
   }
   return null;
 }
 
-export async function uploadClientAsset({
-  clientId,
+interface UploadInput {
+  owner: Owner;
+  assetType: ClientAssetType | DesignAssetType;
+  blob: Blob;
+  /** File name without extension; the extension comes from the mime type. */
+  baseName: string;
+  origin: AssetOrigin;
+  parentAssetId?: string | null;
+}
+
+async function upload({
+  owner,
   assetType,
-  file,
+  blob,
   baseName,
-}: UploadClientAssetInput): Promise<UploadResult> {
-  const invalid = validateUploadFile(file);
+  origin,
+  parentAssetId,
+}: UploadInput): Promise<UploadResult> {
+  const invalid = validateUploadBlob(blob);
   if (invalid) return { ok: false, error: invalid };
 
-  const presign = await apiPost<PresignResponse>(
-    "/api/assets/presign-upload",
-    { client_id: clientId, content_type: file.type }
-  );
+  const presign = await apiPost<PresignResponse>("/api/assets/presign-upload", {
+    ...owner,
+    content_type: blob.type,
+  });
 
   if (!presign.ok) return { ok: false, error: presign.error };
 
@@ -77,11 +96,14 @@ export async function uploadClientAsset({
   try {
     putResponse = await fetch(upload_url, {
       method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
+      headers: { "Content-Type": blob.type },
+      body: blob,
     });
   } catch {
-    return { ok: false, error: "No se pudo subir la imagen. Revisa tu conexión." };
+    return {
+      ok: false,
+      error: "No se pudo subir la imagen. Revisa tu conexión.",
+    };
   }
 
   if (!putResponse.ok) {
@@ -89,16 +111,60 @@ export async function uploadClientAsset({
   }
 
   const confirm = await apiPost<AssetWithUrl>("/api/assets/confirm", {
+    ...owner,
     asset_id,
-    client_id: clientId,
     r2_key,
     asset_type: assetType,
-    original_filename: `${baseName.trim()}.${extensionForMimeType(file.type)}`,
-    mime_type: file.type,
-    file_size_bytes: file.size,
+    original_filename: `${baseName.trim()}.${extensionForMimeType(blob.type)}`,
+    mime_type: blob.type,
+    file_size_bytes: blob.size,
+    origin,
+    parent_asset_id: parentAssetId ?? null,
   });
 
   if (!confirm.ok) return { ok: false, error: confirm.error };
 
   return { ok: true, data: confirm.data };
+}
+
+/** A catalog image of a client: always uploaded by a person. */
+export function uploadClientAsset(input: {
+  clientId: string;
+  assetType: ClientAssetType;
+  file: File;
+  baseName: string;
+}): Promise<UploadResult> {
+  return upload({
+    owner: { client_id: input.clientId },
+    assetType: input.assetType,
+    blob: input.file,
+    baseName: input.baseName,
+    origin: "upload",
+  });
+}
+
+/**
+ * An image produced against a design.
+ *
+ * `parentAssetId` is not optional by accident: it is what sustains objetivo
+ * específico 2 (linaje de iteración). Pass the image this one came out of.
+ * `origin` defaults to `derived` because the caller that exists first is
+ * Módulo 1's canvas export; a Runware result passes `generated`.
+ */
+export function uploadDesignAsset(input: {
+  designId: string;
+  assetType: DesignAssetType;
+  blob: Blob;
+  baseName: string;
+  parentAssetId: string | null;
+  origin?: AssetOrigin;
+}): Promise<UploadResult> {
+  return upload({
+    owner: { design_id: input.designId },
+    assetType: input.assetType,
+    blob: input.blob,
+    baseName: input.baseName,
+    origin: input.origin ?? "derived",
+    parentAssetId: input.parentAssetId,
+  });
 }

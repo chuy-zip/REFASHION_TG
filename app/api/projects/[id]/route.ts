@@ -3,6 +3,8 @@ import {
   createClient as createSupabaseClient,
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
+import { deleteObject } from "@/lib/r2";
+import { listR2KeysUnderProject } from "@/lib/assets-server";
 import { updateProjectSchema } from "@/lib/validation";
 import {
   jsonError,
@@ -74,13 +76,21 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   return NextResponse.json(data as Project);
 }
 
-/** DELETE /api/projects/:id — owner/editor of the parent client (RLS). */
+/**
+ * DELETE /api/projects/:id — owner/editor of the parent client (RLS).
+ *
+ * Same shape as DELETE /api/clients/:id: the cascade reaches designs and their
+ * assets inside Postgres, so the R2 keys have to be read *before* the delete or
+ * the blobs are orphaned with nothing left pointing at them.
+ */
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const user = await getAuthenticatedUser();
   if (!user) return unauthorized();
 
   const { id } = await params;
   const supabase = await createSupabaseClient();
+
+  const keysToClean = await listR2KeysUnderProject(supabase, id);
 
   const { data, error } = await supabase
     .from("projects")
@@ -94,6 +104,20 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       "No se pudo eliminar el proyecto. No existe o no tienes permisos.",
       403
     );
+  }
+
+  // Best-effort: the project is already gone from the user's point of view, so
+  // a failed R2 delete is an invisible orphan, not an error to surface.
+  const results = await Promise.allSettled(
+    keysToClean.map((key) => deleteObject(key))
+  );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error(
+        `Failed to delete R2 object while deleting project ${id}:`,
+        result.reason
+      );
+    }
   }
 
   return new NextResponse(null, { status: 204 });
