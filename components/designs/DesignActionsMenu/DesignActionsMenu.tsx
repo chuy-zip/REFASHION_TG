@@ -10,10 +10,16 @@ interface DesignActionsMenuProps {
   design: Design;
   /** owner/editor (or admin) of the parent client may edit and delete. */
   canEdit: boolean;
+  /** Set from the design's own page, which cannot survive its deletion. */
+  redirectOnDelete?: string;
 }
 
 /** Groups a design's edit and delete behind a gear menu. */
-export function DesignActionsMenu({ design, canEdit }: DesignActionsMenuProps) {
+export function DesignActionsMenu({
+  design,
+  canEdit,
+  redirectOnDelete,
+}: DesignActionsMenuProps) {
   const [action, setAction] = useState<null | "edit" | "delete">(null);
 
   const items: MenuItem[] = [
@@ -50,6 +56,7 @@ export function DesignActionsMenu({ design, canEdit }: DesignActionsMenuProps) {
         <DeleteDesignButton
           designId={design.id}
           designName={design.name}
+          redirectTo={redirectOnDelete}
           open
           onClose={() => setAction(null)}
         />

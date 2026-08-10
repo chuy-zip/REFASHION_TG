@@ -42,17 +42,41 @@ export function garmentTypeLabel(garmentType: string): string {
 }
 
 /**
- * Which image a design hands over when something starts from it — the canvas
- * image of an iteration, or the thumbnail shown for it in a picker.
+ * Which image a design is working on: the canvas image, the thumbnail a picker
+ * shows for it, and what an iteration inherits.
  *
- * Today a design's only image is the catalog asset it started from. Once
- * designs accumulate their own assets (composition/inpainting/export, Módulo
- * 1+), this is the single place that changes to return the latest one instead.
+ * Reads the explicit pointer and falls back to the starting image. It is
+ * deliberately NOT "the most recent asset": that answer is only right while the
+ * history is a straight line, and it breaks at the time travel that motivated
+ * keeping a history (go back to B, reload, and "most recent" hands back C).
+ *
+ * The fallback is what lets `current_asset_id` stay null until a design
+ * actually moves, so no row had to be backfilled by migration 013.
  */
 export function resolveDesignImageAssetId(
-  design: Pick<Design, "base_asset_id">
+  design: Pick<Design, "base_asset_id" | "current_asset_id">
 ): string | null {
-  return design.base_asset_id;
+  return design.current_asset_id ?? design.base_asset_id;
+}
+
+/**
+ * Whether the design has moved past its starting image.
+ *
+ * Gates changing the base garment: while a design is still sitting on its
+ * base, swapping it is harmless. Once there is work on top, the working image
+ * descends from the *old* base, so swapping would leave `base_asset_id`
+ * describing something the design no longer came from — the same defect
+ * migration 010 removed from `version` (APRENDIZAJES §3.8). The way to start
+ * from another garment is to create a new version, which is what
+ * `parent_design_id` is for.
+ */
+export function designHasWorkOnTop(
+  design: Pick<Design, "base_asset_id" | "current_asset_id">
+): boolean {
+  return (
+    design.current_asset_id !== null &&
+    design.current_asset_id !== design.base_asset_id
+  );
 }
 
 /** A design offered as a starting point, with its preview resolved. */
@@ -157,6 +181,30 @@ export async function assetBelongsToProjectClient(
   return Boolean(
     assetClientId && projectClientId && assetClientId === projectClientId
   );
+}
+
+/**
+ * Whether an asset may become a design's working image.
+ *
+ * Valid targets are the design's own assets and its base garment, which is the
+ * strip the timeline shows. Anything else would point the design at an image
+ * outside its own history — the same class of hole as §2.5b, one level in:
+ * the FK only proves the asset exists.
+ */
+export async function assetIsUsableAsCurrent(
+  supabase: SupabaseClient,
+  assetId: string,
+  design: Pick<Design, "id" | "base_asset_id">
+): Promise<boolean> {
+  if (assetId === design.base_asset_id) return true;
+
+  const { data } = await supabase
+    .from("assets")
+    .select("design_id")
+    .eq("id", assetId)
+    .maybeSingle();
+
+  return (data as { design_id: string | null } | null)?.design_id === design.id;
 }
 
 /** Designs of a project, newest first. RLS returns only what the user may see. */

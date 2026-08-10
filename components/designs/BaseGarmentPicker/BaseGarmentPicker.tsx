@@ -21,9 +21,19 @@ interface BaseGarmentPickerProps {
   /** The design's current base garment, preselected when opening. */
   baseAssetId: string | null;
   canEdit: boolean;
+  /**
+   * True once the design's working image descends from something other than
+   * its base garment. Swapping the base then would leave the column describing
+   * an origin the design no longer has, so the control is disabled with the
+   * reason rather than hidden or left to fail on submit.
+   */
+  hasWorkOnTop?: boolean;
   triggerLabel: string;
   triggerVariant?: ButtonVariant;
 }
+
+const WORK_ON_TOP_REASON =
+  "Este diseño ya tiene trabajo encima. Crea una versión nueva para partir de otra prenda.";
 
 /**
  * Assigns (or replaces) a design's base garment from the working screen, so a
@@ -39,6 +49,7 @@ export function BaseGarmentPicker({
   clientId,
   baseAssetId,
   canEdit,
+  hasWorkOnTop = false,
   triggerLabel,
   triggerVariant = "secondary",
 }: BaseGarmentPickerProps) {
@@ -104,11 +115,13 @@ export function BaseGarmentPicker({
       <Button
         variant={triggerVariant}
         onClick={open}
-        disabled={!canEdit}
+        disabled={!canEdit || hasWorkOnTop}
         title={
-          canEdit
-            ? undefined
-            : "Tu rol en este cliente no permite editar el diseño."
+          !canEdit
+            ? "Tu rol en este cliente no permite editar el diseño."
+            : hasWorkOnTop
+              ? WORK_ON_TOP_REASON
+              : undefined
         }
       >
         {triggerLabel}

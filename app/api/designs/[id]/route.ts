@@ -6,7 +6,11 @@ import {
 import { deleteObject } from "@/lib/r2";
 import { listR2KeysUnderDesign } from "@/lib/assets-server";
 import { updateDesignSchema } from "@/lib/validation";
-import { assetBelongsToProjectClient } from "@/lib/designs";
+import {
+  assetBelongsToProjectClient,
+  assetIsUsableAsCurrent,
+  designHasWorkOnTop,
+} from "@/lib/designs";
 import {
   jsonError,
   notFound,
@@ -60,29 +64,58 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   const supabase = await createSupabaseClient();
 
-  // Assigning a base garment from the editing screen sends this. The FK is
-  // verified below RLS (APRENDIZAJES §2.5b), so without this check it would
-  // accept an asset from another client — the same guard POST /api/designs
-  // already applies on create.
-  if (parsed.data.base_asset_id) {
+  // Both asset columns are FKs, and FKs are verified below RLS
+  // (APRENDIZAJES §2.5b): each one needs its own explicit ownership check, or
+  // the API happily stores a pointer to an image from somewhere else.
+  const touchesAssets =
+    parsed.data.base_asset_id !== undefined ||
+    parsed.data.current_asset_id !== undefined;
+
+  if (touchesAssets) {
     const { data: designData } = await supabase
       .from("designs")
-      .select("project_id")
+      .select("id, project_id, base_asset_id, current_asset_id")
       .eq("id", id)
       .maybeSingle();
 
-    const projectId = (designData as { project_id: string } | null)?.project_id;
-    if (!projectId) return notFound("El diseño");
+    const design = designData as Pick<
+      Design,
+      "id" | "project_id" | "base_asset_id" | "current_asset_id"
+    > | null;
+    if (!design) return notFound("El diseño");
 
-    const belongs = await assetBelongsToProjectClient(
-      supabase,
-      parsed.data.base_asset_id,
-      projectId
-    );
+    if (parsed.data.base_asset_id !== undefined) {
+      // Once the design has moved past its base, swapping it would leave
+      // base_asset_id describing something the working image no longer came
+      // from. Starting from another garment is a new version, not a mutation.
+      if (designHasWorkOnTop(design)) {
+        return jsonError(
+          "Este diseño ya tiene trabajo encima. Crea una versión nueva para partir de otra prenda.",
+          409
+        );
+      }
 
-    if (!belongs) {
+      if (
+        parsed.data.base_asset_id !== null &&
+        !(await assetBelongsToProjectClient(
+          supabase,
+          parsed.data.base_asset_id,
+          design.project_id
+        ))
+      ) {
+        return jsonError(
+          "La imagen elegida no pertenece al catálogo de este cliente.",
+          400
+        );
+      }
+    }
+
+    if (
+      parsed.data.current_asset_id != null &&
+      !(await assetIsUsableAsCurrent(supabase, parsed.data.current_asset_id, design))
+    ) {
       return jsonError(
-        "La imagen elegida no pertenece al catálogo de este cliente.",
+        "Ese paso no pertenece al historial de este diseño.",
         400
       );
     }

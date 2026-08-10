@@ -105,6 +105,7 @@ dejaría de describir lo que hay en la base.
 | 010 | `designs.base_asset_id` y `designs.parent_design_id`; `version` pasa a derivarse |
 | 011 | `designs.status` (draft / active / completed) |
 | 012 | Tercer valor de `assets.origin`: `derived` |
+| 013 | `designs.current_asset_id` y la tabla `design_layers` (capas de logo) |
 
 Al agregar una tabla nueva hacen falta **cuatro** pasos, no dos: crearla, habilitar RLS,
 escribir las políticas **y** otorgar los `GRANT` a `authenticated`. El proyecto tiene
@@ -151,9 +152,12 @@ Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `
   renombrar y eliminar, en la pestaña Recursos del cliente.
 - **Flujo de diseño:** un solo wizard de creación con dos entradas (sidebar y proyecto),
   selector visual de punto de partida con subida incorporada, y asignación de prenda base
-  desde la pantalla de trabajo.
+  desde la pantalla de trabajo. Tres rutas por diseño: `/designs/[id]` (hub de solo
+  lectura, con el historial), `/edit` (pantalla de trabajo) y `/present`.
 - **Assets a nivel de diseño:** API completa (`presign-upload` / `confirm` /
   `GET ?design_id=` con `design_id`, `origin` y `parent_asset_id`). Todavía sin UI: la
   estrena el Módulo 1.
+- **Capas y puntero de trabajo:** esquema listo (`design_layers`,
+  `designs.current_asset_id`), sin UI todavía.
 - **Siguiente:** Módulo 1, composición de logos sobre lienzo (Konva), que reemplaza la
   barra de herramientas mockeada de `/designs/[id]/edit`.

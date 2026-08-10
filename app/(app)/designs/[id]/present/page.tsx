@@ -55,9 +55,9 @@ export default async function DesignPresentPage({ params }: PageProps) {
 
   return (
     <main className={styles.page}>
-      <Link className={styles.back} href={`/designs/${design.id}/edit`}>
+      <Link className={styles.back} href={`/designs/${design.id}`}>
         <Icon name="arrowBack" size={16} />
-        Volver a editar
+        {design.name}
       </Link>
 
       <div className={styles.header}>

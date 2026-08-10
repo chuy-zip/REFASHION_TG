@@ -16,6 +16,12 @@ interface DeleteDesignButtonProps {
   /** Controlled mode: parent drives visibility and renders no trigger. */
   open?: boolean;
   onClose?: () => void;
+  /**
+   * Where to go after deleting. Needed when the caller is the design's own
+   * page: refreshing it would re-run a Server Component that now finds nothing
+   * and answers 404. From a list, refreshing in place is the right behaviour.
+   */
+  redirectTo?: string;
 }
 
 export function DeleteDesignButton({
@@ -25,6 +31,7 @@ export function DeleteDesignButton({
   disabledReason,
   open: controlledOpen,
   onClose,
+  redirectTo,
 }: DeleteDesignButtonProps) {
   const router = useRouter();
   const { notify } = useToast();
@@ -54,7 +61,9 @@ export function DeleteDesignButton({
     setIsDeleting(false);
     close();
     notify({ type: "success", message: `${designName} se eliminó.` });
-    router.refresh();
+
+    if (redirectTo) router.push(redirectTo);
+    else router.refresh();
   }
 
   const titleId = `delete-design-${designId}`;

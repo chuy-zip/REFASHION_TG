@@ -176,6 +176,8 @@ export const updateDesignSchema = z
     garment_type: garmentType.optional(),
     status: designStatus.optional(),
     base_asset_id: z.uuid("La prenda base seleccionada no es válida.").nullish(),
+    /** Time travel: which step of the history the design is standing on. */
+    current_asset_id: z.uuid("El paso seleccionado no es válido.").nullish(),
     notes: z.string().trim().max(2000).nullish(),
   })
   .refine((data) => Object.keys(data).length > 0, {

@@ -6,7 +6,11 @@ import {
 } from "@/lib/supabase/server";
 import { getClientAccess } from "@/lib/access";
 import { getReadUrl } from "@/lib/r2";
-import { garmentTypeLabel, resolveDesignImageAssetId } from "@/lib/designs";
+import {
+  designHasWorkOnTop,
+  garmentTypeLabel,
+  resolveDesignImageAssetId,
+} from "@/lib/designs";
 import { BaseGarmentPicker } from "@/components/designs/BaseGarmentPicker/BaseGarmentPicker";
 import { Icon } from "@/components/ui/Icon/Icon";
 import buttonStyles from "@/components/ui/Button/Button.module.css";
@@ -75,9 +79,11 @@ export default async function DesignEditPage({ params }: PageProps) {
 
   return (
     <main className={styles.page}>
-      <Link className={styles.back} href={`/projects/${project.id}`}>
+      {/* Up to the design's hub, not to the project: the hub is where you came
+          from, and where the history and the other destinations live. */}
+      <Link className={styles.back} href={`/designs/${design.id}`}>
         <Icon name="arrowBack" size={16} />
-        {project.name}
+        {design.name}
       </Link>
 
       <div className={styles.header}>
@@ -110,6 +116,7 @@ export default async function DesignEditPage({ params }: PageProps) {
                   clientId={project.client_id}
                   baseAssetId={design.base_asset_id}
                   canEdit={access.canEdit}
+                  hasWorkOnTop={designHasWorkOnTop(design)}
                   triggerLabel="Elegir prenda base"
                   triggerVariant="primary"
                 />
@@ -133,6 +140,7 @@ export default async function DesignEditPage({ params }: PageProps) {
                 clientId={project.client_id}
                 baseAssetId={design.base_asset_id}
                 canEdit={access.canEdit}
+                hasWorkOnTop={designHasWorkOnTop(design)}
                 triggerLabel="Cambiar prenda base"
                 triggerVariant="secondary"
               />

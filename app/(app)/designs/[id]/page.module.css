@@ -1,0 +1,146 @@
+.page {
+  width: 100%;
+  max-width: 90rem;
+  padding: 1.5rem 2rem;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.subtitle {
+  margin-top: 0.125rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 24rem;
+  min-height: 22rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.canvasImage {
+  max-width: 100%;
+  max-height: 28rem;
+  object-fit: contain;
+}
+
+.canvasEmpty {
+  padding: 2rem;
+  text-align: center;
+}
+
+.canvasEmptyTitle {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.canvasEmptyHint {
+  margin-top: 0.25rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 0 0 18rem;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.actions > * {
+  width: 100%;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.factLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.factValue {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+}
+
+.factLink {
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.factLink:hover {
+  text-decoration: underline;
+}
+
+.notes {
+  white-space: pre-wrap;
+}

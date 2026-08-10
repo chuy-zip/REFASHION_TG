@@ -15,10 +15,11 @@ interface DesignsSectionProps {
 }
 
 /**
- * Designs of a project. Each row links to the design's working screen
- * (`/designs/[id]/edit`); the gear menu handles its *data* (name, garment,
- * status) and deletion inline. Those are two different senses of "editar",
- * which is why the menu item says "Editar datos".
+ * Designs of a project. Each row links to the design's hub (`/designs/[id]`),
+ * which is read-only: looking at a design must not put anyone in an editor.
+ * The gear menu handles its *data* (name, garment, status) and deletion inline;
+ * that is a different sense of "editar" from the working screen, which is why
+ * the menu item says "Editar datos".
  */
 export function DesignsSection({
   clientId,
@@ -56,10 +57,7 @@ export function DesignsSection({
         <ul className={styles.list}>
           {designs.map((design) => (
             <li key={design.id} className={styles.row}>
-              <Link
-                className={styles.rowMain}
-                href={`/designs/${design.id}/edit`}
-              >
+              <Link className={styles.rowMain} href={`/designs/${design.id}`}>
                 <span className={styles.rowName}>{design.name}</span>
                 <span className={styles.rowMeta}>
                   {garmentTypeLabel(design.garment_type)} · v{design.version}

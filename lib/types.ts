@@ -132,6 +132,16 @@ export interface Design {
   /** The catalog image this design starts from. Null when it has none. */
   base_asset_id: string | null;
   /**
+   * The image being worked on right now (migration 013). Null until the design
+   * moves off its base garment, which is why reads go through
+   * resolveDesignImageAssetId() instead of touching this directly.
+   *
+   * Explicit rather than "the most recent asset": the two only agree while the
+   * history is a straight line, and they diverge exactly at the time travel
+   * that motivated keeping a history at all.
+   */
+  current_asset_id: string | null;
+  /**
    * The design this one iterates on (v1 -> v2). Traces design-level lineage;
    * assets.parent_asset_id traces image-level lineage. Both exist on purpose.
    */
@@ -164,6 +174,30 @@ export interface Asset {
   /** Traces the iteration chain back to the source asset. */
   parent_asset_id: string | null;
   created_at: string;
+}
+
+/**
+ * One logo placed on a design (migration 013).
+ *
+ * Coordinates are **ratios of the working image**, not pixels: the layer is
+ * re-applied over whatever image the pipeline currently holds, and that image
+ * changes size along the way. Pixels would move the logo every time it did.
+ */
+export interface DesignLayer {
+  id: string;
+  design_id: string;
+  /** The logo asset. Deleting it deletes the layer: a layer without an image is nothing. */
+  asset_id: string;
+  /** Centre of the layer, as a fraction of the working image's width. */
+  x_ratio: number;
+  /** Centre of the layer, as a fraction of the working image's height. */
+  y_ratio: number;
+  /** Layer width, as a fraction of the working image's width. Height follows from the logo's aspect ratio. */
+  width_ratio: number;
+  rotation_deg: number;
+  z_index: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Shape every failing Route Handler returns. Message is user-facing Spanish. */
