@@ -61,6 +61,9 @@ export function DesignsSection({
                 <span className={styles.rowName}>{design.name}</span>
                 <span className={styles.rowMeta}>
                   {garmentTypeLabel(design.garment_type)} · v{design.version}
+                  {/* Iterations share their parent's name on purpose, so the
+                      note is what tells two versions apart at a glance. */}
+                  {design.notes ? ` · ${design.notes}` : ""}
                 </span>
               </Link>
               <div className={styles.rowActions}>

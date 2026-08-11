@@ -12,8 +12,7 @@ import {
 import { apiGet, apiPost } from "@/lib/api-client";
 import {
   GARMENT_TYPE_COPY,
-  toDesignOptions,
-  type DesignOption,
+  type DesignWithPreview,
   type GarmentType,
 } from "@/lib/designs";
 import type { AssetWithUrl } from "@/lib/assets";
@@ -92,7 +91,7 @@ export function DesignWizard({
   );
 
   const [assets, setAssets] = useState<AssetWithUrl[]>([]);
-  const [designOptions, setDesignOptions] = useState<DesignOption[]>([]);
+  const [designOptions, setDesignOptions] = useState<DesignWithPreview[]>([]);
   const [startingPoint, setStartingPoint] = useState<StartingPoint | null>(null);
 
   const [name, setName] = useState("");
@@ -127,16 +126,15 @@ export function DesignWizard({
   async function loadStartingPoint(forClient: string, forProject: string) {
     const [assetsResult, designsResult] = await Promise.all([
       apiGet<AssetWithUrl[]>(`/api/assets?client_id=${forClient}`),
-      apiGet<Design[]>(`/api/designs?project_id=${forProject}`),
+      // Previews come resolved from the server: a design is shown by its latest
+      // composition, which is the version with the logos the user recognises.
+      apiGet<DesignWithPreview[]>(`/api/designs?project_id=${forProject}`),
     ]);
 
     // Both are best-effort: the starting point is optional, so a failure here
     // must not block creating the design.
-    const nextAssets = assetsResult.ok ? assetsResult.data : [];
-    setAssets(nextAssets);
-    setDesignOptions(
-      designsResult.ok ? toDesignOptions(designsResult.data, nextAssets) : []
-    );
+    setAssets(assetsResult.ok ? assetsResult.data : []);
+    setDesignOptions(designsResult.ok ? designsResult.data : []);
   }
 
   async function open() {
@@ -226,6 +224,12 @@ export function DesignWizard({
   function handleStartNext() {
     // Iterating carries the parent's identity forward: same name and garment,
     // next version. All three stay editable except the version.
+    //
+    // The name is NOT made unique on purpose. A design is the garment being
+    // prototyped, and the version is what separates its iterations: "Camisa
+    // polo azul · v2" is the same product, changed. What was missing is not a
+    // different name but a record of *what* changed, which is why the notes
+    // field asks for it below.
     if (parentDesign) {
       setName(parentDesign.name);
       setGarmentType(parentDesign.garment_type as GarmentType);
@@ -528,7 +532,8 @@ export function DesignWizard({
 
             <div className={styles.field}>
               <label className={styles.label} htmlFor={`${titleId}-notes`}>
-                Notas <span className={styles.optional}>(opcional)</span>
+                {parentDesign ? "Qué cambia en esta versión" : "Notas"}{" "}
+                <span className={styles.optional}>(opcional)</span>
               </label>
               <textarea
                 id={`${titleId}-notes`}
@@ -537,7 +542,16 @@ export function DesignWizard({
                 onChange={(event) => setNotes(event.target.value)}
                 rows={3}
                 disabled={isSubmitting}
+                placeholder={
+                  parentDesign ? "Manga corta, el color se mantiene" : undefined
+                }
               />
+              {parentDesign && (
+                <p className={styles.hint}>
+                  Las dos versiones van a llamarse igual. Esto es lo que las
+                  distingue en la lista.
+                </p>
+              )}
             </div>
 
             <div className={`${styles.actions} ${styles.spread}`}>

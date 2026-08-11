@@ -6,7 +6,7 @@ import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { ThumbnailGrid } from "@/components/ui/ThumbnailGrid/ThumbnailGrid";
 import { UPLOAD_ACCEPT, uploadClientAsset } from "@/lib/asset-upload";
 import { assetDisplayName, stripExtension, type AssetWithUrl } from "@/lib/assets";
-import { garmentTypeLabel, type DesignOption } from "@/lib/designs";
+import { garmentTypeLabel, type DesignWithPreview } from "@/lib/designs";
 import styles from "./StartingPointPicker.module.css";
 
 /**
@@ -41,7 +41,7 @@ interface StartingPointPickerProps {
   /** Catalog assets of the client; filtered here to the two usable types. */
   assets: AssetWithUrl[];
   /** Designs of the project, offered as iteration parents. */
-  designs?: DesignOption[];
+  designs?: DesignWithPreview[];
   /**
    * Whether starting from an existing design is on the table. False when the
    * picker only assigns a base garment: iterating is a decision made when the
@@ -227,11 +227,11 @@ export function StartingPointPicker({
                     onClick={() => toggle({ kind: "design", id: design.id })}
                   >
                     <div className={styles.thumbWrap}>
-                      {design.previewUrl ? (
+                      {design.preview_url ? (
                         // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
                         <img
                           className={styles.thumb}
-                          src={design.previewUrl}
+                          src={design.preview_url}
                           alt={design.name}
                         />
                       ) : (

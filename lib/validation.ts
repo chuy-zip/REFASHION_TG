@@ -286,6 +286,55 @@ export const confirmAssetSchema = z
 
 export type ConfirmAssetInput = z.infer<typeof confirmAssetSchema>;
 
+/* -------------------------------------------------------------------------- */
+/* Design layers (Módulo 1)                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Positions are ratios of the working image, never pixels (migration 013).
+ * Left deliberately unbounded on x/y: a logo hanging off the edge of the
+ * garment is a legitimate placement, and clamping here would silently move
+ * what the user put there.
+ */
+const ratio = z.coerce.number().finite("El valor no es válido.");
+
+const layerGeometry = {
+  x_ratio: ratio,
+  y_ratio: ratio,
+  width_ratio: z.coerce
+    .number()
+    .finite()
+    .positive("El ancho de la capa debe ser mayor que cero."),
+  rotation_deg: z.coerce.number().finite(),
+  z_index: z.coerce.number().int(),
+};
+
+export const createLayerSchema = z.object({
+  asset_id: z.uuid("El logotipo seleccionado no es válido."),
+  x_ratio: layerGeometry.x_ratio.optional(),
+  y_ratio: layerGeometry.y_ratio.optional(),
+  width_ratio: layerGeometry.width_ratio.optional(),
+  rotation_deg: layerGeometry.rotation_deg.optional(),
+  z_index: layerGeometry.z_index.optional(),
+});
+
+export type CreateLayerInput = z.infer<typeof createLayerSchema>;
+
+/** Geometry only: a layer never changes which logo it is. */
+export const updateLayerSchema = z
+  .object({
+    x_ratio: layerGeometry.x_ratio.optional(),
+    y_ratio: layerGeometry.y_ratio.optional(),
+    width_ratio: layerGeometry.width_ratio.optional(),
+    rotation_deg: layerGeometry.rotation_deg.optional(),
+    z_index: layerGeometry.z_index.optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "No hay campos para actualizar.",
+  });
+
+export type UpdateLayerInput = z.infer<typeof updateLayerSchema>;
+
 /** PATCH /api/assets/:id — rename only; the extension is fixed app-side. */
 export const renameAssetSchema = z.object({
   original_filename: z

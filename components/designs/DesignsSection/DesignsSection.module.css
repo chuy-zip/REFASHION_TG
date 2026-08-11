@@ -80,6 +80,9 @@
 }
 
 .rowMeta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import { getReadUrl } from "@/lib/r2";
 import { resolveDesignImageAssetId } from "@/lib/designs";
+import { listDesignAssets } from "@/lib/assets-server";
 import { Icon } from "@/components/ui/Icon/Icon";
 import { PresentationTabs } from "@/components/designs/PresentationTabs/PresentationTabs";
 import type { Asset, Client, Design, Project } from "@/lib/types";
@@ -40,9 +41,18 @@ export default async function DesignPresentPage({ params }: PageProps) {
     .maybeSingle();
   const client = clientData as Pick<Client, "id" | "name"> | null;
 
+  // What "Plana" shows is a **composition**: the garment with its logos, which
+  // is what the client is buying (objetivo específico 3a). The clean working
+  // image is only the fallback for a design that has composed nothing yet
+  // (FASE_1_5 §7.7, Regla 3).
+  const { assets: designAssets } = await listDesignAssets(supabase, design.id);
+  const compositions = designAssets.filter(
+    (asset) => asset.asset_type === "composition"
+  );
+
   const imageAssetId = resolveDesignImageAssetId(design);
 
-  let flatImageUrl: string | null = null;
+  let workingImageUrl: string | null = null;
   if (imageAssetId) {
     const { data: assetData } = await supabase
       .from("assets")
@@ -50,7 +60,9 @@ export default async function DesignPresentPage({ params }: PageProps) {
       .eq("id", imageAssetId)
       .maybeSingle();
 
-    if (assetData) flatImageUrl = await getReadUrl((assetData as Asset).r2_key);
+    if (assetData) {
+      workingImageUrl = await getReadUrl((assetData as Asset).r2_key);
+    }
   }
 
   return (
@@ -69,7 +81,8 @@ export default async function DesignPresentPage({ params }: PageProps) {
 
       <PresentationTabs
         designName={design.name}
-        flatImageUrl={flatImageUrl}
+        compositions={compositions}
+        workingImageUrl={workingImageUrl}
         projectId={project.id}
       />
     </main>

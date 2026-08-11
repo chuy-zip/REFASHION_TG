@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BadgeTone } from "@/components/ui/Badge/Badge";
-import type { AssetWithUrl } from "@/lib/assets";
-import type { Design, DesignStatus } from "@/lib/types";
+import type { Design, DesignAssetType, DesignStatus } from "@/lib/types";
 
 /**
  * User-facing Spanish copy for design statuses (code/DB keep English).
@@ -79,36 +78,17 @@ export function designHasWorkOnTop(
   );
 }
 
-/** A design offered as a starting point, with its preview resolved. */
-export interface DesignOption {
-  id: string;
-  name: string;
-  version: number;
-  garment_type: string;
-  previewUrl: string | null;
-}
-
 /**
- * Pairs designs with the already-signed URL of their image. Pure so it can run
- * either on the server (project page) or in the browser (wizard) against an
- * asset list that was fetched once — no second round of URL signing.
+ * A design plus a signed URL of **how it looks**: its latest composition, or
+ * the working image when it has composed nothing yet.
+ *
+ * The distinction matters and is easy to get backwards. What a design *looks
+ * like* includes its logos; what an iteration *inherits* is the clean working
+ * image (§7.7). Showing the clean garment in a picker misrepresents the design
+ * — the user recognises their proposal by the logo on it.
  */
-export function toDesignOptions(
-  designs: Design[],
-  assets: AssetWithUrl[]
-): DesignOption[] {
-  const urlById = new Map(assets.map((asset) => [asset.id, asset.url]));
-
-  return designs.map((design) => {
-    const assetId = resolveDesignImageAssetId(design);
-    return {
-      id: design.id,
-      name: design.name,
-      version: design.version,
-      garment_type: design.garment_type,
-      previewUrl: assetId ? urlById.get(assetId) ?? null : null,
-    };
-  });
+export interface DesignWithPreview extends Design {
+  preview_url: string | null;
 }
 
 /** Where a design sits in the hierarchy: which project, and whose client. */
@@ -184,27 +164,53 @@ export async function assetBelongsToProjectClient(
 }
 
 /**
+ * Design-level asset types that may become the working image.
+ *
+ * An allowlist, not a blocklist, and short on purpose. The working image has to
+ * be a **clean garment**: `composition` has the logo baked in, `mask` is not a
+ * garment at all, `ai_model` is a person, and `export_*` are deliverables.
+ * Pointing `current_asset_id` at any of those would hand the next inpainting an
+ * image it must never see (FASE_1_5 §7.7).
+ *
+ * Only `inpainting` for now. `vton` is deliberately absent: it is a person
+ * wearing the garment, so it closes the pipeline rather than continuing it.
+ * Módulo 3 revisits this if that turns out to be wrong.
+ */
+const WORKING_IMAGE_TYPES: DesignAssetType[] = ["inpainting"];
+
+/**
  * Whether an asset may become a design's working image.
  *
- * Valid targets are the design's own assets and its base garment, which is the
- * strip the timeline shows. Anything else would point the design at an image
- * outside its own history — the same class of hole as §2.5b, one level in:
- * the FK only proves the asset exists.
+ * Two questions, both needed. Does it belong to this design's history — the FK
+ * only proves the asset exists, and RLS does not guard what one table
+ * *references* from another (APRENDIZAJES §2.5b). And is it the right *kind* of
+ * image: the timeline shows compositions as records, but a composition is a
+ * render, never a step to resume from.
  */
 export async function assetIsUsableAsCurrent(
   supabase: SupabaseClient,
   assetId: string,
   design: Pick<Design, "id" | "base_asset_id">
 ): Promise<boolean> {
+  // The starting image, whatever catalog type it is (base_garment or a
+  // tech_drawing), is always a valid place to go back to.
   if (assetId === design.base_asset_id) return true;
 
   const { data } = await supabase
     .from("assets")
-    .select("design_id")
+    .select("design_id, asset_type")
     .eq("id", assetId)
     .maybeSingle();
 
-  return (data as { design_id: string | null } | null)?.design_id === design.id;
+  const asset = data as {
+    design_id: string | null;
+    asset_type: DesignAssetType;
+  } | null;
+
+  return (
+    asset?.design_id === design.id &&
+    WORKING_IMAGE_TYPES.includes(asset.asset_type)
+  );
 }
 
 /** Designs of a project, newest first. RLS returns only what the user may see. */

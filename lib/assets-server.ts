@@ -66,6 +66,108 @@ export async function listDesignAssets(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Where an asset is used, for the delete warning (§7.3)                        */
+/* -------------------------------------------------------------------------- */
+
+/** One design that would be affected by deleting an asset. */
+export interface AssetUsage {
+  design_id: string;
+  design_name: string;
+  design_version: number;
+  /** It is the design's starting or working image. */
+  as_image: boolean;
+  /** It is placed on the design as a logo layer. */
+  as_layer: boolean;
+}
+
+/**
+ * Which designs use an asset, and how.
+ *
+ * Feeds the warning before deleting a catalog image. §7.3 decided **warning,
+ * not block**: the invariant "a client always has an owner" protects against a
+ * broken state, but a design that loses an image degrades fine — the canvas
+ * goes empty, which the UI already handles. Blocking would leave someone unable
+ * to tidy their catalog because of a design from a project closed a year ago.
+ *
+ * Covers the two ways an asset gets used, not just logos: a garment can be a
+ * design's starting image (`base_asset_id` / `current_asset_id`) and a logo can
+ * be placed as a layer. Reporting only one of them would make the warning lie
+ * by omission.
+ */
+export async function listAssetUsage(
+  supabase: SupabaseClient,
+  assetId: string
+): Promise<AssetUsage[]> {
+  // Two plain queries instead of an embedded resource: the embed comes back
+  // typed as an array and shaped as an object, and this runs on a destructive
+  // path where "returned nothing" must not be indistinguishable from "found
+  // nothing".
+  const [imageResult, layerResult] = await Promise.all([
+    supabase
+      .from("designs")
+      .select("id, name, version")
+      .or(`base_asset_id.eq.${assetId},current_asset_id.eq.${assetId}`),
+    supabase.from("design_layers").select("design_id").eq("asset_id", assetId),
+  ]);
+
+  const layerDesignIds = [
+    ...new Set(
+      ((layerResult.data ?? []) as { design_id: string }[]).map(
+        (row) => row.design_id
+      )
+    ),
+  ];
+
+  const layerDesigns =
+    layerDesignIds.length === 0
+      ? []
+      : (
+          (
+            await supabase
+              .from("designs")
+              .select("id, name, version")
+              .in("id", layerDesignIds)
+          ).data ?? []
+        ) as { id: string; name: string; version: number }[];
+
+  const byDesign = new Map<string, AssetUsage>();
+
+  const remember = (
+    design: { id: string; name: string; version: number },
+    how: "image" | "layer"
+  ) => {
+    const existing = byDesign.get(design.id) ?? {
+      design_id: design.id,
+      design_name: design.name,
+      design_version: design.version,
+      as_image: false,
+      as_layer: false,
+    };
+    if (how === "image") existing.as_image = true;
+    else existing.as_layer = true;
+    byDesign.set(design.id, existing);
+  };
+
+  for (const row of (imageResult.data ?? []) as {
+    id: string;
+    name: string;
+    version: number;
+  }[]) {
+    remember(row, "image");
+  }
+
+  // The same logo placed twice on one design is one affected design, not two:
+  // the ids were de-duplicated above.
+  for (const design of layerDesigns) {
+    remember(design, "layer");
+  }
+
+  return [...byDesign.values()].sort((a, b) =>
+    a.design_name.localeCompare(b.design_name)
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* R2 cleanup: collecting keys before a cascade erases them                     */
 /* -------------------------------------------------------------------------- */
 

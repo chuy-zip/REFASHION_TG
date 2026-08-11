@@ -12,12 +12,18 @@ import {
 } from "@/lib/api";
 import {
   assetBelongsToProjectClient,
-  listProjectDesigns,
   resolveDesignImageAssetId,
 } from "@/lib/designs";
+import { listProjectDesignsWithPreview } from "@/lib/designs-server";
+import { copyDesignLayers } from "@/lib/layers";
 import type { Design } from "@/lib/types";
 
-/** GET /api/designs?project_id=... — designs of a project (RLS filters). */
+/**
+ * GET /api/designs?project_id=... — designs of a project (RLS filters), each
+ * with `preview_url`: its latest composition, or the working image when it has
+ * none. The only consumer is the starting-point picker, which needs to show
+ * what each design *looks like*.
+ */
 export async function GET(request: Request) {
   const user = await getAuthenticatedUser();
   if (!user) return unauthorized();
@@ -28,9 +34,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createSupabaseClient();
-  const { designs, error } = await listProjectDesigns(supabase, projectId);
-
-  if (error) return jsonError("No se pudieron cargar los diseños.", 500);
+  const designs = await listProjectDesignsWithPreview(supabase, projectId);
 
   return NextResponse.json(designs);
 }
@@ -125,5 +129,29 @@ export async function POST(request: Request) {
 
   if (error) return translateDbError(error);
 
-  return NextResponse.json(data as Design, { status: 201 });
+  const created = data as Design;
+
+  // An iteration carries the parent's logos across: "me gusta el diseño, pero
+  // que la manga sea corta" keeps everything else, logo placement included.
+  //
+  // Best-effort, and deliberately not undone if it fails: the design itself is
+  // correct and usable, its working image is right, and deleting it to keep the
+  // operation atomic would throw away more than the failure cost. supabase-js
+  // cannot span both writes in one transaction anyway (APRENDIZAJES §3.2) —
+  // making this atomic would mean another plpgsql function, which is not worth
+  // it for a copy the user can redo by hand.
+  if (parent_design_id) {
+    const copied = await copyDesignLayers(
+      supabase,
+      parent_design_id,
+      created.id
+    );
+    if (copied === null) {
+      console.error(
+        `Failed to copy layers from design ${parent_design_id} to ${created.id}`
+      );
+    }
+  }
+
+  return NextResponse.json(created, { status: 201 });
 }
