@@ -25,6 +25,8 @@ const DesignWorkspace = dynamic(
 interface DesignWorkspaceLoaderProps {
   designId: string;
   designName: string;
+  /** Whose catalog the logos come from, and where new ones are written. */
+  clientId: string;
   workingImageUrl: string | null;
   workingAssetId: string | null;
   logos: AssetWithUrl[];

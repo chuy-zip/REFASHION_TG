@@ -154,10 +154,16 @@ Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `
   selector visual de punto de partida con subida incorporada, y asignación de prenda base
   desde la pantalla de trabajo. Tres rutas por diseño: `/designs/[id]` (hub de solo
   lectura, con el historial), `/edit` (pantalla de trabajo) y `/present`.
-- **Assets a nivel de diseño:** API completa (`presign-upload` / `confirm` /
-  `GET ?design_id=` con `design_id`, `origin` y `parent_asset_id`). Todavía sin UI: la
-  estrena el Módulo 1.
-- **Capas y puntero de trabajo:** esquema listo (`design_layers`,
-  `designs.current_asset_id`), sin UI todavía.
-- **Siguiente:** Módulo 1, composición de logos sobre lienzo (Konva), que reemplaza la
-  barra de herramientas mockeada de `/designs/[id]/edit`.
+- **Assets a nivel de diseño:** completo (`presign-upload` / `confirm` / `GET ?design_id=`
+  con `design_id`, `origin` y `parent_asset_id`).
+- **Módulo 1, composición de logos:** el ciclo cierra de punta a punta. Lienzo Konva sobre
+  la imagen de trabajo, logotipos del catálogo colocados como capas con mover, escalar y
+  rotar, autoguardado al soltar, y export de la composición como asset del diseño. Iterar
+  un diseño copia sus capas.
+- **Presentación:** la pestaña "Plana" muestra una composición (la prenda con sus
+  logotipos) y permite elegir cuál y descargarla. "Modelo guardado" y "Modelo IA" siguen
+  siendo placeholder: son el Módulo 3.
+- **Borrado seguro:** eliminar una imagen del catálogo avisa qué diseños la usan, como
+  imagen de trabajo o como logotipo. Advertencia, no bloqueo.
+- **Siguiente:** quitar el fondo de un logotipo (lo único pendiente del Módulo 1) y después
+  el Módulo 2, edición por zonas con máscaras.

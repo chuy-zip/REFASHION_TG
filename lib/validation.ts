@@ -320,9 +320,23 @@ export const createLayerSchema = z.object({
 
 export type CreateLayerInput = z.infer<typeof createLayerSchema>;
 
-/** Geometry only: a layer never changes which logo it is. */
+/**
+ * Geometry, plus the one thing that may replace a layer's image.
+ *
+ * The rule used to be "a layer never changes which logo it is", and it held
+ * while nothing needed otherwise. Removing the background produces a *new*
+ * catalog asset (`origin = 'derived'`), and the placement has to follow it: a
+ * layer is where the user put something, and quitar el fondo does not move it.
+ * Swapping in place keeps the row id, the geometry and the z-index; deleting
+ * and recreating would lose all three and open a gap where the logo is gone.
+ *
+ * `asset_id` is a foreign key writable from the API, so the route verifies
+ * ownership by hand — RLS guards the row being updated, not what it points at
+ * (APRENDIZAJES §2.5b).
+ */
 export const updateLayerSchema = z
   .object({
+    asset_id: z.uuid("El logotipo seleccionado no es válido.").optional(),
     x_ratio: layerGeometry.x_ratio.optional(),
     y_ratio: layerGeometry.y_ratio.optional(),
     width_ratio: layerGeometry.width_ratio.optional(),

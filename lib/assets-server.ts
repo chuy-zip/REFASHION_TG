@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDownloadUrl, getReadUrl } from "@/lib/r2";
 import { assetDisplayName, type AssetWithUrl } from "@/lib/assets";
+import { resolveDesignPath } from "@/lib/designs";
 import type { Asset } from "@/lib/types";
 
 /**
@@ -63,6 +64,46 @@ export async function listDesignAssets(
   if (error) return { assets: [], error: error.message };
 
   return { assets: await withUrls(data as Asset[]), error: null };
+}
+
+/**
+ * Whether an asset may be recorded as another one's `parent_asset_id`.
+ *
+ * `parent_asset_id` is a foreign key writable from the API, and those are
+ * verified below RLS (APRENDIZAJES §2.5b): the policy on the INSERT checks who
+ * owns the row being written, never what that row points at. Without this,
+ * `confirm` accepted any UUID, including an asset of another client, and the
+ * column that carries objetivo específico 2 would record lineage that crosses
+ * clients — invisible until someone reads the chain.
+ *
+ * Answers two questions in one query, because reading the parent goes through
+ * RLS: can this user see it at all, and does it hang off the same client. A
+ * parent that is itself a design asset resolves through its design.
+ */
+export async function parentAssetBelongsToClient(
+  supabase: SupabaseClient,
+  parentAssetId: string,
+  clientId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("assets")
+    .select("client_id, design_id")
+    .eq("id", parentAssetId)
+    .maybeSingle();
+
+  const parent = data as {
+    client_id: string | null;
+    design_id: string | null;
+  } | null;
+
+  // Gone, or hidden by RLS. Both mean "not something you may point at".
+  if (!parent) return false;
+
+  if (parent.client_id) return parent.client_id === clientId;
+  if (!parent.design_id) return false;
+
+  const path = await resolveDesignPath(supabase, parent.design_id);
+  return path?.clientId === clientId;
 }
 
 /* -------------------------------------------------------------------------- */

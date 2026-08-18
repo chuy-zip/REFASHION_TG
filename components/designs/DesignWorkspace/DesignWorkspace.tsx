@@ -1,14 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Image as KonvaImage, Layer, Rect, Stage, Transformer } from "react-konva";
 import type Konva from "konva";
 import { Button } from "@/components/ui/Button/Button";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
-import { uploadDesignAsset } from "@/lib/asset-upload";
-import { assetDisplayName, type AssetWithUrl } from "@/lib/assets";
+import {
+  UPLOAD_ACCEPT,
+  uploadClientAsset,
+  uploadDerivedClientAsset,
+  uploadDesignAsset,
+} from "@/lib/asset-upload";
+import {
+  assetDisplayName,
+  stripExtension,
+  type AssetWithUrl,
+} from "@/lib/assets";
+import {
+  DEFAULT_TOLERANCE,
+  MAX_TOLERANCE,
+  hasTransparentBackground,
+  removeBackground,
+  toPngBlob,
+  type BackgroundRemoval,
+} from "@/lib/background-removal";
 import type { DesignLayer } from "@/lib/types";
 import {
   useCrossOriginImage,
@@ -26,6 +43,8 @@ export interface WorkspaceLayer extends DesignLayer {
 interface DesignWorkspaceProps {
   designId: string;
   designName: string;
+  /** Whose catalog the logos come from, and where new ones are written. */
+  clientId: string;
   /** The clean garment the composition sits on. Null when none is assigned. */
   workingImageUrl: string | null;
   /** Lineage parent for the exported composition (objetivo específico 2). */
@@ -35,8 +54,20 @@ interface DesignWorkspaceProps {
   canEdit: boolean;
 }
 
+/** What a layer draws: the logo as it arrived, or a live cut-out preview. */
+type LayerImage = LoadedImage | HTMLCanvasElement;
+
 /** Fraction of the garment width a freshly placed logo takes. */
 const DEFAULT_WIDTH_RATIO = 0.25;
+
+/**
+ * A range input fires on every step of a drag, and each recompute walks the
+ * whole bitmap. One frame of grace collapses the burst into a single pass.
+ */
+const PREVIEW_DEBOUNCE_MS = 80;
+
+/** Past this share removed, the tolerance is eating the logo, not the background. */
+const OVERCUT_SHARE = 0.9;
 
 /**
  * Each new layer lands slightly off the previous one. Without this they stack
@@ -73,6 +104,7 @@ function designToken(name: string): string {
 export function DesignWorkspace({
   designId,
   designName,
+  clientId,
   workingImageUrl,
   workingAssetId,
   logos,
@@ -88,10 +120,30 @@ export function DesignWorkspace({
   const [isBusy, setIsBusy] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Logos created without leaving the screen: uploaded from here, or produced
+  // by removing a background. `router.refresh()` brings them into the `logos`
+  // prop eventually; holding them locally means the row updates on the click
+  // instead of on the round trip.
+  const [ownLogos, setOwnLogos] = useState<AssetWithUrl[]>([]);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  // Background removal, live on the canvas until it is applied or dropped.
+  const [cutLayerId, setCutLayerId] = useState<string | null>(null);
+  const [tolerance, setTolerance] = useState(DEFAULT_TOLERANCE);
+  // Tagged with the layer it belongs to, and matched at render time. A result
+  // that arrives after the user moved on is then simply not the current one,
+  // instead of having to be cleared from inside the effect that produced it.
+  const [cutPreview, setCutPreview] = useState<{
+    layerId: string;
+    removal: BackgroundRemoval;
+  } | null>(null);
+  const [isApplyingCut, setIsApplyingCut] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const nodeRefs = useRef(new Map<string, Konva.Image>());
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [availableWidth, setAvailableWidth] = useState(0);
 
@@ -101,6 +153,37 @@ export function DesignWorkspace({
   // Loaded here, in ordinary React, and handed to the canvas as finished
   // elements. Nothing under <Stage> loads anything.
   const layerImages = useCrossOriginImages(layers.map((layer) => layer.url));
+
+  // What the picker offers: the catalog as the server sent it, plus anything
+  // made here that has not come back around yet. Keyed by id so a refresh in
+  // flight cannot show the same logo twice.
+  const availableLogos = useMemo(() => {
+    const known = new Set(logos.map((logo) => logo.id));
+    return [...logos, ...ownLogos.filter((logo) => !known.has(logo.id))];
+  }, [logos, ownLogos]);
+
+  const selectedLayer =
+    layers.find((layer) => layer.id === selectedId) ?? null;
+  const selectedImage = selectedLayer
+    ? layerImages[selectedLayer.url]
+    : undefined;
+  const isCutting = cutLayerId !== null;
+
+  /**
+   * Step 1 of §6.3: a logo that already comes cut out has nothing to remove,
+   * so the tool is not offered for it. Cheap enough to run on selection — it
+   * reads the border ring, not the whole bitmap.
+   */
+  const selectedIsCutOut = useMemo(() => {
+    if (!selectedImage || selectedImage === "error") return false;
+    try {
+      return hasTransparentBackground(selectedImage);
+    } catch {
+      // Tainted canvas. Say nothing here: the same failure comes back with a
+      // real message if the user actually asks to remove the background.
+      return false;
+    }
+  }, [selectedImage]);
 
   const naturalWidth = workingImage?.naturalWidth ?? 0;
   const naturalHeight = workingImage?.naturalHeight ?? 0;
@@ -131,9 +214,43 @@ export function DesignWorkspace({
     if (!transformer) return;
 
     const node = selectedId ? nodeRefs.current.get(selectedId) : undefined;
-    transformer.nodes(node && !isExporting ? [node] : []);
+    // Also detached while cutting: the handles invite a gesture that has
+    // nothing to do with the decision on screen, which is the tolerance.
+    transformer.nodes(node && !isExporting && !isCutting ? [node] : []);
     transformer.getLayer()?.batchDraw();
-  }, [selectedId, isExporting, layers]);
+  }, [selectedId, isExporting, isCutting, layers]);
+
+  // The preview itself. Runs off the loaded image every time the tolerance
+  // moves, and never touches the stored layer: dropping the cut is forgetting
+  // this canvas.
+  useEffect(() => {
+    if (!cutLayerId) return;
+
+    const layer = layers.find((item) => item.id === cutLayerId);
+    const image = layer ? layerImages[layer.url] : undefined;
+    if (!image || image === "error") return;
+
+    const timer = setTimeout(() => {
+      try {
+        setCutPreview({
+          layerId: cutLayerId,
+          removal: removeBackground(image, tolerance),
+        });
+      } catch {
+        setCutLayerId(null);
+        setCutPreview(null);
+        setError(
+          "No se pudo leer el logotipo para quitarle el fondo. Recarga la página e inténtalo de nuevo."
+        );
+      }
+    }, PREVIEW_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [cutLayerId, tolerance, layers, layerImages]);
+
+  /** The preview only counts while it matches the layer being cut. */
+  const preview =
+    cutPreview && cutPreview.layerId === cutLayerId ? cutPreview.removal : null;
 
   const persistGeometry = useCallback(
     async (layerId: string, geometry: Partial<DesignLayer>) => {
@@ -195,6 +312,128 @@ export function DesignWorkspace({
       setLayers(previous);
       setError(result.error);
     }
+  }
+
+  /**
+   * Uploading a logo without leaving the canvas (FASE_1_5 §6.4.4). Without it,
+   * a client with an empty catalog strands the user on the working screen, the
+   * same dead end A3 removed for base garments.
+   *
+   * No confirm button, for the reason in §6.4.1: choosing the file *is* the
+   * decision, and a button that only ratifies it is the one that gets
+   * forgotten. The name comes from the file; renaming lives in Recursos.
+   */
+  async function handleLogoFile(file: File | null) {
+    if (!file) return;
+
+    setError(null);
+    setIsUploadingLogo(true);
+
+    const result = await uploadClientAsset({
+      clientId,
+      assetType: "logo",
+      file,
+      baseName: stripExtension(file.name),
+    });
+
+    setIsUploadingLogo(false);
+    // Let the same file be picked again after a failure.
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setOwnLogos((current) => [...current, result.data]);
+    notify({ type: "success", message: "Logotipo subido." });
+    router.refresh();
+  }
+
+  function handleStartCut(layerId: string) {
+    setError(null);
+    setSelectedId(layerId);
+    setTolerance(DEFAULT_TOLERANCE);
+    setCutPreview(null);
+    setCutLayerId(layerId);
+  }
+
+  function handleCancelCut() {
+    setCutLayerId(null);
+    setCutPreview(null);
+  }
+
+  /**
+   * Turns the preview into a real image: a **new** logo in the client's
+   * catalog, with the original recorded as its parent, and the layer re-pointed
+   * at it.
+   *
+   * Nothing is overwritten. The original may be placed on other designs, and
+   * those keep the logo the client already saw — same reasoning as §7.8, where
+   * copying layers into a new version is a snapshot and not a link.
+   */
+  async function handleApplyCut() {
+    const layer = layers.find((item) => item.id === cutLayerId);
+    if (!layer || !preview) return;
+
+    setError(null);
+    setIsApplyingCut(true);
+
+    const blob = await toPngBlob(preview.canvas);
+    if (!blob) {
+      setIsApplyingCut(false);
+      setError("No se pudo generar el logotipo sin fondo.");
+      return;
+    }
+
+    const uploaded = await uploadDerivedClientAsset({
+      clientId,
+      assetType: "logo",
+      blob,
+      baseName: `${stripExtension(layer.name)} sin fondo`,
+      parentAssetId: layer.asset_id,
+    });
+
+    if (!uploaded.ok) {
+      setIsApplyingCut(false);
+      setError(uploaded.error);
+      return;
+    }
+
+    const logo = uploaded.data;
+
+    // The placement does not move: the layer keeps its id, its geometry and
+    // its z-index, and only the image behind it changes.
+    const result = await apiPatch<DesignLayer>(
+      `/api/designs/${designId}/layers/${layer.id}`,
+      { asset_id: logo.id }
+    );
+
+    setIsApplyingCut(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setLayers((current) =>
+      current.map((item) =>
+        item.id === layer.id
+          ? {
+              ...item,
+              asset_id: logo.id,
+              url: logo.url,
+              name: assetDisplayName(logo),
+            }
+          : item
+      )
+    );
+    setOwnLogos((current) => [...current, logo]);
+    setCutLayerId(null);
+    setCutPreview(null);
+
+    notify({ type: "success", message: "Fondo quitado." });
+    router.refresh();
   }
 
   function handleDragEnd(layer: WorkspaceLayer, node: Konva.Image) {
@@ -293,6 +532,9 @@ export function DesignWorkspace({
   const stageWidth = naturalWidth * scale;
   const stageHeight = naturalHeight * scale;
   const canCompose = canEdit && workingStatus === "loaded";
+  // While a cut is on screen the canvas is showing a proposal, not the design:
+  // moving layers around underneath it would be editing two things at once.
+  const canManipulate = canCompose && !isCutting;
 
   return (
     <div className={styles.workspace}>
@@ -341,11 +583,15 @@ export function DesignWorkspace({
                   <LayerNode
                     key={layer.id}
                     layer={layer}
-                    image={layerImages[layer.url]}
+                    image={
+                      cutLayerId === layer.id && preview
+                        ? preview.canvas
+                        : layerImages[layer.url]
+                    }
                     naturalWidth={naturalWidth}
                     naturalHeight={naturalHeight}
-                    draggable={canCompose}
-                    onSelect={() => canCompose && setSelectedId(layer.id)}
+                    draggable={canManipulate}
+                    onSelect={() => canManipulate && setSelectedId(layer.id)}
                     onDragEnd={handleDragEnd}
                     onTransformEnd={handleTransformEnd}
                     registerNode={(node) => {
@@ -383,20 +629,20 @@ export function DesignWorkspace({
 
         <div className={styles.group}>
           <span className={styles.groupLabel}>Logotipos</span>
-          {logos.length === 0 ? (
+          {availableLogos.length === 0 ? (
             <p className={styles.hint}>
-              Este cliente no tiene logotipos. Súbelos desde la pestaña Recursos
-              para poder colocarlos.
+              Este cliente no tiene logotipos todavía. Sube uno para colocarlo
+              sobre la prenda.
             </p>
           ) : (
             <div className={styles.logoRow}>
-              {logos.map((logo) => (
+              {availableLogos.map((logo) => (
                 <button
                   key={logo.id}
                   type="button"
                   className={styles.logoButton}
                   onClick={() => handleAddLogo(logo)}
-                  disabled={!canCompose || isBusy}
+                  disabled={!canManipulate || isBusy}
                   title={assetDisplayName(logo)}
                 >
                   {/*
@@ -419,7 +665,119 @@ export function DesignWorkspace({
               ))}
             </div>
           )}
+
+          {/* Hidden because the Button is the control: a bare file input cannot
+              be styled to match, and two visible triggers for one action is
+              exactly the ambiguity the guide forbids. */}
+          <input
+            ref={fileInputRef}
+            className={styles.fileInput}
+            type="file"
+            accept={UPLOAD_ACCEPT}
+            onChange={(event) =>
+              handleLogoFile(event.target.files?.[0] ?? null)
+            }
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+          <Button
+            variant="secondary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!canEdit || isUploadingLogo || isCutting}
+            title={
+              canEdit ? undefined : "No tienes permisos para editar este cliente."
+            }
+          >
+            {isUploadingLogo ? "Subiendo…" : "+ Subir logotipo"}
+          </Button>
         </div>
+
+        {selectedLayer && (
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>Fondo del logotipo</span>
+
+            {!selectedImage || selectedImage === "error" ? (
+              <p className={styles.hint}>
+                La imagen de esta capa no se pudo cargar, así que no se le puede
+                quitar el fondo.
+              </p>
+            ) : cutLayerId === selectedLayer.id ? (
+              <>
+                <label className={styles.sliderLabel} htmlFor="cut-tolerance">
+                  Tolerancia
+                  <span className={styles.sliderValue}>
+                    {Math.round(tolerance * 100)}
+                  </span>
+                </label>
+                <input
+                  id="cut-tolerance"
+                  className={styles.slider}
+                  type="range"
+                  min={0}
+                  max={Math.round(MAX_TOLERANCE * 100)}
+                  step={1}
+                  value={Math.round(tolerance * 100)}
+                  onChange={(event) =>
+                    setTolerance(Number(event.target.value) / 100)
+                  }
+                  disabled={isApplyingCut}
+                />
+                <p className={styles.hint}>
+                  {preview
+                    ? `Se quitó el ${Math.round(
+                        preview.removedShare * 100
+                      )}% de la imagen. Sube la tolerancia si queda fondo, bájala si se come el logotipo.`
+                    : "Calculando…"}
+                </p>
+                {preview && preview.removedShare > OVERCUT_SHARE && (
+                  <p className={styles.warning}>
+                    Con esta tolerancia se está borrando casi todo el logotipo.
+                  </p>
+                )}
+                <div className={styles.cutActions}>
+                  <Button
+                    variant="secondary"
+                    onClick={handleCancelCut}
+                    disabled={isApplyingCut}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleApplyCut}
+                    disabled={!preview || isApplyingCut}
+                  >
+                    {isApplyingCut ? "Quitando…" : "Quitar fondo"}
+                  </Button>
+                </div>
+              </>
+            ) : selectedIsCutOut ? (
+              <p className={styles.hint}>
+                Este logotipo ya tiene el fondo transparente. No hace falta
+                recortarlo.
+              </p>
+            ) : (
+              <>
+                <p className={styles.hint}>
+                  El logotipo tiene fondo. Puedes recortarlo sin salir de acá; se
+                  guarda como un logotipo nuevo y el original no se toca.
+                </p>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleStartCut(selectedLayer.id)}
+                  disabled={!canCompose}
+                  title={
+                    canEdit
+                      ? undefined
+                      : "No tienes permisos para editar este cliente."
+                  }
+                >
+                  Quitar fondo
+                </Button>
+              </>
+            )}
+          </div>
+        )}
 
         <div className={styles.group}>
           <span className={styles.groupLabel}>Capas</span>
@@ -440,6 +798,7 @@ export function DesignWorkspace({
                         selectedId === layer.id ? styles.layerSelected : ""
                       }`}
                       onClick={() => setSelectedId(layer.id)}
+                      disabled={isCutting && cutLayerId !== layer.id}
                       title={
                         layerImages[layer.url] === "error"
                           ? "La imagen de esta capa no se pudo cargar."
@@ -454,7 +813,7 @@ export function DesignWorkspace({
                     <Button
                       variant="ghost"
                       onClick={() => handleRemoveLayer(layer.id)}
-                      disabled={!canEdit}
+                      disabled={!canEdit || isCutting}
                       title="Quitar la capa (el logotipo sigue en el catálogo)"
                     >
                       Quitar
@@ -478,10 +837,13 @@ export function DesignWorkspace({
             imagen con ellos aplicados, para descargarla o usarla en la prueba
             virtual.
           </p>
+          {/* Steps aside while a cut is on screen, so the panel keeps exactly
+              one primary: there, the decision is the tolerance. Same rule as
+              the base garment picker in FASE_1_5 §2, A4. */}
           <Button
-            variant="primary"
+            variant={isCutting ? "secondary" : "primary"}
             onClick={handleExport}
-            disabled={!canCompose || layers.length === 0 || isExporting}
+            disabled={!canManipulate || layers.length === 0 || isExporting}
           >
             {isExporting ? "Creando…" : "Crear composición"}
           </Button>
@@ -491,10 +853,27 @@ export function DesignWorkspace({
   );
 }
 
+/**
+ * Intrinsic size of whatever a layer is drawing.
+ *
+ * A cut-out preview is a `<canvas>`, and a canvas has `width`/`height` while an
+ * image has `naturalWidth`/`naturalHeight`. Reading the wrong pair yields
+ * `undefined`, the height comes out `NaN`, and the layer silently disappears
+ * the moment the preview turns on.
+ */
+function intrinsicSize(image: HTMLImageElement | HTMLCanvasElement): {
+  width: number;
+  height: number;
+} {
+  return image instanceof HTMLCanvasElement
+    ? { width: image.width, height: image.height }
+    : { width: image.naturalWidth, height: image.naturalHeight };
+}
+
 interface LayerNodeProps {
   layer: WorkspaceLayer;
   /** Already loaded by the parent, outside the Konva tree. */
-  image: LoadedImage;
+  image: LayerImage;
   naturalWidth: number;
   naturalHeight: number;
   draggable: boolean;
@@ -556,7 +935,9 @@ function LayerNode({
 
   if (!image) return null;
 
-  const height = width * (image.naturalHeight / image.naturalWidth);
+  const intrinsic = intrinsicSize(image);
+  const height =
+    intrinsic.width > 0 ? width * (intrinsic.height / intrinsic.width) : width;
 
   return (
     <KonvaImage

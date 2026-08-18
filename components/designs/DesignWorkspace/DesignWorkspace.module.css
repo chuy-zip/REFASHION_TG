@@ -107,6 +107,42 @@
   object-fit: contain;
 }
 
+/* The Button next to it is the real control; this only holds the file dialog. */
+.fileInput {
+  display: none;
+}
+
+.sliderLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.sliderValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.cutActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.warning {
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+}
+
 .layerList {
   display: flex;
   flex-direction: column;
@@ -137,8 +173,13 @@
   cursor: pointer;
 }
 
-.layerName:hover {
+.layerName:hover:not(:disabled) {
   background: var(--color-surface-sunken);
+}
+
+.layerName:disabled {
+  cursor: not-allowed;
+  color: var(--color-text-disabled);
 }
 
 .layerSelected {

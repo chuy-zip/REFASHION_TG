@@ -135,6 +135,7 @@ export default async function DesignEditPage({ params }: PageProps) {
       <DesignWorkspaceLoader
         designId={design.id}
         designName={design.name}
+        clientId={project.client_id}
         workingImageUrl={workingImageUrl}
         workingAssetId={workingAssetId}
         logos={logos}

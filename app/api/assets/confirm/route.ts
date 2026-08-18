@@ -4,6 +4,8 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { getDownloadUrl, getReadUrl } from "@/lib/r2";
+import { parentAssetBelongsToClient } from "@/lib/assets-server";
+import { resolveDesignPath } from "@/lib/designs";
 import { confirmAssetSchema } from "@/lib/validation";
 import {
   jsonError,
@@ -50,6 +52,31 @@ export async function POST(request: Request) {
     parent_asset_id,
   } = parsed.data;
   const supabase = await createSupabaseClient();
+
+  // Only paid for when a parent is actually claimed, which keeps the plain
+  // upload path at one round trip.
+  if (parent_asset_id) {
+    let ownerClientId: string | null = client_id ?? null;
+    if (!ownerClientId && design_id) {
+      ownerClientId =
+        (await resolveDesignPath(supabase, design_id))?.clientId ?? null;
+    }
+
+    const allowed =
+      ownerClientId !== null &&
+      (await parentAssetBelongsToClient(
+        supabase,
+        parent_asset_id,
+        ownerClientId
+      ));
+
+    if (!allowed) {
+      return jsonError(
+        "El recurso de origen no pertenece a este cliente.",
+        403
+      );
+    }
+  }
 
   const { data, error } = await supabase
     .from("assets")

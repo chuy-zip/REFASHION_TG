@@ -144,6 +144,36 @@ export function uploadClientAsset(input: {
 }
 
 /**
+ * A catalog image obtained from another one by a reproducible transformation:
+ * today, a logo with its background removed (Módulo 1, paso 4).
+ *
+ * Separate from `uploadClientAsset` rather than an extra flag on it, because
+ * the two differ in what they *require*, not in an option: this one cannot be
+ * called without saying which image it came from. That is `origin = 'derived'`
+ * as migration 012 defined it, and it is what keeps `generated` meaning "cost
+ * money and came out of a model" (FASE_1_5 §3.1).
+ *
+ * The result is a new asset. The original is never overwritten: it may be
+ * placed on other designs, and a `.jpg` key holding a PNG would be a lie.
+ */
+export function uploadDerivedClientAsset(input: {
+  clientId: string;
+  assetType: ClientAssetType;
+  blob: Blob;
+  baseName: string;
+  parentAssetId: string;
+}): Promise<UploadResult> {
+  return upload({
+    owner: { client_id: input.clientId },
+    assetType: input.assetType,
+    blob: input.blob,
+    baseName: input.baseName,
+    origin: "derived",
+    parentAssetId: input.parentAssetId,
+  });
+}
+
+/**
  * An image produced against a design.
  *
  * `parentAssetId` is not optional by accident: it is what sustains objetivo
