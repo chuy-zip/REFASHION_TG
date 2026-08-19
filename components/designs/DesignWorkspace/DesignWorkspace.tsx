@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button/Button";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
 import {
-  UPLOAD_ACCEPT,
+  uploadAcceptFor,
   uploadClientAsset,
   uploadDerivedClientAsset,
   uploadDesignAsset,
@@ -673,7 +673,7 @@ export function DesignWorkspace({
             ref={fileInputRef}
             className={styles.fileInput}
             type="file"
-            accept={UPLOAD_ACCEPT}
+            accept={uploadAcceptFor("logo")}
             onChange={(event) =>
               handleLogoFile(event.target.files?.[0] ?? null)
             }
@@ -690,6 +690,9 @@ export function DesignWorkspace({
           >
             {isUploadingLogo ? "Subiendo…" : "+ Subir logotipo"}
           </Button>
+          <p className={styles.hint}>
+            PNG, JPEG, WEBP o SVG. Un SVG se convierte a PNG al subirlo.
+          </p>
         </div>
 
         {selectedLayer && (

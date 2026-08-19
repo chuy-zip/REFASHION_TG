@@ -1,5 +1,6 @@
 import { apiPost } from "@/lib/api-client";
 import { extensionForMimeType, type AssetWithUrl } from "@/lib/assets";
+import { SVG_MIME_TYPE, isSvgFile, rasterizeSvgToPng } from "@/lib/svg-raster";
 import type {
   AssetOrigin,
   ClientAssetType,
@@ -32,6 +33,30 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 /** `accept` value for a file input restricted to what R2 will take. */
 export const UPLOAD_ACCEPT = UPLOADABLE_MIME_TYPES.join(",");
+
+/**
+ * What the file picker offers, which is **not** the same list as what gets
+ * stored: an SVG is accepted and converted to PNG before it leaves the browser
+ * (see `lib/svg-raster.ts`).
+ *
+ * Vectors only for logos. A base garment or a model photo comes out of a
+ * camera, so SVG adds nothing there and the narrower list keeps the conversion
+ * path down to the one case that needs it.
+ */
+export function uploadAcceptFor(assetType: ClientAssetType): string {
+  return assetType === "logo"
+    ? [...UPLOADABLE_MIME_TYPES, SVG_MIME_TYPE].join(",")
+    : UPLOAD_ACCEPT;
+}
+
+/**
+ * The extension the file will end up with, which the upload dialogs show
+ * before uploading. An SVG becomes a PNG, so asking the mime type directly
+ * would either throw or promise a `.svg` that never gets written.
+ */
+export function storedExtensionFor(file: File): string {
+  return isSvgFile(file) ? "png" : extensionForMimeType(file.type);
+}
 
 export type UploadResult =
   | { ok: true; data: AssetWithUrl }
@@ -127,17 +152,55 @@ async function upload({
   return { ok: true, data: confirm.data };
 }
 
-/** A catalog image of a client: always uploaded by a person. */
-export function uploadClientAsset(input: {
+/**
+ * A catalog image of a client: always uploaded by a person.
+ *
+ * An SVG logo is rasterised here, before anything is presigned, so that the
+ * whole system downstream keeps its invariant: **every object in R2 is a raster
+ * the canvas can draw**. Nothing in the API, the schema or the canvas learned
+ * about vectors, and the background removal of paso 4 needs no special case —
+ * a converted logo with a white rectangle behind it floods exactly like a JPEG,
+ * and one that was transparent arrives with its alpha intact.
+ *
+ * `origin` stays `upload`: a person uploaded this image and the format was
+ * normalised. `derived` is for an image obtained *from another asset*, which
+ * would need a parent that does not exist here.
+ */
+export async function uploadClientAsset(input: {
   clientId: string;
   assetType: ClientAssetType;
   file: File;
   baseName: string;
 }): Promise<UploadResult> {
+  let blob: Blob = input.file;
+
+  if (isSvgFile(input.file)) {
+    if (input.assetType !== "logo") {
+      return {
+        ok: false,
+        error: "Solo los logotipos pueden subirse en SVG. Usa PNG, JPEG o WEBP.",
+      };
+    }
+
+    // Checked against the source file too: the PNG that comes out of a heavy
+    // SVG can be smaller than the markup that produced it, so the limit would
+    // otherwise be enforced on the wrong thing.
+    if (input.file.size > MAX_UPLOAD_BYTES) {
+      return {
+        ok: false,
+        error: "No se pudo subir la imagen. El archivo supera los 10 MB.",
+      };
+    }
+
+    const raster = await rasterizeSvgToPng(input.file);
+    if (!raster.ok) return { ok: false, error: raster.error };
+    blob = raster.blob;
+  }
+
   return upload({
     owner: { client_id: input.clientId },
     assetType: input.assetType,
-    blob: input.file,
+    blob,
     baseName: input.baseName,
     origin: "upload",
   });

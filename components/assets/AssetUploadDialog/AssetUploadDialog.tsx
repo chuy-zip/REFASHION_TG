@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { Button, type ButtonVariant } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
-import { UPLOAD_ACCEPT, uploadClientAsset } from "@/lib/asset-upload";
 import {
-  ASSET_TYPE_COPY,
-  extensionForMimeType,
-  stripExtension,
-} from "@/lib/assets";
+  storedExtensionFor,
+  uploadAcceptFor,
+  uploadClientAsset,
+} from "@/lib/asset-upload";
+import { ASSET_TYPE_COPY, stripExtension } from "@/lib/assets";
 import type { ClientAssetType } from "@/lib/types";
 import styles from "./AssetUploadDialog.module.css";
 
@@ -122,7 +122,7 @@ export function AssetUploadDialog({
               id={`${titleId}-file`}
               className={styles.input}
               type="file"
-              accept={UPLOAD_ACCEPT}
+              accept={uploadAcceptFor(assetType)}
               onChange={(event) =>
                 handleFileChange(event.target.files?.[0] ?? null)
               }
@@ -130,7 +130,11 @@ export function AssetUploadDialog({
               autoFocus
               required
             />
-            <p className={styles.hint}>PNG, JPEG o WEBP. Máximo 10 MB.</p>
+            <p className={styles.hint}>
+              {assetType === "logo"
+                ? "PNG, JPEG, WEBP o SVG. Máximo 10 MB. Un SVG se convierte a PNG de alta resolución al subirlo, así que su texto debe estar convertido a trazos."
+                : "PNG, JPEG o WEBP. Máximo 10 MB."}
+            </p>
           </div>
 
           {file && (
@@ -148,7 +152,7 @@ export function AssetUploadDialog({
               />
               <p className={styles.hint}>
                 Se guardará como {baseName.trim() || "…"}.
-                {extensionForMimeType(file.type)}
+                {storedExtensionFor(file)}
               </p>
             </div>
           )}

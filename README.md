@@ -122,7 +122,10 @@ graduación). Esto es lo mínimo para no deshacer una decisión sin querer.
   cliente nunca puede quedarse sin `owner`.
 - **Las FK se verifican por debajo del RLS.** Una FK garantiza que el UUID existe, no que
   el usuario pueda referenciarlo. Cada columna FK escribible desde la API necesita su
-  verificación de pertenencia explícita (ver `assetBelongsToProjectClient`).
+  verificación de pertenencia explícita, y a la fecha son cuatro:
+  `assetBelongsToProjectClient` (`designs.base_asset_id`), `assetIsUsableAsCurrent`
+  (`designs.current_asset_id`), `assetIsUsableAsLayer` (`design_layers.asset_id`) y
+  `parentAssetBelongsToClient` (`assets.parent_asset_id`).
 - **`version` se deriva, `status` se guarda.** La regla general: derivá lo que es un
   hecho, guardá lo que es una decisión del usuario.
 - **El logo es una capa, no se aplana.** Se aplica al final del pipeline sobre la imagen
@@ -133,6 +136,12 @@ graduación). Esto es lo mínimo para no deshacer una decisión sin querer.
   externo). El del medio existe porque el Módulo 1 se define como composición clásica **no
   generativa**, y guardarlo como `generated` haría que los datos contradijeran esa
   afirmación.
+- **Un logotipo SVG se acepta, pero no se almacena.** Se convierte a PNG de 2048 px en el
+  navegador al subirlo (`lib/svg-raster.ts`). Guardar el vector obligaría a convivir con tres
+  rarezas del formato en cada carga (rasterizado a una resolución que decide el navegador,
+  tamaño intrínseco distinto por navegador cuando falta el `viewBox`, y XML que puede traer
+  `<script>`). Convertir en la frontera preserva el invariante del que depende todo lo demás:
+  **todo objeto en R2 es un ráster que el lienzo puede dibujar**.
 - **El cascade de Postgres no llega a R2.** Borrar cliente/proyecto/diseño elimina las
   filas dentro del motor, sin ningún punto donde la app se entere. Las `r2_key` se leen
   **antes** del borrado (`listR2KeysUnder*`) y se limpian después, best-effort.
@@ -156,14 +165,22 @@ Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `
   lectura, con el historial), `/edit` (pantalla de trabajo) y `/present`.
 - **Assets a nivel de diseño:** completo (`presign-upload` / `confirm` / `GET ?design_id=`
   con `design_id`, `origin` y `parent_asset_id`).
-- **Módulo 1, composición de logos:** el ciclo cierra de punta a punta. Lienzo Konva sobre
-  la imagen de trabajo, logotipos del catálogo colocados como capas con mover, escalar y
-  rotar, autoguardado al soltar, y export de la composición como asset del diseño. Iterar
-  un diseño copia sus capas.
+- **Módulo 1, composición de logos:** completo. Lienzo Konva sobre la imagen de trabajo,
+  logotipos del catálogo colocados como capas con mover, escalar y rotar, autoguardado al
+  soltar, export de la composición como asset del diseño, y subida de un logotipo sin salir
+  del lienzo. Iterar un diseño copia sus capas.
+- **Quitar el fondo de un logotipo:** en el lienzo, sobre la capa seleccionada
+  (`lib/background-removal.ts`). Detecta si la imagen ya viene recortada y, si no, ofrece un
+  *flood fill* desde las cuatro esquinas con tolerancia ajustable y vista previa en vivo sobre
+  la prenda. El resultado es un logotipo **nuevo** en el catálogo (`origin = 'derived'`, con
+  `parent_asset_id` al original) y la capa pasa a apuntarle; el original nunca se toca. Sin
+  dependencias ni llamadas externas: el protocolo define este módulo como composición clásica,
+  no generativa.
 - **Presentación:** la pestaña "Plana" muestra una composición (la prenda con sus
   logotipos) y permite elegir cuál y descargarla. "Modelo guardado" y "Modelo IA" siguen
   siendo placeholder: son el Módulo 3.
 - **Borrado seguro:** eliminar una imagen del catálogo avisa qué diseños la usan, como
   imagen de trabajo o como logotipo. Advertencia, no bloqueo.
-- **Siguiente:** quitar el fondo de un logotipo (lo único pendiente del Módulo 1) y después
-  el Módulo 2, edición por zonas con máscaras.
+- **Siguiente:** Módulo 2, edición por zonas con máscaras e inpainting. Es el primero que
+  llama a un servicio externo de pago, así que trae consigo el registro de `cost_usd` y el
+  manejo de tareas asíncronas.
