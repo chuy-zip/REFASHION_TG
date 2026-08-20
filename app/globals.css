@@ -28,10 +28,16 @@
   --color-text-secondary: #5c6370;
   --color-text-disabled: #9aa0aa;
 
-  /* Accent — one accent only, at most one solid instance per screen */
-  --color-accent: #1f4fd8;
-  --color-accent-hover: #1a42b8;
-  --color-accent-subtle: #ebf0fe;
+  /* Accent — one accent only, at most one solid instance per screen.
+
+     Añil: the dye of work clothing, and a Guatemalan export crop. Deliberately
+     DEEPER than the royal blue it replaces. A dashboard wants its accent to be
+     the loudest thing on screen; here it must be the quietest thing that still
+     reads as pressable, because what the client judges during the call is the
+     fabric. Contrast on white went up as a side effect: 9.6:1 from 6.6:1. */
+  --color-accent: #2f3e8c;
+  --color-accent-hover: #26327a;
+  --color-accent-subtle: #eceef9;
 
   /* Semantic state — never decorative */
   --color-success: #157f4b;
@@ -44,7 +50,7 @@
   --color-backdrop: rgba(22, 24, 29, 0.45);
 
   /* Typography. The font vars are injected by next/font in app/layout.tsx. */
-  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-archivo), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-jetbrains-mono), "SF Mono", Menlo, monospace;
 
   --text-xs: 0.75rem; /* 12px — metadata, timestamps */
@@ -53,10 +59,43 @@
   --text-lg: 1.125rem; /* 18px — section titles */
   --text-xl: 1.5rem; /* 24px — page title */
 
+  /* Spacing, named by PIXEL value: `var(--space-10)` needs no lookup.
+
+     Base 2, not the base 4 the guide documented — a correction, not a
+     relaxation. 2, 6, 10, 14 and 20 were already a third of all uses (14px is
+     every button's horizontal padding, where 12 is cramped and 16 inflated).
+     Snapping ~100 call sites would have moved the interface to protect a
+     convention nothing enforced. See APRENDIZAJES §5.16. */
+  --space-2: 0.125rem;
+  --space-4: 0.25rem;
+  --space-6: 0.375rem;
+  --space-8: 0.5rem;
+  --space-10: 0.625rem;
+  --space-12: 0.75rem;
+  --space-14: 0.875rem;
+  --space-16: 1rem;
+  --space-20: 1.25rem;
+  --space-24: 1.5rem;
+  --space-32: 2rem;
+  --space-48: 3rem;
+
   /* Radii — deliberately low. Large radii read as a consumer app. */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
+
+  /* Borders. The hairline is the app's only border weight. */
+  --border-hairline: 1px;
+
+  /* El hilván: dashed means PROVISIONAL, not yet part of the design. Empty
+     states, drop zones, unapplied previews, and the starting point of a
+     history (which belongs to the client's catalogue). One declaration so the
+     convention cannot drift. */
+  --border-provisional: 1px dashed var(--color-border-strong);
+
+  /* Dense metadata is set NARROWER, never smaller: the width axis is why
+     Archivo replaced Inter. See app/layout.tsx. */
+  --font-stretch-condensed: 87%;
 
   /* Shadows — only for elements that genuinely float */
   --shadow-sm: 0 1px 2px rgba(22, 24, 29, 0.06);

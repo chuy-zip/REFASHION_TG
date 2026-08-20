@@ -1,7 +1,7 @@
 .workspace {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: var(--space-24);
 }
 
 /* Reserves the canvas height while the Konva chunk downloads, so the page does
@@ -22,14 +22,14 @@
   align-items: center;
   justify-content: center;
   min-height: 24rem;
-  padding: 1rem;
+  padding: var(--space-16);
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
 }
 
 .stageMessage {
-  padding: 2rem;
+  padding: var(--space-32);
   text-align: center;
 }
 
@@ -40,7 +40,7 @@
 }
 
 .stageMessageHint {
-  margin-top: 0.25rem;
+  margin-top: var(--space-4);
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
 }
@@ -48,15 +48,15 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-16);
   flex: 0 0 17rem;
 }
 
 .group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem;
+  gap: var(--space-8);
+  padding: var(--space-16);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
@@ -78,7 +78,7 @@
 .logoRow {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  gap: var(--space-8);
 }
 
 .logoButton {
@@ -116,7 +116,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-8);
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
 }
@@ -135,7 +135,7 @@
 
 .cutActions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-8);
 }
 
 .warning {
@@ -146,14 +146,14 @@
 .layerList {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-4);
   list-style: none;
 }
 
 .layerItem {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-8);
 }
 
 .layerName {
@@ -162,7 +162,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 0.375rem 0.5rem;
+  padding: var(--space-6) var(--space-8);
   font-family: inherit;
   font-size: var(--text-sm);
   text-align: left;
@@ -197,7 +197,7 @@
 }
 
 .error {
-  padding: 0.625rem 0.75rem;
+  padding: var(--space-10) var(--space-12);
   font-size: var(--text-sm);
   color: var(--color-danger);
   background: var(--color-danger-subtle);

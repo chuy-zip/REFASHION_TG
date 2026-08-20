@@ -5,8 +5,8 @@
 .content {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.25rem;
+  gap: var(--space-12);
+  padding: var(--space-20);
 }
 
 .title {
@@ -37,13 +37,13 @@
 .attrs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 0.5rem 1rem;
+  gap: var(--space-8) var(--space-16);
 }
 
 .attr {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: var(--space-2);
 }
 
 .attrLabel {
@@ -63,8 +63,8 @@
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
 }
 
 .downloadLink {

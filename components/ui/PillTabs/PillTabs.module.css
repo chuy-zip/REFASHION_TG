@@ -1,14 +1,14 @@
 .pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: var(--space-6);
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-12);
   font-size: var(--text-sm);
   font-weight: 500;
   font-family: inherit;

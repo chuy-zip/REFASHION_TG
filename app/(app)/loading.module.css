@@ -1,15 +1,15 @@
 .page {
   width: 100%;
   max-width: 90rem;
-  padding: 1.5rem 2rem;
+  padding: var(--space-24) var(--space-32);
 }
 
 .titleRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-16);
+  margin-bottom: var(--space-24);
 }
 
 .title {
@@ -25,7 +25,7 @@
 .rows {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-8);
 }
 
 .row {
