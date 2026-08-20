@@ -1,0 +1,110 @@
+/* The app's frame: one horizontal bar, not a vertical rail.
+
+   The rail was 15rem of permanent width spent on two destinations, on screens
+   whose whole point is to give room to a garment. A horizontal bar costs 52px
+   of height once and takes nothing from the canvas.
+
+   This is not a new layout: it is what the sidebar already became below 48rem,
+   promoted to every width. */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-20);
+  min-height: 3.25rem;
+  padding: var(--space-8) var(--space-24);
+  background: var(--color-surface-raised);
+  border-bottom: var(--border-hairline) solid var(--color-border-subtle);
+}
+
+.brand {
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-6) var(--space-10);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.navLink:hover {
+  color: var(--color-text-primary);
+}
+
+/* Weight and colour, no filled chip. A tinted pill is how a vertical rail
+   marks its place; carried into a horizontal bar it reads as a leftover, and
+   it competes with the one real control up here. The section tabs inside a
+   page keep the underline, so the two levels stay distinguishable. */
+.navLink[aria-current="page"] {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* Pushes the account cluster to the far edge. */
+.spacer {
+  flex-grow: 1;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+/* Separates navigating from acting, inside the same left cluster. */
+.divider {
+  width: var(--border-hairline);
+  height: var(--space-20);
+  flex-shrink: 0;
+  background: var(--color-border-subtle);
+}
+
+/* Says whose session this is, and nothing more. Not mono: §3 reserves that for
+   values you read precisely, and this one you only glance at. */
+.email {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--color-text-disabled);
+}
+
+@media (max-width: 48rem) {
+  .bar {
+    padding: var(--space-8) var(--space-16);
+  }
+
+  /* §7's 44px touch floor. The rail never met it either; a bar is where it
+     starts to matter, because the targets now sit side by side. */
+  .navLink {
+    min-height: 2.75rem;
+  }
+
+  /* The address is the first thing to go: it identifies the session, and the
+     sign-out control right beside it already says whose it is. */
+  .email {
+    display: none;
+  }
+}

@@ -6,7 +6,7 @@
   gap: var(--space-12);
   padding: var(--space-14) var(--space-16);
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
 }
 
@@ -24,15 +24,6 @@
   font-size: var(--text-base);
   font-weight: 500;
   color: var(--color-text-primary);
-}
-
-.selfTag {
-  padding: 0.0625rem var(--space-6);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--color-accent);
-  background: var(--color-accent-subtle);
-  border-radius: var(--radius-sm);
 }
 
 .email {
@@ -54,7 +45,7 @@
   font-family: inherit;
   color: var(--color-text-primary);
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-border-strong);
   border-radius: var(--radius-sm);
 }
 

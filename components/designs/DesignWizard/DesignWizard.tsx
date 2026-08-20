@@ -2,7 +2,7 @@
 
 import { useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button/Button";
+import { Button, type ButtonVariant } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import {
@@ -49,8 +49,13 @@ interface DesignWizardProps {
   /** Project entry point: skips the client and project steps. */
   context?: DesignWizardContext;
   triggerLabel?: string;
-  /** The sidebar's trigger spans the rail; a section header's does not. */
-  fullWidthTrigger?: boolean;
+  /**
+   * `primary` on a project's page, where creating a design IS the screen's
+   * action; `secondary` in the app bar, where it is a global shortcut and must
+   * not compete with whatever the current screen is asking for (§6: one
+   * primary per screen).
+   */
+  triggerVariant?: ButtonVariant;
 }
 
 /**
@@ -68,7 +73,7 @@ export function DesignWizard({
   clients = [],
   context,
   triggerLabel = "+ Nuevo diseño",
-  fullWidthTrigger = false,
+  triggerVariant = "primary",
 }: DesignWizardProps) {
   const router = useRouter();
   const { notify } = useToast();
@@ -277,11 +282,7 @@ export function DesignWizard({
 
   return (
     <>
-      <Button
-        variant="primary"
-        className={fullWidthTrigger ? styles.triggerFullWidth : undefined}
-        onClick={open}
-      >
+      <Button variant={triggerVariant} onClick={open}>
         {triggerLabel}
       </Button>
 

@@ -49,6 +49,6 @@
   font-family: inherit;
   color: var(--color-text-primary);
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-border-strong);
   border-radius: var(--radius-sm);
 }

@@ -1,6 +1,5 @@
 .page {
   width: 100%;
-  max-width: 90rem;
   padding: var(--space-24) var(--space-32);
 }
 
@@ -33,7 +32,7 @@
   padding: var(--space-48) var(--space-24);
   text-align: center;
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
 }
 
@@ -48,21 +47,26 @@
   color: var(--color-text-secondary);
 }
 
+/* A grid, not a column of full-width strips. A client is a name and two short
+   facts; stretched across a wide monitor each row was mostly empty, and adding
+   width made it worse rather than better. Cards that keep a readable size and
+   flow into columns fill the page without inflating the content. */
 .list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  gap: var(--space-12);
   list-style: none;
 }
 
 .card {
   display: flex;
+  height: 100%;
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-14) var(--space-16);
   text-decoration: none;
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   transition: border-color var(--duration-fast) var(--ease-out);
 }
@@ -87,6 +91,6 @@
   font-size: var(--text-sm);
   color: var(--color-danger);
   background: var(--color-danger-subtle);
-  border: 1px solid var(--color-danger);
+  border: var(--border-hairline) solid var(--color-danger);
   border-radius: var(--radius-sm);
 }

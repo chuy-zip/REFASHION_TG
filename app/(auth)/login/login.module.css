@@ -20,7 +20,7 @@
   max-width: 22rem;
   padding: var(--space-24);
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
 }
@@ -62,7 +62,7 @@
   font-family: inherit;
   color: var(--color-text-primary);
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-border-strong);
   border-radius: var(--radius-sm);
 }
 
@@ -104,6 +104,6 @@
   font-size: var(--text-sm);
   color: var(--color-danger);
   background: var(--color-danger-subtle);
-  border: 1px solid var(--color-danger);
+  border: var(--border-hairline) solid var(--color-danger);
   border-radius: var(--radius-sm);
 }

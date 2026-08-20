@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/Badge/Badge";
 import { Button } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
@@ -78,7 +79,7 @@ export function UserRow({ user, roles, isSelf }: UserRowProps) {
       <div className={styles.identity}>
         <span className={styles.name}>
           {name}
-          {isSelf && <span className={styles.selfTag}>tú</span>}
+          {isSelf && <Badge tone="accent">tú</Badge>}
         </span>
         <span className={styles.email}>{user.email}</span>
         {error && (

@@ -2,7 +2,7 @@
   display: flex;
   gap: var(--space-4);
   margin-bottom: var(--space-16);
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: var(--border-hairline) solid var(--color-border-subtle);
 }
 
 .tab {
@@ -36,7 +36,7 @@
   min-height: 24rem;
   margin-bottom: var(--space-12);
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
 }
 
@@ -117,7 +117,7 @@
   aspect-ratio: 1;
   padding: 0;
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   cursor: pointer;
   overflow: hidden;

@@ -1,18 +1,13 @@
+/* The bar sits on top and the content fills the rest, at full width. */
 .shell {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   min-height: 100vh;
 }
 
-/* Fills the space beside the sidebar. min-width:0 lets wide children (tables,
-   grids) shrink instead of forcing the whole page to scroll sideways. */
+/* min-width:0 lets wide children (tables, grids, the canvas) shrink instead of
+   forcing the whole page to scroll sideways. */
 .content {
-  flex: 1;
+  flex-grow: 1;
   min-width: 0;
-}
-
-@media (max-width: 48rem) {
-  .shell {
-    flex-direction: column;
-  }
 }
