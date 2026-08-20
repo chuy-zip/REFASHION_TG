@@ -6,6 +6,7 @@ import { MembersSection } from "@/components/clients/MembersSection/MembersSecti
 import { ProjectsSection } from "@/components/projects/ProjectsSection/ProjectsSection";
 import { AssetsSection } from "@/components/assets/AssetsSection/AssetsSection";
 import type { AssetWithUrl } from "@/lib/assets";
+import type { ProjectSamples } from "@/lib/designs";
 import type { ClientMemberView } from "@/lib/members";
 import type { Client, Project } from "@/lib/types";
 import styles from "./ClientDetailView.module.css";
@@ -25,7 +26,11 @@ interface ClientDetailViewProps {
   canDelete: boolean;
   members: ClientMemberView[];
   canManageMembers: boolean;
+  /** The current page of projects, with their sample strips. */
   projects: Project[];
+  projectsTotal: number;
+  projectsPage: number;
+  samplesByProject: Map<string, ProjectSamples>;
   assets: AssetWithUrl[];
   currentUserId: string;
 }
@@ -42,6 +47,9 @@ export function ClientDetailView({
   members,
   canManageMembers,
   projects,
+  projectsTotal,
+  projectsPage,
+  samplesByProject,
   assets,
   currentUserId,
 }: ClientDetailViewProps) {
@@ -90,6 +98,9 @@ export function ClientDetailView({
           <ProjectsSection
             clientId={client.id}
             projects={projects}
+            total={projectsTotal}
+            page={projectsPage}
+            samplesByProject={samplesByProject}
             canManage={canEdit}
           />
         )}

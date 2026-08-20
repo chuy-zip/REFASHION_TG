@@ -5,10 +5,12 @@ import { getReadUrl } from "@/lib/r2";
 import {
   listProjectDesigns,
   resolveDesignImageAssetId,
+  PROJECT_SAMPLE_SIZE,
   type DesignListOptions,
   type DesignWithPreview,
+  type ProjectSamples,
 } from "@/lib/designs";
-import type { Asset } from "@/lib/types";
+import type { Asset, Design } from "@/lib/types";
 
 /**
  * Design queries that sign R2 URLs. Split from `lib/designs.ts` for the same
@@ -16,10 +18,49 @@ import type { Asset } from "@/lib/types";
  * `lib/r2` carries credentials.
  */
 
+/** One row of `design_activity` (migration 014). */
+interface DesignActivity {
+  design_id: string;
+  latest_composition_key: string | null;
+  last_asset_at: string | null;
+}
+
+/** The two columns `resolveDesignImageAssetId` needs, plus an identity. */
+type PreviewableDesign = Pick<
+  Design,
+  "id" | "base_asset_id" | "current_asset_id"
+>;
+
 /**
- * The designs of a project, each with a preview of **how it looks**.
+ * What each design last produced, one row per design.
  *
- * Preview resolution, in order:
+ * Reads the `design_activity` view instead of the `assets` table: asking
+ * Postgres for "the newest asset of each design" is one row per design, while
+ * asking for every asset and keeping the first of each was one row per asset.
+ */
+async function fetchDesignActivity(
+  supabase: SupabaseClient,
+  designIds: string[]
+): Promise<Map<string, DesignActivity>> {
+  const byDesign = new Map<string, DesignActivity>();
+  if (designIds.length === 0) return byDesign;
+
+  const { data } = await supabase
+    .from("design_activity")
+    .select("design_id, latest_composition_key, last_asset_at")
+    .in("design_id", designIds);
+
+  for (const row of (data ?? []) as DesignActivity[]) {
+    byDesign.set(row.design_id, row);
+  }
+
+  return byDesign;
+}
+
+/**
+ * A signed URL of **how each design looks**, keyed by design id.
+ *
+ * Resolution order:
  *   1. the design's latest `composition` — the garment with its logos on it
  *   2. failing that, the working image (the clean garment)
  *
@@ -27,8 +68,52 @@ import type { Asset } from "@/lib/types";
  * still comes from `resolveDesignImageAssetId`, so what gets inherited stays a
  * clean garment (§7.7). Looking and inheriting are different questions.
  *
- * Two queries regardless of how many designs the project has, rather than one
- * per design.
+ * Shared by the design list and the project samples, so that rule is written
+ * once. A design missing from the returned map simply has no image yet.
+ */
+async function resolvePreviewUrls(
+  supabase: SupabaseClient,
+  designs: PreviewableDesign[],
+  activity: Map<string, DesignActivity>
+): Promise<Map<string, string>> {
+  // Only the designs with no composition need their working image looked up.
+  const fallbackIds = designs
+    .filter((design) => !activity.get(design.id)?.latest_composition_key)
+    .map((design) => resolveDesignImageAssetId(design))
+    .filter((id): id is string => id !== null);
+
+  const keyByAsset = new Map<string, string>();
+  if (fallbackIds.length > 0) {
+    const { data } = await supabase
+      .from("assets")
+      .select("id, r2_key")
+      .in("id", fallbackIds);
+
+    for (const row of (data ?? []) as Pick<Asset, "id" | "r2_key">[]) {
+      keyByAsset.set(row.id, row.r2_key);
+    }
+  }
+
+  const urlByDesign = new Map<string, string>();
+  await Promise.all(
+    designs.map(async (design) => {
+      const workingId = resolveDesignImageAssetId(design);
+      const key =
+        activity.get(design.id)?.latest_composition_key ??
+        (workingId ? keyByAsset.get(workingId) : undefined);
+
+      if (key) urlByDesign.set(design.id, await getReadUrl(key));
+    })
+  );
+
+  return urlByDesign;
+}
+
+/**
+ * The designs of a project, each with a preview and a last-activity date.
+ *
+ * Three queries regardless of how many designs the project has, and every one
+ * of them bounded by the page: the page size is also the image budget.
  */
 export async function listProjectDesignsWithPreview(
   supabase: SupabaseClient,
@@ -42,78 +127,99 @@ export async function listProjectDesignsWithPreview(
   );
   if (designs.length === 0) return { designs: [], total };
 
-  // One query answers two questions: which composition to show, and when the
-  // design last produced anything. Newest first, so the first row seen for a
-  // design is its latest of whatever kind. The type filter that used to live
-  // here was dropped on purpose — a mask or an inpainting is activity too, and
-  // filtering it out would have made the date wrong the day Módulo 2 lands.
-  const { data: assetData } = await supabase
-    .from("assets")
-    .select("design_id, r2_key, asset_type, created_at")
-    .in(
-      "design_id",
-      designs.map((design) => design.id)
-    )
-    .order("created_at", { ascending: false });
+  const activity = await fetchDesignActivity(
+    supabase,
+    designs.map((design) => design.id)
+  );
+  const previews = await resolvePreviewUrls(supabase, designs, activity);
 
-  const compositionKeyByDesign = new Map<string, string>();
-  const lastAssetAtByDesign = new Map<string, string>();
-
-  for (const row of (assetData ?? []) as Pick<
-    Asset,
-    "design_id" | "r2_key" | "asset_type" | "created_at"
-  >[]) {
-    if (!row.design_id) continue;
-
-    if (!lastAssetAtByDesign.has(row.design_id)) {
-      lastAssetAtByDesign.set(row.design_id, row.created_at);
-    }
-
-    if (
-      row.asset_type === "composition" &&
-      !compositionKeyByDesign.has(row.design_id)
-    ) {
-      compositionKeyByDesign.set(row.design_id, row.r2_key);
-    }
-  }
-
-  // Only the designs with no composition need their working image looked up.
-  const fallbackIds = designs
-    .filter((design) => !compositionKeyByDesign.has(design.id))
-    .map((design) => resolveDesignImageAssetId(design))
-    .filter((id): id is string => id !== null);
-
-  const fallbackKeyByAsset = new Map<string, string>();
-  if (fallbackIds.length > 0) {
-    const { data: assetData } = await supabase
-      .from("assets")
-      .select("id, r2_key")
-      .in("id", fallbackIds);
-
-    for (const row of (assetData ?? []) as Pick<Asset, "id" | "r2_key">[]) {
-      fallbackKeyByAsset.set(row.id, row.r2_key);
-    }
-  }
-
-  const withPreview = await Promise.all(
-    designs.map(async (design) => {
-      const workingId = resolveDesignImageAssetId(design);
-      const key =
-        compositionKeyByDesign.get(design.id) ??
-        (workingId ? fallbackKeyByAsset.get(workingId) : undefined);
-
-      const lastAssetAt = lastAssetAtByDesign.get(design.id);
+  return {
+    designs: designs.map((design) => {
+      const lastAssetAt = activity.get(design.id)?.last_asset_at;
 
       return {
         ...design,
-        preview_url: key ? await getReadUrl(key) : null,
+        preview_url: previews.get(design.id) ?? null,
         last_activity:
           lastAssetAt && lastAssetAt > design.updated_at
             ? lastAssetAt
             : design.updated_at,
       };
-    })
-  );
+    }),
+    total,
+  };
+}
 
-  return { designs: withPreview, total };
+/**
+ * "La muestra" for a set of projects: up to `PROJECT_SAMPLE_SIZE` of each
+ * project's most recent designs, with an image each.
+ *
+ * **The cap is applied by Postgres, not here.** `project_design_samples`
+ * numbers each project's designs by recency and the query keeps
+ * `position <= 4`, so the rows that will not be shown are never sent and never
+ * turn into a signed URL. Trimming in JavaScript would mean the server had
+ * already resolved images nobody would see, which is the whole cost.
+ *
+ * `design_count` rides along from the same view (a window count over the full
+ * partition), so a card can say "5 diseños" while showing four without a second
+ * query.
+ *
+ * Four sampled designs each, so the images on screen are bounded by
+ * `projects.length * PROJECT_SAMPLE_SIZE` — and the caller pages the projects.
+ */
+export async function fetchProjectSamples(
+  supabase: SupabaseClient,
+  projectIds: string[]
+): Promise<Map<string, ProjectSamples>> {
+  const byProject = new Map<string, ProjectSamples>();
+  if (projectIds.length === 0) return byProject;
+
+  const { data } = await supabase
+    .from("project_design_samples")
+    .select(
+      "project_id, design_id, name, base_asset_id, current_asset_id, position, design_count"
+    )
+    .in("project_id", projectIds)
+    .lte("position", PROJECT_SAMPLE_SIZE)
+    .order("position", { ascending: true });
+
+  const rows = (data ?? []) as {
+    project_id: string;
+    design_id: string;
+    name: string;
+    base_asset_id: string | null;
+    current_asset_id: string | null;
+    design_count: number;
+  }[];
+
+  if (rows.length === 0) return byProject;
+
+  const sampled: PreviewableDesign[] = rows.map((row) => ({
+    id: row.design_id,
+    base_asset_id: row.base_asset_id,
+    current_asset_id: row.current_asset_id,
+  }));
+
+  const activity = await fetchDesignActivity(
+    supabase,
+    sampled.map((design) => design.id)
+  );
+  const previews = await resolvePreviewUrls(supabase, sampled, activity);
+
+  for (const row of rows) {
+    const entry = byProject.get(row.project_id) ?? {
+      design_count: row.design_count,
+      samples: [],
+    };
+
+    entry.samples.push({
+      design_id: row.design_id,
+      name: row.name,
+      preview_url: previews.get(row.design_id) ?? null,
+    });
+
+    byProject.set(row.project_id, entry);
+  }
+
+  return byProject;
 }

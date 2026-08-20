@@ -236,6 +236,32 @@ export async function assetIsUsableAsCurrent(
  */
 export const DESIGNS_PAGE_SIZE = 12;
 
+/**
+ * How many designs a project card shows as its sample strip.
+ *
+ * Lives here next to the page size because the two caps only work together:
+ * six projects per page × four samples is what makes the client's Proyectos tab
+ * cost a fixed 24 images instead of four per project that exists.
+ */
+export const PROJECT_SAMPLE_SIZE = 4;
+
+/** One thumbnail of a project's sample strip. */
+export interface ProjectSample {
+  design_id: string;
+  name: string;
+  preview_url: string | null;
+}
+
+/**
+ * A project's sample strip: its most recent designs, and how many it has in
+ * total — the card shows four and says "5 diseños", and both come from the
+ * same query.
+ */
+export interface ProjectSamples {
+  design_count: number;
+  samples: ProjectSample[];
+}
+
 export interface DesignListOptions {
   /** Case-insensitive match on the design name. */
   query?: string;
