@@ -14,24 +14,29 @@
   color: var(--color-text-secondary);
 }
 
+/* Pills and search sit together at the left, not at opposite walls: the search
+   filters whatever the selected pill is showing ("Buscar en logotipos…"), and
+   at full width `space-between` put a dead canyon between two controls that
+   depend on each other. */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-12);
+  gap: var(--space-16);
   margin-bottom: var(--space-16);
 }
 
 /* Pills and the grid/empty state now live in components/ui (PillTabs,
    ThumbnailGrid) — shared with the starting-point picker. */
 
+/* Next to the pills, in the row the "+ Subir" button used to share with them —
+   uploading moved into the grid itself (AssetUploadTile). Never grows: a
+   search box as wide as the page reads as a search over everything. */
 .search {
   position: relative;
   display: flex;
+  flex: 0 1 18rem;
   align-items: center;
-  max-width: 20rem;
-  margin-bottom: var(--space-12);
   color: var(--color-text-secondary);
 }
 

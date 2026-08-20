@@ -6,6 +6,12 @@ interface ThumbnailGridProps {
   isEmpty: boolean;
   emptyTitle: string;
   emptyHint?: string;
+  /**
+   * How wide a column gets. `lg` is for the catalog, where the page is the
+   * images and there is a whole monitor to spend on them; `md` is for the
+   * picker, which lives inside a 34rem dialog and would fit two per row.
+   */
+  size?: "md" | "lg";
   children: ReactNode;
 }
 
@@ -19,6 +25,7 @@ export function ThumbnailGrid({
   isEmpty,
   emptyTitle,
   emptyHint,
+  size = "md",
   children,
 }: ThumbnailGridProps) {
   if (isEmpty) {
@@ -30,5 +37,7 @@ export function ThumbnailGrid({
     );
   }
 
-  return <div className={styles.grid}>{children}</div>;
+  return (
+    <div className={`${styles.grid} ${styles[size]}`}>{children}</div>
+  );
 }

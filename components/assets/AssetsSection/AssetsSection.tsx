@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AssetCard } from "@/components/assets/AssetCard/AssetCard";
-import { AssetUploadDialog } from "@/components/assets/AssetUploadDialog/AssetUploadDialog";
+import { AssetUploadTile } from "@/components/assets/AssetUploadTile/AssetUploadTile";
 import { Icon } from "@/components/ui/Icon/Icon";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { ThumbnailGrid } from "@/components/ui/ThumbnailGrid/ThumbnailGrid";
@@ -60,6 +60,10 @@ export function AssetsSection({
     : assetsOfType;
   const copy = ASSET_TYPE_COPY[selectedType];
 
+  // Hidden while searching: a tile sitting first among the results would read
+  // as one of them, and "upload" is not an answer to a query.
+  const showUploadTile = canManage && !trimmedQuery;
+
   return (
     <section>
       <div className={styles.header}>
@@ -82,38 +86,33 @@ export function AssetsSection({
           }))}
         />
 
-        {canManage && (
-          <AssetUploadDialog clientId={clientId} assetType={selectedType} />
+        {assetsOfType.length > 0 && (
+          <div className={styles.search}>
+            <Icon name="search" size={16} />
+            <input
+              type="search"
+              className={styles.searchInput}
+              placeholder={`Buscar en ${copy.labelPlural.toLowerCase()}…`}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              aria-label={`Buscar por nombre en ${copy.labelPlural.toLowerCase()}`}
+            />
+          </div>
         )}
       </div>
 
-      {assetsOfType.length > 0 && (
-        <div className={styles.search}>
-          <Icon name="search" size={16} />
-          <input
-            type="search"
-            className={styles.searchInput}
-            placeholder={`Buscar en ${copy.labelPlural.toLowerCase()}…`}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label={`Buscar por nombre en ${copy.labelPlural.toLowerCase()}`}
-          />
-        </div>
-      )}
-
       <ThumbnailGrid
-        isEmpty={visibleAssets.length === 0}
+        size="lg"
+        isEmpty={visibleAssets.length === 0 && !showUploadTile}
         emptyTitle={
           trimmedQuery
             ? `No se encontraron resultados para "${query.trim()}".`
             : copy.empty
         }
-        emptyHint={
-          !trimmedQuery && canManage
-            ? "Sube el primero con el botón de arriba."
-            : undefined
-        }
       >
+        {showUploadTile && (
+          <AssetUploadTile clientId={clientId} assetType={selectedType} />
+        )}
         {visibleAssets.map((asset) => (
           <AssetCard key={asset.id} asset={asset} canEdit={canManage} />
         ))}

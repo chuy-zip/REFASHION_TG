@@ -1,7 +1,16 @@
 .grid {
   display: grid;
+  gap: var(--space-16);
+}
+
+/* auto-fill, not auto-fit: empty tracks stay reserved so four images keep
+   their size instead of stretching to fill a monitor. */
+.md {
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: var(--space-12);
+}
+
+.lg {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
 }
 
 /* El hilván: an empty state is provisional by definition, so it gets the

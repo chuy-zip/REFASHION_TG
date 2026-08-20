@@ -1,8 +1,9 @@
+/* No border, no raised surface: this is an image, and an image brings its own
+   edge. The card frame was one of the 23 identical recipes that made a shirt
+   and a form look like the same kind of object (REFACTOR_VISUAL §1). What
+   separates one asset from the next is now the grid gap. */
 .card {
   position: relative;
-  background: var(--color-surface-raised);
-  border: var(--border-hairline) solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
 }
 
 /* Resets <button> chrome: this is the whole card's clickable "open preview"
@@ -16,7 +17,6 @@
   color: inherit;
   background: none;
   border: none;
-  border-radius: inherit;
   cursor: pointer;
 }
 
@@ -24,14 +24,13 @@
   opacity: 0.92;
 }
 
-/* Clips the image to the card's top corners. Menu lives outside this wrapper
-   (as a direct child of .card, which has no overflow:hidden) so its dropdown
-   is never cut off. */
+/* Menu lives outside this wrapper (as a direct child of .card, which has no
+   overflow:hidden) so its dropdown is never cut off. */
 .thumbWrap {
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-radius: var(--radius-md);
   background: var(--color-surface-sunken);
 }
 
@@ -57,8 +56,8 @@
 
 .menu {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: var(--space-8);
+  right: var(--space-8);
   z-index: 5;
 }
 
@@ -66,7 +65,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-8) var(--space-10);
+  padding-top: var(--space-6);
 }
 
 .filename {
@@ -80,5 +79,6 @@
 
 .size {
   font-size: var(--text-xs);
+  font-stretch: var(--font-stretch-condensed);
   color: var(--color-text-secondary);
 }
