@@ -34,7 +34,9 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createSupabaseClient();
-  const designs = await listProjectDesignsWithPreview(supabase, projectId);
+  // No paging here on purpose: the wizard offers every design of the project as
+  // a possible iteration parent, and a page of them would hide the rest.
+  const { designs } = await listProjectDesignsWithPreview(supabase, projectId);
 
   return NextResponse.json(designs);
 }

@@ -89,6 +89,20 @@ export function designHasWorkOnTop(
  */
 export interface DesignWithPreview extends Design {
   preview_url: string | null;
+  /**
+   * When the design last saw work: the later of its own `updated_at` and the
+   * newest asset it produced.
+   *
+   * `updated_at` alone would lie in the common case. It moves when the *row*
+   * changes (name, status, working image), and exporting a composition only
+   * touches the row the first time, when `status` advances from draft. A design
+   * with five compositions would show the date of the first one.
+   *
+   * Still not perfect: moving a logo writes to `design_layers`, which neither
+   * of these two watches. Closing that needs a third query and was deliberately
+   * left out.
+   */
+  last_activity: string;
 }
 
 /** Where a design sits in the hierarchy: which project, and whose client. */
@@ -213,17 +227,61 @@ export async function assetIsUsableAsCurrent(
   );
 }
 
-/** Designs of a project, newest first. RLS returns only what the user may see. */
+/**
+ * How many designs a project screen shows at a time.
+ *
+ * Twelve is two full rows at the grid's 14rem columns on a wide monitor, and it
+ * is also the ceiling on how many images that screen resolves: every design
+ * card carries a preview, so the page size *is* the image budget.
+ */
+export const DESIGNS_PAGE_SIZE = 12;
+
+export interface DesignListOptions {
+  /** Case-insensitive match on the design name. */
+  query?: string;
+  /** 1-based. Omit both to get every design (the wizard needs them all). */
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * Designs of a project, newest first, optionally filtered and paged. RLS
+ * returns only what the user may see.
+ *
+ * `total` is the count **before** paging, so the pager can say "13 a 24 de 31"
+ * without a second query.
+ */
 export async function listProjectDesigns(
   supabase: SupabaseClient,
-  projectId: string
-): Promise<{ designs: Design[]; error: string | null }> {
-  const { data, error } = await supabase
+  projectId: string,
+  options: DesignListOptions = {}
+): Promise<{ designs: Design[]; total: number; error: string | null }> {
+  let request = supabase
     .from("designs")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
-  if (error) return { designs: [], error: error.message };
-  return { designs: (data ?? []) as Design[], error: null };
+  const query = options.query?.trim();
+  if (query) {
+    // Known limitation: `%` and `_` typed by the user still act as SQL LIKE
+    // wildcards, so searching "50%" matches more than it should. Harmless (the
+    // value is parameterised, never interpolated) and left visible on purpose
+    // rather than fixed with escaping that nothing here can test.
+    request = request.ilike("name", `%${query}%`);
+  }
+
+  if (options.page && options.pageSize) {
+    const from = (options.page - 1) * options.pageSize;
+    request = request.range(from, from + options.pageSize - 1);
+  }
+
+  const { data, error, count } = await request;
+
+  if (error) return { designs: [], total: 0, error: error.message };
+  return {
+    designs: (data ?? []) as Design[],
+    total: count ?? 0,
+    error: null,
+  };
 }

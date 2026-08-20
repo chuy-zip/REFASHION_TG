@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import styles from "./ThumbnailGrid.module.css";
 
 interface ThumbnailGridProps {
@@ -29,12 +30,7 @@ export function ThumbnailGrid({
   children,
 }: ThumbnailGridProps) {
   if (isEmpty) {
-    return (
-      <div className={styles.empty}>
-        <p className={styles.emptyTitle}>{emptyTitle}</p>
-        {emptyHint && <p className={styles.emptyHint}>{emptyHint}</p>}
-      </div>
-    );
+    return <EmptyState title={emptyTitle} hint={emptyHint} />;
   }
 
   return (

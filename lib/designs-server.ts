@@ -5,6 +5,7 @@ import { getReadUrl } from "@/lib/r2";
 import {
   listProjectDesigns,
   resolveDesignImageAssetId,
+  type DesignListOptions,
   type DesignWithPreview,
 } from "@/lib/designs";
 import type { Asset } from "@/lib/types";
@@ -31,28 +32,47 @@ import type { Asset } from "@/lib/types";
  */
 export async function listProjectDesignsWithPreview(
   supabase: SupabaseClient,
-  projectId: string
-): Promise<DesignWithPreview[]> {
-  const { designs } = await listProjectDesigns(supabase, projectId);
-  if (designs.length === 0) return [];
+  projectId: string,
+  options: DesignListOptions = {}
+): Promise<{ designs: DesignWithPreview[]; total: number }> {
+  const { designs, total } = await listProjectDesigns(
+    supabase,
+    projectId,
+    options
+  );
+  if (designs.length === 0) return { designs: [], total };
 
-  // Newest first, so the first row seen for a design is its latest composition.
-  const { data: compositionData } = await supabase
+  // One query answers two questions: which composition to show, and when the
+  // design last produced anything. Newest first, so the first row seen for a
+  // design is its latest of whatever kind. The type filter that used to live
+  // here was dropped on purpose — a mask or an inpainting is activity too, and
+  // filtering it out would have made the date wrong the day Módulo 2 lands.
+  const { data: assetData } = await supabase
     .from("assets")
-    .select("design_id, r2_key")
+    .select("design_id, r2_key, asset_type, created_at")
     .in(
       "design_id",
       designs.map((design) => design.id)
     )
-    .eq("asset_type", "composition")
     .order("created_at", { ascending: false });
 
   const compositionKeyByDesign = new Map<string, string>();
-  for (const row of (compositionData ?? []) as Pick<
+  const lastAssetAtByDesign = new Map<string, string>();
+
+  for (const row of (assetData ?? []) as Pick<
     Asset,
-    "design_id" | "r2_key"
+    "design_id" | "r2_key" | "asset_type" | "created_at"
   >[]) {
-    if (row.design_id && !compositionKeyByDesign.has(row.design_id)) {
+    if (!row.design_id) continue;
+
+    if (!lastAssetAtByDesign.has(row.design_id)) {
+      lastAssetAtByDesign.set(row.design_id, row.created_at);
+    }
+
+    if (
+      row.asset_type === "composition" &&
+      !compositionKeyByDesign.has(row.design_id)
+    ) {
       compositionKeyByDesign.set(row.design_id, row.r2_key);
     }
   }
@@ -75,17 +95,25 @@ export async function listProjectDesignsWithPreview(
     }
   }
 
-  return Promise.all(
+  const withPreview = await Promise.all(
     designs.map(async (design) => {
       const workingId = resolveDesignImageAssetId(design);
       const key =
         compositionKeyByDesign.get(design.id) ??
         (workingId ? fallbackKeyByAsset.get(workingId) : undefined);
 
+      const lastAssetAt = lastAssetAtByDesign.get(design.id);
+
       return {
         ...design,
         preview_url: key ? await getReadUrl(key) : null,
+        last_activity:
+          lastAssetAt && lastAssetAt > design.updated_at
+            ? lastAssetAt
+            : design.updated_at,
       };
     })
   );
+
+  return { designs: withPreview, total };
 }

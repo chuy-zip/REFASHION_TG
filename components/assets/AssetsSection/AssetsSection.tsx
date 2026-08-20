@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { AssetCard } from "@/components/assets/AssetCard/AssetCard";
 import { AssetUploadTile } from "@/components/assets/AssetUploadTile/AssetUploadTile";
-import { Icon } from "@/components/ui/Icon/Icon";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
+import { SearchInput } from "@/components/ui/SearchInput/SearchInput";
 import { ThumbnailGrid } from "@/components/ui/ThumbnailGrid/ThumbnailGrid";
 import { ASSET_TYPE_COPY, CLIENT_ASSET_TYPES, type AssetWithUrl } from "@/lib/assets";
 import type { ClientAssetType } from "@/lib/types";
@@ -87,17 +87,11 @@ export function AssetsSection({
         />
 
         {assetsOfType.length > 0 && (
-          <div className={styles.search}>
-            <Icon name="search" size={16} />
-            <input
-              type="search"
-              className={styles.searchInput}
-              placeholder={`Buscar en ${copy.labelPlural.toLowerCase()}…`}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              aria-label={`Buscar por nombre en ${copy.labelPlural.toLowerCase()}`}
-            />
-          </div>
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            scope={copy.labelPlural.toLowerCase()}
+          />
         )}
       </div>
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog/ProjectFormDialog";
 import { Badge } from "@/components/ui/Badge/Badge";
+import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import { PROJECT_STATUS_COPY } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 import styles from "./ProjectsSection.module.css";
@@ -37,14 +38,14 @@ export function ProjectsSection({
       </div>
 
       {projects.length === 0 ? (
-        <div className={styles.empty}>
-          <p className={styles.emptyTitle}>Sin proyectos aún</p>
-          <p className={styles.emptyHint}>
-            {canManage
+        <EmptyState
+          title="Sin proyectos aún"
+          hint={
+            canManage
               ? "Crea el primer proyecto para empezar a agregar diseños."
-              : "Este cliente todavía no tiene proyectos."}
-          </p>
-        </div>
+              : "Este cliente todavía no tiene proyectos."
+          }
+        />
       ) : (
         <ul className={styles.list}>
           {projects.map((project) => (

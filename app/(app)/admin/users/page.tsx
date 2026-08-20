@@ -7,6 +7,7 @@ import { isCurrentUserAdmin } from "@/lib/authz";
 import { listRoles, listUsers } from "@/lib/users";
 import { CreateUserDialog } from "@/components/admin/CreateUserDialog/CreateUserDialog";
 import { UserRow } from "@/components/admin/UserRow/UserRow";
+import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import { POST_LOGIN_PATH } from "@/lib/routes";
 import styles from "./page.module.css";
 
@@ -50,12 +51,10 @@ export default async function AdminUsersPage() {
         )}
 
         {!usersError && users.length === 0 && (
-          <div className={styles.empty}>
-            <p className={styles.emptyTitle}>Sin usuarios aún</p>
-            <p className={styles.emptyHint}>
-              Crea el primer usuario para darle acceso a la herramienta.
-            </p>
-          </div>
+          <EmptyState
+            title="Sin usuarios aún"
+            hint="Crea el primer usuario para darle acceso a la herramienta."
+          />
         )}
 
         {users.length > 0 && (

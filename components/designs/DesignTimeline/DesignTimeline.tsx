@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog/AssetPreviewDialog";
+import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import { assetTypeLabel, type AssetWithUrl } from "@/lib/assets";
 import styles from "./DesignTimeline.module.css";
 
@@ -70,13 +71,11 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
       </div>
 
       {!originAsset && assets.length === 0 ? (
-        <div className={styles.empty}>
-          <p className={styles.emptyTitle}>Todavía no hay historial</p>
-          <p className={styles.emptyHint}>
-            Asigna una prenda base para empezar. Cada cambio que hagas queda
-            registrado acá y puedes volver a él sin generarlo de nuevo.
-          </p>
-        </div>
+        <EmptyState
+          size="sm"
+          title="Todavía no hay historial"
+          hint="Asigna una prenda base para empezar. Cada cambio que hagas queda registrado acá y puedes volver a él sin generarlo de nuevo."
+        />
       ) : (
         <div className={styles.strip} ref={stripRef}>
           {originAsset && (
