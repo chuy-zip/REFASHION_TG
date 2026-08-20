@@ -65,7 +65,7 @@
      relaxation. 2, 6, 10, 14 and 20 were already a third of all uses (14px is
      every button's horizontal padding, where 12 is cramped and 16 inflated).
      Snapping ~100 call sites would have moved the interface to protect a
-     convention nothing enforced. See APRENDIZAJES §5.16. */
+     convention nothing enforced.  */
   --space-2: 0.125rem;
   --space-4: 0.25rem;
   --space-6: 0.375rem;

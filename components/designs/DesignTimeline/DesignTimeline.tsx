@@ -55,14 +55,13 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
 
   return (
     <section className={styles.section}>
+      {/* A group label, not a section heading: the strip below is a record the
+          user consults, and it must not read as loud as the garment. */}
       <div className={styles.header}>
-        <div>
-          <h2 className={styles.title}>Historial</h2>
-          <p className={styles.subtitle}>
-            Cada paso del diseño, del más antiguo al más reciente. Haz clic en
-            uno para verlo en grande o descargarlo.
-          </p>
-        </div>
+        <h2 className={styles.title}>Historial</h2>
+        <span className={styles.count}>
+          {stepCount === 1 ? "1 paso" : `${stepCount} pasos`}
+        </span>
         {totalCost > 0 && (
           <span className={styles.total}>
             Costo acumulado ${totalCost.toFixed(4)}
@@ -84,6 +83,7 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
             <button
               type="button"
               className={`${styles.step} ${styles.origin}`}
+              aria-label="Ver la prenda base en grande"
               onClick={() => setPreview(originAsset)}
             >
               <div className={styles.thumbWrap}>
@@ -106,6 +106,9 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
               key={asset.id}
               type="button"
               className={styles.step}
+              aria-label={`Ver ${assetTypeLabel(
+                asset.asset_type
+              ).toLowerCase()} en grande`}
               onClick={() => setPreview(asset)}
             >
               <div className={styles.thumbWrap}>

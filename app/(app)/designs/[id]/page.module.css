@@ -23,7 +23,14 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-16);
-  margin-bottom: var(--space-24);
+  margin-bottom: var(--space-16);
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
 .heading {
@@ -38,32 +45,71 @@
   color: var(--color-text-primary);
 }
 
-.subtitle {
-  margin-top: var(--space-2);
+/* Five facts in one line instead of a panel of stacked rows. It fits because
+   of Archivo's width axis: narrower text, not smaller (STYLE_GUIDE §3). */
+.meta {
   font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
   color: var(--color-text-secondary);
 }
 
-.overview {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-24);
+/* Underlined rather than accent-coloured: inside a metadata line two accent
+   links would compete with the primary action a few centimetres to the right,
+   and the underline already says "clickable" without spending colour. */
+.metaLink {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 2px;
 }
 
+.metaLink:hover {
+  color: var(--color-accent);
+  text-decoration-color: currentColor;
+}
+
+.metaFile {
+  font-family: var(--font-mono);
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* The garment takes the whole width, with no panel beside it. */
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin-bottom: var(--space-32);
+}
+
+/* Image surface: no border. The sunken ground is what frames it, and the
+   garment brings its own edge (REFACTOR_VISUAL §2.3). */
 .canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1 1 24rem;
-  min-height: 22rem;
+  min-height: 26rem;
+  padding: var(--space-24);
   background: var(--color-surface-sunken);
-  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
+}
+
+/* El hilván: nothing has been chosen yet, so the surface is provisional. */
+.canvasIsEmpty {
+  background: var(--color-surface-base);
+  border: var(--border-provisional);
 }
 
 .canvasImage {
   max-width: 100%;
-  max-height: 28rem;
+  /* Caps how tall it gets on a big monitor: full width is for the garment to
+     breathe, not to become a poster you have to scroll past. */
+  max-height: 60vh;
   object-fit: contain;
 }
 
@@ -84,62 +130,15 @@
   color: var(--color-text-secondary);
 }
 
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-16);
-  flex: 0 0 18rem;
-}
-
-.actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
-
-.actions > * {
-  width: 100%;
-}
-
-.facts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-10);
-  padding: var(--space-16);
-  background: var(--color-surface-raised);
-  border: var(--border-hairline) solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-}
-
-.fact {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.factLabel {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.factValue {
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-}
-
-.factLink {
-  font-size: var(--text-sm);
-  color: var(--color-accent);
-  text-decoration: none;
-}
-
-.factLink:hover {
-  text-decoration: underline;
-}
-
+/* Caption of the garment above it, centred and measured: it describes what is
+   on screen, which is exactly what a field labelled "Notas" in a side panel
+   could not do. */
 .notes {
+  align-self: center;
+  max-width: 62ch;
+  text-align: center;
   white-space: pre-wrap;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
 }
