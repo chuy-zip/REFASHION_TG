@@ -50,44 +50,8 @@
   color: inherit;
 }
 
-.link:hover .thumb {
-  opacity: 0.92;
-}
-
-.thumbWrap {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-sunken);
-}
-
-/* El hilván: a design without a garment has not started yet. */
-.thumbEmpty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-12);
-  text-align: center;
-  background: var(--color-surface-base);
-  border: var(--border-provisional);
-}
-
-.thumb {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-
-.noThumb {
-  font-size: var(--text-xs);
-  font-stretch: var(--font-stretch-condensed);
-  color: var(--color-text-disabled);
-}
-
+/* The image frame is components/ui/Thumbnail, including the dashed variant a
+   design with no garment gets. */
 .meta {
   display: flex;
   flex-direction: column;

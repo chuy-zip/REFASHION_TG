@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog/ProjectFormDialog";
+import { ProjectSearch } from "@/components/projects/ProjectsSection/ProjectSearch";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import { Pager } from "@/components/ui/Pager/Pager";
@@ -14,6 +15,7 @@ interface ProjectsSectionProps {
   projects: Project[];
   total: number;
   page: number;
+  query: string;
   /** Sample strip per project id, capped in SQL at PROJECT_SAMPLE_SIZE. */
   samplesByProject: Map<string, ProjectSamples>;
   /** owner/editor (or admin) may create projects. */
@@ -37,9 +39,14 @@ export function ProjectsSection({
   projects,
   total,
   page,
+  query,
   samplesByProject,
   canManage,
 }: ProjectsSectionProps) {
+  // The box stays once a query exists, even with no matches: otherwise the only
+  // control that could clear the search disappears with the results.
+  const isSearchable = total > 0 || query.length > 0;
+
   return (
     <section>
       <div className={styles.header}>
@@ -54,15 +61,28 @@ export function ProjectsSection({
         )}
       </div>
 
+      {isSearchable && (
+        <div className={styles.toolbar}>
+          <ProjectSearch query={query} />
+        </div>
+      )}
+
       {projects.length === 0 ? (
-        <EmptyState
-          title="Sin proyectos aún"
-          hint={
-            canManage
-              ? "Crea el primer proyecto para empezar a agregar diseños."
-              : "Este cliente todavía no tiene proyectos."
-          }
-        />
+        query ? (
+          <EmptyState
+            title={`No se encontraron proyectos para "${query}".`}
+            hint="Prueba con parte del nombre, o borra la búsqueda para verlos todos."
+          />
+        ) : (
+          <EmptyState
+            title="Sin proyectos aún"
+            hint={
+              canManage
+                ? "Crea el primer proyecto para empezar a agregar diseños."
+                : "Este cliente todavía no tiene proyectos."
+            }
+          />
+        )
       ) : (
         <>
           <ul className={styles.list}>

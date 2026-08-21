@@ -16,8 +16,9 @@ import styles from "./page.module.css";
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  /** `?page=` walks the Proyectos tab. Server-side, so the images stay capped. */
-  searchParams: Promise<{ page?: string }>;
+  /** `?q=` filters and `?page=` walks the Proyectos tab, both server-side, so
+      the images that tab resolves stay capped whatever the client holds. */
+  searchParams: Promise<{ q?: string; page?: string }>;
 };
 
 /**
@@ -29,8 +30,11 @@ export default async function ClientDetailPage({
   searchParams,
 }: PageProps) {
   const { id } = await params;
-  const { page: rawPage } = await searchParams;
+  const { q, page: rawPage } = await searchParams;
 
+  const query = q?.trim() ?? "";
+  // A hand-edited ?page=abc or ?page=-3 falls back to the first page rather
+  // than reaching the query with a negative range.
   const page = Math.max(1, Number.parseInt(rawPage ?? "1", 10) || 1);
 
   const supabase = await createSupabaseClient();
@@ -46,6 +50,7 @@ export default async function ClientDetailPage({
       getClientAccess(supabase, id, userId),
       listClientMembers(supabase, id),
       listClientProjects(supabase, id, {
+        query,
         page,
         pageSize: PROJECTS_PAGE_SIZE,
       }),
@@ -79,6 +84,7 @@ export default async function ClientDetailPage({
         projects={projectsResult.projects}
         projectsTotal={projectsResult.total}
         projectsPage={page}
+        projectsQuery={query}
         samplesByProject={samplesByProject}
         assets={assetsResult.assets}
         currentUserId={userId}

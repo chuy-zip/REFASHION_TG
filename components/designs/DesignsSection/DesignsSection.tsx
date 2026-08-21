@@ -5,6 +5,7 @@ import { DesignSearch } from "@/components/designs/DesignsSection/DesignSearch";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import { Pager } from "@/components/ui/Pager/Pager";
+import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
 import {
   DESIGNS_PAGE_SIZE,
   DESIGN_STATUS_COPY,
@@ -106,22 +107,11 @@ export function DesignsSection({
             {designs.map((design) => (
               <li key={design.id} className={styles.card}>
                 <Link className={styles.link} href={`/designs/${design.id}`}>
-                  <div
-                    className={`${styles.thumbWrap} ${
-                      design.preview_url ? "" : styles.thumbEmpty
-                    }`}
-                  >
-                    {design.preview_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
-                      <img
-                        className={styles.thumb}
-                        src={design.preview_url}
-                        alt={design.name}
-                      />
-                    ) : (
-                      <span className={styles.noThumb}>Sin prenda base</span>
-                    )}
-                  </div>
+                  <Thumbnail
+                    src={design.preview_url}
+                    alt={design.name}
+                    emptyLabel="Sin prenda base"
+                  />
 
                   <div className={styles.meta}>
                     <div className={styles.metaTop}>

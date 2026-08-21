@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog/AssetPreviewDialog";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
+import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
 import { assetTypeLabel, type AssetWithUrl } from "@/lib/assets";
 import styles from "./DesignTimeline.module.css";
 
@@ -81,18 +82,13 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
           {originAsset && (
             <button
               type="button"
-              className={`${styles.step} ${styles.origin}`}
+              className={styles.step}
               aria-label="Ver la prenda base en grande"
               onClick={() => setPreview(originAsset)}
             >
-              <div className={styles.thumbWrap}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
-                <img
-                  className={styles.thumb}
-                  src={originAsset.url}
-                  alt="Prenda base"
-                />
-              </div>
+              {/* Dashed: the starting point belongs to the client's
+                  catalogue, it is not a step of this design. */}
+              <Thumbnail src={originAsset.url} alt="Prenda base" provisional />
               <div className={styles.meta}>
                 <span className={styles.label}>Punto de partida</span>
                 <span className={styles.when}>Prenda base</span>
@@ -110,14 +106,10 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
               ).toLowerCase()} en grande`}
               onClick={() => setPreview(asset)}
             >
-              <div className={styles.thumbWrap}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
-                <img
-                  className={styles.thumb}
-                  src={asset.url}
-                  alt={assetTypeLabel(asset.asset_type)}
-                />
-              </div>
+              <Thumbnail
+                src={asset.url}
+                alt={assetTypeLabel(asset.asset_type)}
+              />
               <div className={styles.meta}>
                 <span className={styles.label}>
                   {assetTypeLabel(asset.asset_type)}

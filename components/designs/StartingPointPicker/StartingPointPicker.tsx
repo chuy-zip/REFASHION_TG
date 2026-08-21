@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
+import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
 import { ThumbnailGrid } from "@/components/ui/ThumbnailGrid/ThumbnailGrid";
 import { UPLOAD_ACCEPT, uploadClientAsset } from "@/lib/asset-upload";
 import { assetDisplayName, stripExtension, type AssetWithUrl } from "@/lib/assets";
@@ -226,18 +227,11 @@ export function StartingPointPicker({
                     }
                     onClick={() => toggle({ kind: "design", id: design.id })}
                   >
-                    <div className={styles.thumbWrap}>
-                      {design.preview_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
-                        <img
-                          className={styles.thumb}
-                          src={design.preview_url}
-                          alt={design.name}
-                        />
-                      ) : (
-                        <span className={styles.noThumb}>Sin imagen</span>
-                      )}
-                    </div>
+                    <Thumbnail
+                      src={design.preview_url}
+                      alt={design.name}
+                      corners="top"
+                    />
                     <div className={styles.meta}>
                       <span className={styles.name}>{design.name}</span>
                       <span className={styles.sub}>
@@ -257,14 +251,11 @@ export function StartingPointPicker({
                     }
                     onClick={() => toggle({ kind: "asset", id: asset.id })}
                   >
-                    <div className={styles.thumbWrap}>
-                      {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
-                      <img
-                        className={styles.thumb}
-                        src={asset.url}
-                        alt={assetDisplayName(asset)}
-                      />
-                    </div>
+                    <Thumbnail
+                      src={asset.url}
+                      alt={assetDisplayName(asset)}
+                      corners="top"
+                    />
                     <div className={styles.meta}>
                       <span className={`${styles.name} ${styles.filename}`}>
                         {assetDisplayName(asset)}

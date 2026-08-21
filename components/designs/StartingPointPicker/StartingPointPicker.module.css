@@ -87,33 +87,8 @@
   box-shadow: 0 0 0 1px var(--color-accent);
 }
 
-.thumbWrap {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  background: var(--color-surface-sunken);
-}
-
-.thumb {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.noThumb {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: var(--space-8);
-  text-align: center;
-  font-size: var(--text-xs);
-  color: var(--color-text-disabled);
-}
-
+/* The image frame is components/ui/Thumbnail, with corners="top" because here
+   it heads a bordered card instead of standing on its own. */
 .meta {
   display: flex;
   flex-direction: column;

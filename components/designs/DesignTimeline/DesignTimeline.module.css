@@ -59,43 +59,8 @@
   cursor: pointer;
 }
 
-.step:hover .thumb {
-  opacity: 0.92;
-}
-
-.thumbWrap {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-sunken);
-}
-
-/* El hilván stays on the origin, moved from the card frame to the image
-   itself: the starting point belongs to the client's catalog, it is not a
-   step of this design, and that distinction cannot be lost. */
-.origin .thumbWrap {
-  border: var(--border-provisional);
-}
-
-.thumb {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-
-.noThumb {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  font-size: var(--text-xs);
-  color: var(--color-text-disabled);
-}
-
+/* The image frame is components/ui/Thumbnail. El hilván of the starting point
+   travels as its `provisional` prop. */
 .meta {
   display: flex;
   flex-direction: column;

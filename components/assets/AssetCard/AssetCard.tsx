@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Menu, type MenuItem } from "@/components/ui/Menu/Menu";
-import { Skeleton } from "@/components/ui/Skeleton/Skeleton";
+import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
 import { DeleteAssetButton } from "@/components/assets/DeleteAssetButton/DeleteAssetButton";
 import { RenameAssetDialog } from "@/components/assets/RenameAssetDialog/RenameAssetDialog";
 import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog/AssetPreviewDialog";
@@ -19,7 +19,6 @@ export function AssetCard({ asset, canEdit }: AssetCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const label = assetTypeLabel(asset.asset_type);
   const size = formatFileSize(asset.file_size_bytes);
 
@@ -47,16 +46,7 @@ export function AssetCard({ asset, canEdit }: AssetCardProps) {
         onClick={() => setIsPreviewOpen(true)}
         aria-label={`Ver ${label.toLowerCase()}`}
       >
-        <div className={styles.thumbWrap}>
-          {!isLoaded && <Skeleton className={styles.thumbSkeleton} />}
-          {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
-          <img
-            className={`${styles.thumb} ${isLoaded ? styles.thumbLoaded : ""}`}
-            src={asset.url}
-            alt={label}
-            onLoad={() => setIsLoaded(true)}
-          />
-        </div>
+        <Thumbnail src={asset.url} alt={label} />
 
         {(asset.original_filename || size) && (
           <div className={styles.meta}>

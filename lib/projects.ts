@@ -27,6 +27,8 @@ export function projectStatusLabel(status: ProjectStatus): string {
 export const PROJECTS_PAGE_SIZE = 6;
 
 export interface ProjectListOptions {
+  /** Case-insensitive match on the project name. */
+  query?: string;
   /** 1-based. Omit both to get every project. */
   page?: number;
   pageSize?: number;
@@ -46,6 +48,15 @@ export async function listClientProjects(
     .select("*", { count: "exact" })
     .eq("client_id", clientId)
     .order("created_at", { ascending: false });
+
+  const query = options.query?.trim();
+  if (query) {
+    // Same known limitation as the design search: `%` and `_` typed by the
+    // user still act as LIKE wildcards. Harmless (the value is parameterised,
+    // never interpolated) and left visible rather than fixed with escaping
+    // that nothing here can test.
+    request = request.ilike("name", `%${query}%`);
+  }
 
   if (options.page && options.pageSize) {
     const from = (options.page - 1) * options.pageSize;

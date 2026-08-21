@@ -30,6 +30,7 @@ interface ClientDetailViewProps {
   projects: Project[];
   projectsTotal: number;
   projectsPage: number;
+  projectsQuery: string;
   samplesByProject: Map<string, ProjectSamples>;
   assets: AssetWithUrl[];
   currentUserId: string;
@@ -49,6 +50,7 @@ export function ClientDetailView({
   projects,
   projectsTotal,
   projectsPage,
+  projectsQuery,
   samplesByProject,
   assets,
   currentUserId,
@@ -100,6 +102,7 @@ export function ClientDetailView({
             projects={projects}
             total={projectsTotal}
             page={projectsPage}
+            query={projectsQuery}
             samplesByProject={samplesByProject}
             canManage={canEdit}
           />
