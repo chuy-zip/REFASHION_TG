@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import { ClientFormDialog } from "@/components/clients/ClientFormDialog/ClientFormDialog";
-import type { Client } from "@/lib/types";
+import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
+import {
+  clientLocation,
+  clientWorkSummary,
+  listClientsWithCounts,
+} from "@/lib/clients";
 import styles from "./page.module.css";
 
 /**
@@ -13,27 +18,17 @@ import styles from "./page.module.css";
  */
 export default async function ClientsPage() {
   const supabase = await createSupabaseClient();
-  const { data, error } = await supabase
-    .from("clients")
-    .select("*")
-    .order("name", { ascending: true });
+  const { clients, error } = await listClientsWithCounts(supabase);
 
   // In dev, surface the real Postgres/PostgREST reason in the terminal.
   // An empty list and a blocked query look identical in the UI otherwise.
   if (process.env.NODE_ENV === "development") {
     if (error) {
-      console.error("[clients] select failed:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-      });
+      console.error("[clients] select failed:", error);
     } else {
-      console.log(`[clients] select ok: ${data?.length ?? 0} fila(s)`);
+      console.log(`[clients] select ok: ${clients.length} fila(s)`);
     }
   }
-
-  const clients = (data ?? []) as Client[];
 
   // Same check the RPC enforces server-side; here it only drives the UI so a
   // viewer sees a disabled button instead of a modal that will fail on submit.
@@ -65,27 +60,66 @@ export default async function ClientsPage() {
         )}
 
         {!error && clients.length === 0 && (
-          <div className={styles.empty}>
-            <p className={styles.emptyTitle}>Sin clientes aún</p>
-            <p className={styles.emptyHint}>
-              Los clientes agrupan los proyectos y el catálogo de prendas.
-            </p>
-          </div>
+          <EmptyState
+            title="Sin clientes aún"
+            hint="Los clientes agrupan los proyectos y el catálogo de prendas."
+          />
         )}
 
         {clients.length > 0 && (
           <ul className={styles.list}>
-            {clients.map((client) => (
-              <li key={client.id}>
-                <Link className={styles.card} href={`/clients/${client.id}`}>
-                  <span className={styles.cardName}>{client.name}</span>
-                  <span className={styles.cardMeta}>
-                    {[client.city, client.nit].filter(Boolean).join(" · ") ||
-                      "Sin datos adicionales"}
-                  </span>
-                </Link>
-              </li>
-            ))}
+            {clients.map((client) => {
+              const location = clientLocation(client);
+              const hasContact = Boolean(
+                client.address || client.email || client.phone
+              );
+
+              return (
+                <li key={client.id}>
+                  <Link className={styles.card} href={`/clients/${client.id}`}>
+                    <div>
+                      <div className={styles.cardName}>{client.name}</div>
+                      <div
+                        className={`${styles.cardWhere} ${
+                          location ? "" : styles.cardMissing
+                        }`}
+                      >
+                        {location ?? "Sin ubicación"}
+                      </div>
+                    </div>
+
+                    <div className={styles.cardContact}>
+                      {hasContact ? (
+                        <>
+                          {client.address && <span>{client.address}</span>}
+                          {client.email && <span>{client.email}</span>}
+                          {client.phone && (
+                            <span className={styles.cardPhone}>
+                              {client.phone}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className={styles.cardMissing}>
+                          Sin dirección, correo ni teléfono
+                        </span>
+                      )}
+                    </div>
+
+                    <div className={styles.cardFoot}>
+                      {client.nit ? (
+                        <span className={styles.cardNit}>
+                          NIT {client.nit}
+                        </span>
+                      ) : (
+                        <span className={styles.cardMissing}>Sin NIT</span>
+                      )}
+                      <span>{clientWorkSummary(client)}</span>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
     </main>

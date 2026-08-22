@@ -1,28 +1,35 @@
 .section {
-  margin-top: 1.5rem;
+  margin-top: var(--space-24);
 }
 
 .header {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
 }
 
+/* Group label, not a page-level heading. It used to be an 18px title with a
+   sentence explaining that you can click a step — which the strip says by
+   itself. The instruction survives as the buttons' aria-label. */
 .title {
-  font-size: var(--text-lg);
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--color-text-primary);
+  font-stretch: var(--font-stretch-condensed);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
 }
 
-.subtitle {
+.count {
   font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
   color: var(--color-text-secondary);
 }
 
 .total {
+  margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
@@ -33,11 +40,12 @@
    the position cursor will live on once current_asset_id exists. */
 .strip {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-12);
   overflow-x: auto;
-  padding-bottom: 0.5rem;
+  padding-bottom: var(--space-8);
 }
 
+/* No card frame: each step is an image, like the catalog's AssetCard. */
 .step {
   display: flex;
   flex-direction: column;
@@ -46,50 +54,18 @@
   font: inherit;
   text-align: left;
   color: inherit;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out);
 }
 
-.step:hover {
-  border-color: var(--color-border-strong);
-}
-
-.origin {
-  border-style: dashed;
-}
-
-.thumbWrap {
-  position: relative;
-  aspect-ratio: 1;
-  background: var(--color-surface-sunken);
-}
-
-.thumb {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.noThumb {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  font-size: var(--text-xs);
-  color: var(--color-text-disabled);
-}
-
+/* The image frame is components/ui/Thumbnail. El hilván of the starting point
+   travels as its `provisional` prop. */
 .meta {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
-  padding: 0.5rem 0.625rem;
+  gap: var(--space-2);
+  padding-top: var(--space-6);
 }
 
 .label {
@@ -103,6 +79,7 @@
 
 .when {
   font-size: var(--text-xs);
+  font-stretch: var(--font-stretch-condensed);
   color: var(--color-text-secondary);
 }
 
@@ -113,22 +90,4 @@
   color: var(--color-text-secondary);
 }
 
-.empty {
-  padding: 1.5rem;
-  text-align: center;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-}
-
-.emptyTitle {
-  font-size: var(--text-base);
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.emptyHint {
-  margin-top: 0.25rem;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
+/* The empty state comes from components/ui/EmptyState, in its `sm` size. */

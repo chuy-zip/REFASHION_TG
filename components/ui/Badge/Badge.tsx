@@ -4,7 +4,7 @@ import styles from "./Badge.module.css";
  * Semantic weight of the badge, not a colour name — so the palette can change
  * in globals.css without every caller being rewritten.
  */
-export type BadgeTone = "neutral" | "success" | "muted";
+export type BadgeTone = "neutral" | "success" | "muted" | "accent";
 
 /**
  * Small status label. Deliberately unaware of what it is labelling: projects

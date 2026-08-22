@@ -3,14 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
+import {
+  ConfirmByName,
+  confirmationMatches,
+} from "@/components/ui/ConfirmByName/ConfirmByName";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete } from "@/lib/api-client";
+import type { ProjectContents } from "@/lib/projects";
+import { countPhrase } from "@/lib/text";
 import styles from "./DeleteProjectButton.module.css";
 
 interface DeleteProjectButtonProps {
   projectId: string;
   projectName: string;
+  /** What disappears with it; null when it could not be counted. */
+  contents: ProjectContents | null;
   /** Where to go after deletion (the parent client). */
   clientId: string;
   disabled?: boolean;
@@ -23,6 +31,7 @@ interface DeleteProjectButtonProps {
 export function DeleteProjectButton({
   projectId,
   projectName,
+  contents,
   clientId,
   disabled = false,
   disabledReason,
@@ -36,6 +45,16 @@ export function DeleteProjectButton({
   const isOpen = isControlled ? controlledOpen : internalOpen;
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+
+  const canDelete = confirmationMatches(confirmation, projectName);
+
+  const losing = contents
+    ? countPhrase([
+        [contents.design_count, "diseño", "diseños"],
+        [contents.image_count, "imagen", "imágenes"],
+      ])
+    : null;
 
   function close() {
     if (isControlled) onClose?.();
@@ -86,9 +105,19 @@ export function DeleteProjectButton({
             Eliminar {projectName}
           </h2>
           <p className={styles.warning}>
-            Se eliminarán también sus diseños e imágenes asociadas. Esta acción
-            no se puede deshacer.
+            {!contents
+              ? "Se eliminarán también sus diseños e imágenes. No se pudo contar cuántos son. Esta acción no se puede deshacer."
+              : losing
+                ? `Se eliminarán ${losing}. Esta acción no se puede deshacer.`
+                : "Este proyecto no tiene diseños. Esta acción no se puede deshacer."}
           </p>
+
+          <ConfirmByName
+            expected={projectName}
+            value={confirmation}
+            onChange={setConfirmation}
+            disabled={isDeleting}
+          />
 
           {error && (
             <p className={styles.error} role="alert">
@@ -104,7 +133,16 @@ export function DeleteProjectButton({
             >
               Cancelar
             </Button>
-            <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+              disabled={isDeleting || !canDelete}
+              title={
+                canDelete
+                  ? undefined
+                  : "Escribe el nombre del proyecto para confirmar."
+              }
+            >
               {isDeleting ? "Eliminando…" : "Eliminar"}
             </Button>
           </div>

@@ -1,0 +1,39 @@
+/* El hilván: an empty state is provisional by definition, so it always takes
+   the dashed outline rather than the solid frame of something that exists.
+   Declared once here so it cannot drift back to a card. */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: center;
+  background: var(--color-surface-base);
+  border: var(--border-provisional);
+  border-radius: var(--radius-md);
+}
+
+.md {
+  padding: var(--space-48) var(--space-24);
+}
+
+/* Inside a panel, where the surrounding screen already has content. */
+.sm {
+  padding: var(--space-24);
+}
+
+.title {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.md .title {
+  font-size: var(--text-lg);
+}
+
+.sm .title {
+  font-size: var(--text-base);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,29 @@
+/* Never grows: a search box as wide as the page reads as a search over
+   everything, when it only ever filters the list beside it. */
+.root {
+  position: relative;
+  display: flex;
+  flex: 0 1 18rem;
+  align-items: center;
+  color: var(--color-text-secondary);
+}
+
+.root svg {
+  position: absolute;
+  left: var(--space-10);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  min-height: 2.25rem;
+  /* Left padding clears the icon: derived from its size and offset, not a step
+     of the spacing scale (one of the exceptions §5.1 expects to see). */
+  padding: 0 var(--space-12) 0 2.125rem;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}

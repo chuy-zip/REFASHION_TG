@@ -115,27 +115,69 @@ export default async function DesignHubPage({ params }: PageProps) {
       </Link>
 
       <div className={styles.header}>
-        <div>
+        <div className={styles.identity}>
           <div className={styles.heading}>
             <h1 className={styles.title}>{design.name}</h1>
             <Badge tone={DESIGN_STATUS_COPY[design.status].tone}>
               {DESIGN_STATUS_COPY[design.status].label}
             </Badge>
           </div>
-          <p className={styles.subtitle}>
-            {client?.name} · {garmentTypeLabel(design.garment_type)} · v
-            {design.version}
+          {/* One condensed line where a four-row side panel used to be. Two of
+              its five facts were already on screen (the back link names the
+              project, the subtitle named the client), so the panel was mostly
+              paying rent to hold two buttons. */}
+          <p className={styles.meta}>
+            <Link
+              className={styles.metaLink}
+              href={`/clients/${project.client_id}`}
+            >
+              {client?.name ?? "Sin cliente"}
+            </Link>
+            {" · "}
+            <Link className={styles.metaLink} href={`/projects/${project.id}`}>
+              {project.name}
+            </Link>
+            {" · "}
+            {garmentTypeLabel(design.garment_type)} · v{design.version}
+            {originAsset && (
+              <>
+                {" · "}
+                <span className={styles.metaFile} title="Prenda base">
+                  {assetDisplayName(originAsset)}
+                </span>
+              </>
+            )}
           </p>
         </div>
-        <DesignActionsMenu
-          design={design}
-          canEdit={access.canEdit}
-          redirectOnDelete={`/projects/${project.id}`}
-        />
+
+        {/* What can be done with what you are looking at, in the row that
+            names it — same rule as "Cambiar prenda base" in /edit. */}
+        <div className={styles.actions}>
+          <Link
+            className={`${buttonStyles.base} ${buttonStyles.primary}`}
+            href={`/designs/${design.id}/edit`}
+          >
+            Editar diseño
+          </Link>
+          <Link
+            className={`${buttonStyles.base} ${buttonStyles.secondary}`}
+            href={`/designs/${design.id}/present`}
+          >
+            Presentación
+          </Link>
+          <DesignActionsMenu
+            design={design}
+            canEdit={access.canEdit}
+            assetCount={designAssets.length}
+            redirectOnDelete={`/projects/${project.id}`}
+          />
+        </div>
       </div>
 
-      <div className={styles.overview}>
-        <div className={styles.canvas}>
+      <figure className={styles.stage}>
+        <div
+          className={`${styles.canvas} ${heroAsset ? "" : styles.canvasIsEmpty}`}
+        >
           {heroAsset ? (
             // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
             <img
@@ -153,60 +195,13 @@ export default async function DesignHubPage({ params }: PageProps) {
           )}
         </div>
 
-        <div className={styles.side}>
-          <div className={styles.actions}>
-            <Link
-              className={`${buttonStyles.base} ${buttonStyles.primary}`}
-              href={`/designs/${design.id}/edit`}
-            >
-              Editar diseño
-            </Link>
-            <Link
-              className={`${buttonStyles.base} ${buttonStyles.secondary}`}
-              href={`/designs/${design.id}/present`}
-            >
-              Presentación
-            </Link>
-          </div>
-
-          <div className={styles.facts}>
-            <div className={styles.fact}>
-              <span className={styles.factLabel}>Proyecto</span>
-              <Link
-                className={styles.factLink}
-                href={`/projects/${project.id}`}
-              >
-                {project.name}
-              </Link>
-            </div>
-            <div className={styles.fact}>
-              <span className={styles.factLabel}>Cliente</span>
-              <Link
-                className={styles.factLink}
-                href={`/clients/${project.client_id}`}
-              >
-                {client?.name ?? "Sin cliente"}
-              </Link>
-            </div>
-            <div className={styles.fact}>
-              <span className={styles.factLabel}>Prenda base</span>
-              <span className={styles.factValue}>
-                {originAsset
-                  ? assetDisplayName(originAsset)
-                  : "Sin asignar"}
-              </span>
-            </div>
-            {design.notes && (
-              <div className={styles.fact}>
-                <span className={styles.factLabel}>Notas</span>
-                <span className={`${styles.factValue} ${styles.notes}`}>
-                  {design.notes}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        {/* The version note describes the image, so it sits under it. In the
+            side panel it was a field called "Notas" that nobody read while
+            looking at the garment. */}
+        {design.notes && (
+          <figcaption className={styles.notes}>{design.notes}</figcaption>
+        )}
+      </figure>
 
       <DesignTimeline originAsset={originAsset} assets={designAssets} />
     </main>

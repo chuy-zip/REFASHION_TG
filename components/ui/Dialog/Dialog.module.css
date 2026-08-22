@@ -6,9 +6,16 @@
   padding: 0;
   color: var(--color-text-primary);
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+
+  /* A tall dialog (the delete confirmations, which now list what is about to be
+     lost) scrolls inside itself. Without `contain`, reaching its end hands the
+     gesture to the page behind, so the backdrop drifts while a modal is open. */
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 
   /* Closed state. `allow-discrete` lets display/overlay animate too, which is
      what makes the exit visible instead of an instant disappearance. */

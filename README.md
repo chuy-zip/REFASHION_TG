@@ -69,14 +69,12 @@ cliente no puede importar `lib/r2` ni nada con credenciales. Por eso `lib/assets
 (consultas que firman URLs), y `lib/r2.ts` abre con `import "server-only"` para que un
 import equivocado sea un error de build y no una fuga silenciosa.
 
-**Ningún literal fuera de `app/globals.css`.** Nada de `#1F4FD8` ni `14px` en un `.tsx` o
-un `.module.css`; siempre el token (`var(--color-accent)`). Verificación:
+**Ningún literal fuera de `app/globals.css`.** Nada de `#2F3E8C` ni `14px` en un `.tsx` o
+un `.module.css`; siempre el token (`var(--color-accent)`, `var(--space-14)`). Son **dos**
+verificaciones, no una: colores y espaciado, ambas en `STYLE_GUIDE.md` §5.1 con el porqué.
 
-```bash
-grep -rEn '#[0-9a-fA-F]{3,8}\b' app components --include=*.tsx --include=*.module.css
-```
-
-No debería devolver nada nunca.
+El grep de colores no debe devolver nada nunca. El de espaciado devuelve una lista corta de
+excepciones justificadas (despejes ópticos, solapes de filete de 1px), no vacío.
 
 **Un `.module.css` por componente, colocado junto a él.** Si un estilo se necesita en dos
 lugares, se extrae un componente a `components/ui/`, no se duplica ni se sube a global.
@@ -151,6 +149,13 @@ graduación). Esto es lo mínimo para no deshacer una decisión sin querer.
 Vercel, conectado a la rama `main` (push despliega). Root Directory vacío, Framework
 Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `.env.local`.
 
+**El SQL va primero.** Si una tanda de trabajo trae una migración, se corre en Supabase
+**antes** de subir el código que la usa. Al revés la aplicación queda rota mientras dura la
+ventana, y rota en silencio: una columna inexistente hace fallar la consulta entera, así que la
+pantalla no muestra un error sino datos vacíos ("este diseño no tiene imagen"). Pasó con la
+migración 015 y solo se notó al abrir los logs de Supabase, donde aparecían decenas de
+`42703 column ... does not exist` por simple navegación.
+
 ## Estado
 
 - **Autenticación, usuarios y permisos:** completo. Login/logout, protección de rutas
@@ -181,6 +186,9 @@ Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `
   siendo placeholder: son el Módulo 3.
 - **Borrado seguro:** eliminar una imagen del catálogo avisa qué diseños la usan, como
   imagen de trabajo o como logotipo. Advertencia, no bloqueo.
-- **Siguiente:** Módulo 2, edición por zonas con máscaras e inpainting. Es el primero que
-  llama a un servicio externo de pago, así que trae consigo el registro de `cost_usd` y el
-  manejo de tareas asíncronas.
+- **Refactor visual en curso** (rama `ui-refactor`): tipografía Archivo, acento añil, escala
+  de espaciado por fin declarada, y el sidebar reemplazado por una barra superior. El plan,
+  las decisiones y lo que falta están en `REFACTOR_VISUAL.md`, fuera del repo.
+- **Siguiente:** terminar ese refactor y después el Módulo 2, edición por zonas con máscaras e
+  inpainting. Es el primero que llama a un servicio externo de pago, así que trae consigo el
+  registro de `cost_usd` y el manejo de tareas asíncronas.

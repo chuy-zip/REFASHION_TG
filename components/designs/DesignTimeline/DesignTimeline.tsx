@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog/AssetPreviewDialog";
+import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
+import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
 import { assetTypeLabel, type AssetWithUrl } from "@/lib/assets";
 import styles from "./DesignTimeline.module.css";
 
@@ -55,14 +57,13 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
 
   return (
     <section className={styles.section}>
+      {/* A group label, not a section heading: the strip below is a record the
+          user consults, and it must not read as loud as the garment. */}
       <div className={styles.header}>
-        <div>
-          <h2 className={styles.title}>Historial</h2>
-          <p className={styles.subtitle}>
-            Cada paso del diseño, del más antiguo al más reciente. Haz clic en
-            uno para verlo en grande o descargarlo.
-          </p>
-        </div>
+        <h2 className={styles.title}>Historial</h2>
+        <span className={styles.count}>
+          {stepCount === 1 ? "1 paso" : `${stepCount} pasos`}
+        </span>
         {totalCost > 0 && (
           <span className={styles.total}>
             Costo acumulado ${totalCost.toFixed(4)}
@@ -71,29 +72,23 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
       </div>
 
       {!originAsset && assets.length === 0 ? (
-        <div className={styles.empty}>
-          <p className={styles.emptyTitle}>Todavía no hay historial</p>
-          <p className={styles.emptyHint}>
-            Asigna una prenda base para empezar. Cada cambio que hagas queda
-            registrado acá y puedes volver a él sin generarlo de nuevo.
-          </p>
-        </div>
+        <EmptyState
+          size="sm"
+          title="Todavía no hay historial"
+          hint="Asigna una prenda base para empezar. Cada cambio que hagas queda registrado acá y puedes volver a él sin generarlo de nuevo."
+        />
       ) : (
         <div className={styles.strip} ref={stripRef}>
           {originAsset && (
             <button
               type="button"
-              className={`${styles.step} ${styles.origin}`}
+              className={styles.step}
+              aria-label="Ver la prenda base en grande"
               onClick={() => setPreview(originAsset)}
             >
-              <div className={styles.thumbWrap}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
-                <img
-                  className={styles.thumb}
-                  src={originAsset.url}
-                  alt="Prenda base"
-                />
-              </div>
+              {/* Dashed: the starting point belongs to the client's
+                  catalogue, it is not a step of this design. */}
+              <Thumbnail src={originAsset.url} alt="Prenda base" provisional />
               <div className={styles.meta}>
                 <span className={styles.label}>Punto de partida</span>
                 <span className={styles.when}>Prenda base</span>
@@ -106,16 +101,15 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
               key={asset.id}
               type="button"
               className={styles.step}
+              aria-label={`Ver ${assetTypeLabel(
+                asset.asset_type
+              ).toLowerCase()} en grande`}
               onClick={() => setPreview(asset)}
             >
-              <div className={styles.thumbWrap}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
-                <img
-                  className={styles.thumb}
-                  src={asset.url}
-                  alt={assetTypeLabel(asset.asset_type)}
-                />
-              </div>
+              <Thumbnail
+                src={asset.url}
+                alt={assetTypeLabel(asset.asset_type)}
+              />
               <div className={styles.meta}>
                 <span className={styles.label}>
                   {assetTypeLabel(asset.asset_type)}

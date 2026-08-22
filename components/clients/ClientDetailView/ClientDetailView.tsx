@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ClientActionsMenu } from "@/components/clients/ClientActionsMenu/ClientActionsMenu";
+import { AddMemberDialog } from "@/components/clients/AddMemberDialog/AddMemberDialog";
 import { MembersSection } from "@/components/clients/MembersSection/MembersSection";
+import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog/ProjectFormDialog";
 import { ProjectsSection } from "@/components/projects/ProjectsSection/ProjectsSection";
 import { AssetsSection } from "@/components/assets/AssetsSection/AssetsSection";
 import type { AssetWithUrl } from "@/lib/assets";
+import type { ClientContents } from "@/lib/clients";
+import type { ProjectSamples } from "@/lib/designs";
 import type { ClientMemberView } from "@/lib/members";
 import type { Client, Project } from "@/lib/types";
 import styles from "./ClientDetailView.module.css";
@@ -19,13 +23,27 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "assets", label: "Recursos" },
 ];
 
+/** The default tab, and therefore the one that needs no `?tab=` in the URL. */
+const DEFAULT_TAB: Tab = "info";
+
+function isTab(value: string | null): value is Tab {
+  return TABS.some((tab) => tab.id === value);
+}
+
 interface ClientDetailViewProps {
   client: Client;
   canEdit: boolean;
   canDelete: boolean;
   members: ClientMemberView[];
   canManageMembers: boolean;
+  /** What deleting this client would destroy; null when it could not be read. */
+  contents: ClientContents | null;
+  /** The current page of projects, with their sample strips. */
   projects: Project[];
+  projectsTotal: number;
+  projectsPage: number;
+  projectsQuery: string;
+  samplesByProject: Map<string, ProjectSamples>;
   assets: AssetWithUrl[];
   currentUserId: string;
 }
@@ -41,11 +59,39 @@ export function ClientDetailView({
   canDelete,
   members,
   canManageMembers,
+  contents,
   projects,
+  projectsTotal,
+  projectsPage,
+  projectsQuery,
+  samplesByProject,
   assets,
   currentUserId,
 }: ClientDetailViewProps) {
-  const [tab, setTab] = useState<Tab>("info");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // The tab is read from the URL, not held in state, so it survives a reload,
+  // the back button and a shared link. A hand-typed ?tab=basura falls back to
+  // the default instead of rendering nothing.
+  const requested = searchParams.get("tab");
+  const tab: Tab = isTab(requested) ? requested : DEFAULT_TAB;
+
+  function hrefFor(id: Tab) {
+    const params = new URLSearchParams(searchParams);
+    if (id === DEFAULT_TAB) params.delete("tab");
+    else params.set("tab", id);
+
+    // `q` and `page` belong to Proyectos. Carrying them onto another tab would
+    // put parameters in a shared link that describe nothing the receiver sees.
+    if (id !== "projects") {
+      params.delete("q");
+      params.delete("page");
+    }
+
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  }
 
   return (
     <div>
@@ -56,23 +102,70 @@ export function ClientDetailView({
             client={client}
             canEdit={canEdit}
             canDelete={canDelete}
+            contents={contents}
           />
         )}
       </div>
 
-      <nav className={styles.tabs} aria-label="Secciones del cliente">
-        {TABS.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            className={styles.tab}
-            aria-current={tab === id ? "page" : undefined}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      {/* The tab strip carries the action of the tab you are on. Each panel
+          used to open with an <h2> repeating the name of its own tab plus a
+          line describing what was visible right below it — the same thing said
+          three times in 100px. What a section is *for* is explained where it is
+          actually needed: in its empty state. */}
+      <div className={styles.tabBar}>
+        {/* Links and not buttons, and not next/link either.
+
+            Links, because they go somewhere: Ctrl+clic y clic central abren la
+            pestaña en otra pestaña del navegador, que es lo que cualquiera
+            espera de algo que se ve así. Y porque `aria-current="page"` sobre
+            un <button> afirmaba algo falso — no había ninguna página, solo una
+            variable cambiando. Ahora la URL se mueve y el atributo es cierto.
+
+            No <Link>, porque una navegación de Next volvería a correr las cinco
+            consultas de la página y a refirmar cada URL de R2 con solo cambiar
+            de pestaña, cuando los datos ya están todos en el cliente.
+            `history.pushState` mueve la URL sin ida al servidor, y Next lo
+            parchea para sincronizar `useSearchParams` — que es de donde este
+            componente lee. El botón Atrás sigue funcionando porque el estado
+            entra al historial de verdad. */}
+        <nav className={styles.tabs} aria-label="Secciones del cliente">
+          {TABS.map(({ id, label }) => (
+            <a
+              key={id}
+              href={hrefFor(id)}
+              className={styles.tab}
+              aria-current={tab === id ? "page" : undefined}
+              onClick={(event) => {
+                // Every gesture that means "open this elsewhere" is left to the
+                // browser; intercepting it is how a link stops being a link.
+                if (
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey
+                ) {
+                  return;
+                }
+                event.preventDefault();
+                window.history.pushState(null, "", hrefFor(id));
+              }}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        {tab === "members" && canManageMembers && (
+          <AddMemberDialog
+            clientId={client.id}
+            existingMemberIds={members.map((member) => member.user_id)}
+          />
+        )}
+
+        {tab === "projects" && canEdit && (
+          <ProjectFormDialog clientId={client.id} triggerLabel="Crear proyecto" />
+        )}
+      </div>
 
       <div className={styles.content}>
         {tab === "info" && <InfoPanel client={client} />}
@@ -88,8 +181,11 @@ export function ClientDetailView({
 
         {tab === "projects" && (
           <ProjectsSection
-            clientId={client.id}
             projects={projects}
+            total={projectsTotal}
+            page={projectsPage}
+            query={projectsQuery}
+            samplesByProject={samplesByProject}
             canManage={canEdit}
           />
         )}

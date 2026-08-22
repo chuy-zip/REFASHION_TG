@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/Badge/Badge";
 import { Button } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
@@ -17,6 +18,15 @@ interface UserRowProps {
   /** The signed-in admin cannot change or delete their own account. */
   isSelf: boolean;
 }
+
+/* The date a person got access. A people table is one of the few places where a
+   full-width row is the right shape, and this is the column that was missing to
+   justify that width. */
+const sinceFormat = new Intl.DateTimeFormat("es-GT", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 export function UserRow({ user, roles, isSelf }: UserRowProps) {
   const router = useRouter();
@@ -78,7 +88,7 @@ export function UserRow({ user, roles, isSelf }: UserRowProps) {
       <div className={styles.identity}>
         <span className={styles.name}>
           {name}
-          {isSelf && <span className={styles.selfTag}>tú</span>}
+          {isSelf && <Badge tone="accent">tú</Badge>}
         </span>
         <span className={styles.email}>{user.email}</span>
         {error && (
@@ -87,6 +97,10 @@ export function UserRow({ user, roles, isSelf }: UserRowProps) {
           </span>
         )}
       </div>
+
+      <span className={styles.since}>
+        Desde el {sinceFormat.format(new Date(user.created_at))}
+      </span>
 
       <div className={styles.controls}>
         <label className={styles.srOnly} htmlFor={`role-${user.id}`}>

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import styles from "./ThumbnailGrid.module.css";
 
 interface ThumbnailGridProps {
@@ -6,6 +7,12 @@ interface ThumbnailGridProps {
   isEmpty: boolean;
   emptyTitle: string;
   emptyHint?: string;
+  /**
+   * How wide a column gets. `lg` is for the catalog, where the page is the
+   * images and there is a whole monitor to spend on them; `md` is for the
+   * picker, which lives inside a 34rem dialog and would fit two per row.
+   */
+  size?: "md" | "lg";
   children: ReactNode;
 }
 
@@ -19,16 +26,14 @@ export function ThumbnailGrid({
   isEmpty,
   emptyTitle,
   emptyHint,
+  size = "md",
   children,
 }: ThumbnailGridProps) {
   if (isEmpty) {
-    return (
-      <div className={styles.empty}>
-        <p className={styles.emptyTitle}>{emptyTitle}</p>
-        {emptyHint && <p className={styles.emptyHint}>{emptyHint}</p>}
-      </div>
-    );
+    return <EmptyState title={emptyTitle} hint={emptyHint} />;
   }
 
-  return <div className={styles.grid}>{children}</div>;
+  return (
+    <div className={`${styles.grid} ${styles[size]}`}>{children}</div>
+  );
 }

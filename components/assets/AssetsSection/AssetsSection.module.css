@@ -1,54 +1,22 @@
-.header {
-  margin-bottom: 1rem;
-}
+/* No header: the tab already says "Recursos", and uploading moved into the
+   grid itself (AssetUploadTile), so this panel has no action of its own. */
 
-.title {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.subtitle {
-  margin-top: 0.125rem;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
+/* Pills and search sit together at the left, not at opposite walls: the search
+   filters whatever the selected pill is showing ("Buscar en logotipos…"), and
+   at full width `space-between` put a dead canyon between two controls that
+   depend on each other. */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: var(--space-16);
+  margin-bottom: var(--space-16);
 }
 
 /* Pills and the grid/empty state now live in components/ui (PillTabs,
    ThumbnailGrid) — shared with the starting-point picker. */
 
-.search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  max-width: 20rem;
-  margin-bottom: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.search svg {
-  position: absolute;
-  left: 0.625rem;
-  pointer-events: none;
-}
-
-.searchInput {
-  width: 100%;
-  min-height: 2.25rem;
-  padding: 0 0.75rem 0 2.125rem;
-  font-size: var(--text-sm);
-  font-family: inherit;
-  color: var(--color-text-primary);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-}
+/* The search box is components/ui/SearchInput, shared with the design list.
+   It sits next to the pills, in the row the "+ Subir" button used to share
+   with them: the search filters whatever the selected pill is showing, and two
+   controls that depend on each other do not go to opposite walls. */

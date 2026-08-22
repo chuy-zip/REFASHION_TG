@@ -1,12 +1,23 @@
+/* Tabs on the left, the action on the right, sharing one rule underneath. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-bottom: var(--space-16);
+  border-bottom: var(--border-hairline) solid var(--color-border-subtle);
+  padding-bottom: var(--space-8);
+}
+
 .tabs {
   display: flex;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--color-border-subtle);
+  gap: var(--space-4);
+  margin-bottom: calc(var(--space-8) * -1);
 }
 
 .tab {
-  padding: 0.5rem 0.875rem;
+  padding: var(--space-8) var(--space-14);
   font-size: var(--text-sm);
   font-weight: 500;
   font-family: inherit;
@@ -29,62 +40,42 @@
   border-bottom-color: var(--color-accent);
 }
 
+/* 8px of padding around 14px of text is ~30px. These three sit shoulder to
+   shoulder, so a miss lands on the neighbour rather than on nothing. */
+@media (pointer: coarse) {
+  .tab {
+    min-height: var(--touch-target);
+  }
+}
+
+/* Keeps its height whatever the tab holds, so switching does not move the
+   page. Transparent by default: when the tab has no image, the empty state's
+   dashed box is the only frame, and two frames never stack. */
 .stage {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 24rem;
-  margin-bottom: 0.75rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-subtle);
+  margin-bottom: var(--space-12);
   border-radius: var(--radius-md);
+}
+
+/* Image surface: no border, because the garment brings its own. */
+.stageWithImage {
+  padding: var(--space-24);
+  background: var(--color-surface-sunken);
 }
 
 .stageImage {
   max-width: 100%;
-  max-height: 32rem;
+  max-height: 60vh;
   object-fit: contain;
 }
 
-.stageEmpty {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
-.stageMock {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 2rem;
-  text-align: center;
-}
-
-.stageMockTitle {
-  font-size: var(--text-base);
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.stageMockHint {
-  max-width: 24rem;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
 .description {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-24);
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
-}
-
-.actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.backLink {
-  text-decoration: none;
 }
 
 /* Chooser for which composition is on stage. Thumbnails and not a <select>:
@@ -93,8 +84,8 @@
 .picker {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  margin-bottom: 1rem;
+  gap: var(--space-6);
+  margin-bottom: var(--space-16);
 }
 
 .pickerLabel {
@@ -107,9 +98,9 @@
 
 .pickerRow {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-8);
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  padding-bottom: var(--space-4);
 }
 
 .pickerItem {
@@ -117,7 +108,7 @@
   aspect-ratio: 1;
   padding: 0;
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   cursor: pointer;
   overflow: hidden;

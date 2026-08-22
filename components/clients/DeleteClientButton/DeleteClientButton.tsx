@@ -3,14 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
+import {
+  ConfirmByName,
+  confirmationMatches,
+} from "@/components/ui/ConfirmByName/ConfirmByName";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete } from "@/lib/api-client";
+import type { ClientContents } from "@/lib/clients";
+import { countPhrase } from "@/lib/text";
 import styles from "./DeleteClientButton.module.css";
 
 interface DeleteClientButtonProps {
   clientId: string;
   clientName: string;
+  /**
+   * What disappears with it. Null when the count could not be read, which is
+   * shown as such: "nothing will be lost" is the one thing this dialog must
+   * never say by mistake.
+   */
+  contents: ClientContents | null;
   /** When set, the trigger is disabled and shows this reason on hover. */
   disabled?: boolean;
   disabledReason?: string;
@@ -26,6 +38,7 @@ interface DeleteClientButtonProps {
 export function DeleteClientButton({
   clientId,
   clientName,
+  contents,
   disabled = false,
   disabledReason,
   open: controlledOpen,
@@ -38,6 +51,17 @@ export function DeleteClientButton({
   const isOpen = isControlled ? controlledOpen : internalOpen;
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+
+  const canDelete = confirmationMatches(confirmation, clientName);
+
+  const losing = contents
+    ? countPhrase([
+        [contents.project_count, "proyecto", "proyectos"],
+        [contents.design_count, "diseño", "diseños"],
+        [contents.image_count, "imagen", "imágenes"],
+      ])
+    : null;
 
   function close() {
     if (isControlled) onClose?.();
@@ -88,10 +112,23 @@ export function DeleteClientButton({
             Eliminar {clientName}
           </h2>
 
+          {/* The numbers, not the abstract plural. A client with nothing and a
+              client with forty projects used to show the identical sentence,
+              which is exactly when a confirmation stops informing anything. */}
           <p className={styles.warning}>
-            Se eliminarán también sus proyectos, diseños e imágenes asociadas.
-            Esta acción no se puede deshacer.
+            {!contents
+              ? "Se eliminarán también sus proyectos, diseños e imágenes. No se pudo contar cuántos son. Esta acción no se puede deshacer."
+              : losing
+                ? `Se eliminarán ${losing}. Esta acción no se puede deshacer.`
+                : "Este cliente no tiene proyectos ni imágenes. Esta acción no se puede deshacer."}
           </p>
+
+          <ConfirmByName
+            expected={clientName}
+            value={confirmation}
+            onChange={setConfirmation}
+            disabled={isDeleting}
+          />
 
           {error && (
             <p className={styles.error} role="alert">
@@ -106,7 +143,10 @@ export function DeleteClientButton({
             <Button
               variant="danger"
               onClick={handleDelete}
-              disabled={isDeleting}
+              disabled={isDeleting || !canDelete}
+              title={
+                canDelete ? undefined : "Escribe el nombre del cliente para confirmar."
+              }
             >
               {isDeleting ? "Eliminando…" : "Eliminar"}
             </Button>

@@ -104,32 +104,34 @@ export default async function DesignEditPage({ params }: PageProps) {
 
   return (
     <main className={styles.page}>
-      {/* Up to the design's hub, not to the project: the hub is where you came
-          from, and where the history and the other destinations live. */}
-      <Link className={styles.back} href={`/designs/${design.id}`}>
-        <Icon name="arrowBack" size={16} />
-        {design.name}
-      </Link>
+      <div className={styles.head}>
+        {/* Up to the design's hub, not to the project: the hub is where you
+            came from, and where the history and the other destinations live. */}
+        <Link className={styles.back} href={`/designs/${design.id}`}>
+          <Icon name="arrowBack" size={16} />
+          {design.name}
+        </Link>
 
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>{design.name}</h1>
-          <p className={styles.subtitle}>
-            {client?.name} · {garmentTypeLabel(design.garment_type)} · v
-            {design.version}
-          </p>
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>{design.name}</h1>
+            <p className={styles.subtitle}>
+              {client?.name} · {garmentTypeLabel(design.garment_type)} · v
+              {design.version}
+            </p>
+          </div>
+          <BaseGarmentPicker
+            designId={design.id}
+            clientId={project.client_id}
+            baseAssetId={design.base_asset_id}
+            canEdit={access.canEdit}
+            hasWorkOnTop={designHasWorkOnTop(design)}
+            triggerLabel={
+              workingImageUrl ? "Cambiar prenda base" : "Elegir prenda base"
+            }
+            triggerVariant={workingImageUrl ? "secondary" : "primary"}
+          />
         </div>
-        <BaseGarmentPicker
-          designId={design.id}
-          clientId={project.client_id}
-          baseAssetId={design.base_asset_id}
-          canEdit={access.canEdit}
-          hasWorkOnTop={designHasWorkOnTop(design)}
-          triggerLabel={
-            workingImageUrl ? "Cambiar prenda base" : "Elegir prenda base"
-          }
-          triggerVariant={workingImageUrl ? "secondary" : "primary"}
-        />
       </div>
 
       <DesignWorkspaceLoader

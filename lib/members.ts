@@ -15,6 +15,8 @@ export interface ClientMemberView {
   email: string | null;
   first_name: string;
   last_name: string;
+  /** When this person got access to the client, not when they signed up. */
+  created_at: string;
 }
 
 /**
@@ -30,7 +32,7 @@ export async function listClientMembers(
 ): Promise<{ members: ClientMemberView[]; error: string | null }> {
   const { data: rows, error } = await supabase
     .from("client_members")
-    .select("user_id, role")
+    .select("user_id, role, created_at")
     .eq("client_id", clientId);
 
   if (error) return { members: [], error: error.message };
@@ -57,6 +59,7 @@ export async function listClientMembers(
         email: profile?.email ?? null,
         first_name: profile?.first_name ?? "",
         last_name: profile?.last_name ?? "",
+        created_at: row.created_at as string,
       };
     })
     // Owners first, then alphabetical by name.

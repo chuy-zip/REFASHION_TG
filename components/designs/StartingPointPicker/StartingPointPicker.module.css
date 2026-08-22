@@ -1,32 +1,32 @@
 .picker {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-12);
 }
 
 .scroll {
   /* Keeps the dialog a fixed height however many items a client has. */
   max-height: 22rem;
   overflow-y: auto;
-  padding-right: 0.25rem;
+  padding-right: var(--space-4);
 }
 
 /* Matches .scroll's height so switching to this tab does not resize the dialog. */
 .upload {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-12);
   min-height: 22rem;
-  padding: 1rem;
+  padding: var(--space-16);
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
 }
 
 .uploadField {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: var(--space-6);
 }
 
 .uploadLabel {
@@ -36,12 +36,12 @@
 }
 
 .uploadInput {
-  padding: 0.625rem 0.75rem;
+  padding: var(--space-10) var(--space-12);
   font-size: var(--text-base);
   font-family: inherit;
   color: var(--color-text-primary);
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-hairline) solid var(--color-border-strong);
   border-radius: var(--radius-sm);
 }
 
@@ -51,11 +51,11 @@
 }
 
 .uploadError {
-  padding: 0.625rem 0.75rem;
+  padding: var(--space-10) var(--space-12);
   font-size: var(--text-sm);
   color: var(--color-danger);
   background: var(--color-danger-subtle);
-  border: 1px solid var(--color-danger);
+  border: var(--border-hairline) solid var(--color-danger);
   border-radius: var(--radius-sm);
 }
 
@@ -72,7 +72,7 @@
   text-align: left;
   color: inherit;
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: border-color var(--duration-fast) var(--ease-out);
@@ -87,38 +87,13 @@
   box-shadow: 0 0 0 1px var(--color-accent);
 }
 
-.thumbWrap {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-  background: var(--color-surface-sunken);
-}
-
-.thumb {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.noThumb {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 0.5rem;
-  text-align: center;
-  font-size: var(--text-xs);
-  color: var(--color-text-disabled);
-}
-
+/* The image frame is components/ui/Thumbnail, with corners="top" because here
+   it heads a bordered card instead of standing on its own. */
 .meta {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
-  padding: 0.5rem 0.625rem;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-10);
 }
 
 .name {
@@ -142,8 +117,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.625rem 0.75rem;
+  gap: var(--space-12);
+  padding: var(--space-10) var(--space-12);
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
   background: var(--color-surface-sunken);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import styles from "./AppSidebar.module.css";
+import styles from "./AppTopBar.module.css";
 
 interface NavItem {
   href: string;
@@ -17,7 +17,7 @@ const ITEMS: NavItem[] = [
   { href: "/admin/users", label: "Usuarios", match: "/admin", adminOnly: true },
 ];
 
-export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
+export function TopBarNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
 
   return (

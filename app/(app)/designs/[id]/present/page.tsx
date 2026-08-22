@@ -74,8 +74,17 @@ export default async function DesignPresentPage({ params }: PageProps) {
 
       <div className={styles.header}>
         <h1 className={styles.title}>{design.name}</h1>
-        <p className={styles.subtitle}>
-          {client?.name} · {project.name}
+        <p className={styles.meta}>
+          <Link
+            className={styles.metaLink}
+            href={`/clients/${project.client_id}`}
+          >
+            {client?.name ?? "Sin cliente"}
+          </Link>
+          {" · "}
+          <Link className={styles.metaLink} href={`/projects/${project.id}`}>
+            {project.name}
+          </Link>
         </p>
       </div>
 
@@ -83,7 +92,6 @@ export default async function DesignPresentPage({ params }: PageProps) {
         designName={design.name}
         compositions={compositions}
         workingImageUrl={workingImageUrl}
-        projectId={project.id}
       />
     </main>
   );

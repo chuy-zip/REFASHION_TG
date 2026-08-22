@@ -4,18 +4,22 @@ import { useState } from "react";
 import { Menu, type MenuItem } from "@/components/ui/Menu/Menu";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog/ProjectFormDialog";
 import { DeleteProjectButton } from "@/components/projects/DeleteProjectButton/DeleteProjectButton";
+import type { ProjectContents } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
 interface ProjectActionsMenuProps {
   project: Project;
   /** owner/editor (or admin) may edit and delete a project. */
   canEdit: boolean;
+  /** What the delete confirmation will say disappears. */
+  contents: ProjectContents | null;
 }
 
 /** Groups a project's edit and delete behind a gear menu. */
 export function ProjectActionsMenu({
   project,
   canEdit,
+  contents,
 }: ProjectActionsMenuProps) {
   const [action, setAction] = useState<null | "edit" | "delete">(null);
 
@@ -52,6 +56,7 @@ export function ProjectActionsMenu({
         <DeleteProjectButton
           projectId={project.id}
           projectName={project.name}
+          contents={contents}
           clientId={project.client_id}
           open
           onClose={() => setAction(null)}

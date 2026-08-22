@@ -1,15 +1,14 @@
 .page {
   width: 100%;
-  max-width: 90rem;
-  padding: 1.5rem 2rem;
+  padding: var(--space-24) var(--space-32);
 }
 
 .titleRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-16);
+  margin-bottom: var(--space-24);
 }
 
 .title {
@@ -19,50 +18,48 @@
 }
 
 .permissionHint {
-  margin-top: -0.75rem;
-  margin-bottom: 1.5rem;
+  margin-top: calc(var(--space-12) * -1);
+  margin-bottom: var(--space-24);
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
 }
 
-/* Empty state: says what the thing is for, then invites the action. */
-.empty {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 3rem 1.5rem;
-  text-align: center;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-}
+/* The empty state comes from components/ui/EmptyState. */
 
-.emptyTitle {
-  font-size: var(--text-lg);
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
+/* A card catalogue, not a column of full-width strips. A client is a name and
+   a handful of short facts; stretched across a wide monitor each row was mostly
+   empty, and adding width made it worse rather than better.
 
-.emptyHint {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
+   The min() is not decoration: minmax()'s first argument is a hard floor, so a
+   bare 24rem track overflowed any viewport narrower than 384px and put a
+   horizontal scrollbar under the whole page. */
 .list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(24rem, 100%), 1fr));
+  gap: var(--space-16);
   list-style: none;
 }
 
+/*
+ * A business card, which is what a workshop actually files about a client, and
+ * the only one of the three list levels with no images at all: a client is not
+ * an image, and borrowing thumbnails from its designs duplicated what the
+ * Proyectos tab shows better (REFACTOR_VISUAL §7).
+ *
+ * No fixed aspect ratio. It was tried at a real card's 85 × 55 and, at the
+ * width this grid gives, left a dead gap in the middle. The grid already
+ * equalises each row, so the card is exactly as tall as its content and the
+ * gap cannot appear; the floor keeps a half-filled client from collapsing.
+ */
 .card {
   display: flex;
+  height: 100%;
+  min-height: 9.5rem;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.875rem 1rem;
+  padding: var(--space-16) var(--space-16);
   text-decoration: none;
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-hairline) solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   transition: border-color var(--duration-fast) var(--ease-out);
 }
@@ -71,22 +68,68 @@
   border-color: var(--color-border-strong);
 }
 
+/* The name dominates: without the scale jump the two halves read as one
+   broken list rather than as the head and foot of a card. */
 .cardName {
-  font-size: var(--text-base);
+  font-size: var(--text-xl);
   font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
 }
 
-.cardMeta {
+.cardWhere {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
+  color: var(--color-text-secondary);
+}
+
+.cardContact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-bottom: var(--space-8);
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
 }
 
+.cardPhone {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The pencil annotation on the back of the card. */
+.cardFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding-top: var(--space-8);
+  font-size: var(--text-xs);
+  font-stretch: var(--font-stretch-condensed);
+  color: var(--color-text-secondary);
+  border-top: var(--border-hairline) solid var(--color-border-subtle);
+}
+
+.cardNit {
+  font-family: var(--font-mono);
+  font-stretch: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardMissing {
+  color: var(--color-text-disabled);
+}
+
 .error {
-  padding: 0.625rem 0.75rem;
+  padding: var(--space-10) var(--space-12);
   font-size: var(--text-sm);
   color: var(--color-danger);
   background: var(--color-danger-subtle);
-  border: 1px solid var(--color-danger);
+  border: var(--border-hairline) solid var(--color-danger);
   border-radius: var(--radius-sm);
 }

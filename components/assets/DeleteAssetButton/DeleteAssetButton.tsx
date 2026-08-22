@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
+import {
+  ConfirmByName,
+  confirmationMatches,
+} from "@/components/ui/ConfirmByName/ConfirmByName";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiGet } from "@/lib/api-client";
@@ -11,10 +15,29 @@ import styles from "./DeleteAssetButton.module.css";
 
 interface DeleteAssetButtonProps {
   assetId: string;
+  /** Type label: "Logotipo", "Prenda base". Used in the title and the toast. */
   assetLabel: string;
+  /**
+   * The file's own name, which is what the typed confirmation asks for. The
+   * type label would not do: every logo shares it, so typing "Logotipo" would
+   * confirm nothing about *which* image is being destroyed.
+   */
+  assetName: string;
   open: boolean;
   onClose: () => void;
 }
+
+/**
+ * Three outcomes, not two. The first version stored `AssetUsage[] | null` and
+ * turned a failed request into `[]`, which renders exactly like "used by
+ * nobody" — the one thing this dialog exists to never say by mistake.
+ *
+ * The answer carries the image it is about, so it can be checked against the
+ * one on screen instead of cleared when the dialog reopens.
+ */
+type UsageAnswer =
+  | { assetId: string; status: "ready"; designs: AssetUsage[] }
+  | { assetId: string; status: "failed" };
 
 function usageLabel(usage: AssetUsage): string {
   if (usage.as_image && usage.as_layer) return "imagen de trabajo y logotipo";
@@ -33,6 +56,7 @@ function usageLabel(usage: AssetUsage): string {
 export function DeleteAssetButton({
   assetId,
   assetLabel,
+  assetName,
   open,
   onClose,
 }: DeleteAssetButtonProps) {
@@ -40,7 +64,8 @@ export function DeleteAssetButton({
   const { notify } = useToast();
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [usage, setUsage] = useState<AssetUsage[] | null>(null);
+  const [confirmation, setConfirmation] = useState("");
+  const [answer, setAnswer] = useState<UsageAnswer | null>(null);
 
   // Looked up when the dialog opens rather than listed with the catalog: it is
   // one query for one image, and only when someone is about to destroy it.
@@ -49,7 +74,12 @@ export function DeleteAssetButton({
 
     let cancelled = false;
     apiGet<AssetUsage[]>(`/api/assets/${assetId}/usage`).then((result) => {
-      if (!cancelled) setUsage(result.ok ? result.data : []);
+      if (cancelled) return;
+      setAnswer(
+        result.ok
+          ? { assetId, status: "ready", designs: result.data }
+          : { assetId, status: "failed" }
+      );
     });
 
     return () => {
@@ -75,6 +105,29 @@ export function DeleteAssetButton({
     router.refresh();
   }
 
+  /**
+   * Derived rather than reset from an effect: an answer belonging to another
+   * image reads as "still checking", which is both true and safe. Clearing it
+   * from the effect would be a synchronous setState there, which React's rules
+   * forbid — and this version also closes the race the reset only papered over.
+   */
+  const usage: UsageAnswer | { status: "checking" } =
+    answer && answer.assetId === assetId ? answer : { status: "checking" };
+
+  /**
+   * The friction follows the blast radius, not the kind of thing.
+   *
+   * An image nobody uses is catalogue tidying — the derived "X sin fondo" pile
+   * grows on purpose (§9), and gating routine cleanup behind typing is exactly
+   * how the gesture becomes a reflex. An image several designs depend on is a
+   * different act: it reaches across projects the user is not looking at, and
+   * a list can be skimmed the same way a warning can.
+   */
+  const needsTyping = usage.status === "ready" && usage.designs.length > 0;
+  const canDelete =
+    usage.status !== "checking" &&
+    (!needsTyping || confirmationMatches(confirmation, assetName));
+
   const titleId = `delete-asset-${assetId}`;
 
   return (
@@ -88,17 +141,28 @@ export function DeleteAssetButton({
           puede deshacer.
         </p>
 
-        {usage === null ? (
-          <p className={styles.checking}>Revisando dónde se usa…</p>
-        ) : usage.length > 0 ? (
+        {usage.status === "checking" && (
+          <p className={styles.checking} role="status">
+            Revisando dónde se usa…
+          </p>
+        )}
+
+        {usage.status === "failed" && (
+          <p className={styles.usageHint} role="status">
+            No se pudo comprobar en qué diseños se usa. Puedes eliminarla de
+            todas formas, pero sin saber a quién afecta.
+          </p>
+        )}
+
+        {usage.status === "ready" && usage.designs.length > 0 && (
           <div className={styles.usage}>
             <p className={styles.usageTitle}>
-              {usage.length === 1
+              {usage.designs.length === 1
                 ? "Esta imagen se usa en 1 diseño:"
-                : `Esta imagen se usa en ${usage.length} diseños:`}
+                : `Esta imagen se usa en ${usage.designs.length} diseños:`}
             </p>
             <ul className={styles.usageList}>
-              {usage.map((item) => (
+              {usage.designs.map((item) => (
                 <li key={item.design_id} className={styles.usageItem}>
                   {item.design_name} · v{item.design_version} ·{" "}
                   {usageLabel(item)}
@@ -109,7 +173,16 @@ export function DeleteAssetButton({
               Si la eliminas, esos diseños se quedan sin ella.
             </p>
           </div>
-        ) : null}
+        )}
+
+        {needsTyping && (
+          <ConfirmByName
+            expected={assetName}
+            value={confirmation}
+            onChange={setConfirmation}
+            disabled={isDeleting}
+          />
+        )}
 
         {error && (
           <p className={styles.error} role="alert">
@@ -121,7 +194,22 @@ export function DeleteAssetButton({
           <Button variant="secondary" onClick={onClose} disabled={isDeleting}>
             Cancelar
           </Button>
-          <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
+          {/* Held until the lookup answers. The warning IS the feature here
+              (§7.3 chose to warn rather than block), so letting someone confirm
+              before it arrives quietly removes the only thing this dialog adds
+              over deleting straight from the menu. */}
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            disabled={isDeleting || !canDelete}
+            title={
+              usage.status === "checking"
+                ? "Espera a saber en qué diseños se usa."
+                : needsTyping
+                  ? "Escribe el nombre de la imagen para confirmar."
+                  : undefined
+            }
+          >
             {isDeleting ? "Eliminando…" : "Eliminar"}
           </Button>
         </div>

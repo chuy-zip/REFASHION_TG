@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/Badge/Badge";
 import { Button } from "@/components/ui/Button/Button";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
-import { AddMemberDialog } from "@/components/clients/AddMemberDialog/AddMemberDialog";
 import { apiDelete, apiPatch } from "@/lib/api-client";
 import { CLIENT_ROLE_COPY, clientRoleLabel } from "@/lib/roles";
 import type { ClientMemberView } from "@/lib/members";
@@ -27,22 +27,8 @@ export function MembersSection({
   canManage,
   currentUserId,
 }: MembersSectionProps) {
-  const existingIds = members.map((member) => member.user_id);
-
   return (
     <section className={styles.section}>
-      <div className={styles.header}>
-        <div>
-          <h2 className={styles.title}>Miembros</h2>
-          <p className={styles.subtitle}>
-            Quién tiene acceso a este cliente y con qué rol.
-          </p>
-        </div>
-        {canManage && (
-          <AddMemberDialog clientId={clientId} existingMemberIds={existingIds} />
-        )}
-      </div>
-
       <ul className={styles.list}>
         {members.map((member) => (
           <MemberRow
@@ -57,6 +43,14 @@ export function MembersSection({
     </section>
   );
 }
+
+/* When this person got access to the client, which is the column a table of
+   accesses wants and the one that justifies a full-width row. */
+const sinceFormat = new Intl.DateTimeFormat("es-GT", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 interface MemberRowProps {
   clientId: string;
@@ -121,10 +115,14 @@ function MemberRow({ clientId, member, canManage, isSelf }: MemberRowProps) {
       <div className={styles.identity}>
         <span className={styles.name}>
           {name}
-          {isSelf && <span className={styles.selfTag}>tú</span>}
+          {isSelf && <Badge tone="accent">tú</Badge>}
         </span>
         <span className={styles.email}>{member.email}</span>
       </div>
+
+      <span className={styles.since}>
+        Desde el {sinceFormat.format(new Date(member.created_at))}
+      </span>
 
       {canManage ? (
         <div className={styles.controls}>

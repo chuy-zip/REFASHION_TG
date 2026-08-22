@@ -1,14 +1,13 @@
 .page {
   width: 100%;
-  max-width: 90rem;
-  padding: 1.5rem 2rem;
+  padding: var(--space-24) var(--space-32);
 }
 
 .back {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-16);
   font-size: var(--text-sm);
   color: var(--color-accent);
   text-decoration: none;
@@ -19,7 +18,7 @@
 }
 
 .header {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-24);
 }
 
 .title {
@@ -28,8 +27,24 @@
   color: var(--color-text-primary);
 }
 
-.subtitle {
-  margin-top: 0.125rem;
+/* Same condensed metadata line as the hub, and the same reason its links are
+   underlined instead of accent-coloured: two accent links here would compete
+   with the primary action a few centimetres away. */
+.meta {
+  margin-top: var(--space-2);
   font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
   color: var(--color-text-secondary);
+}
+
+.metaLink {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 2px;
+}
+
+.metaLink:hover {
+  color: var(--color-accent);
+  text-decoration-color: currentColor;
 }

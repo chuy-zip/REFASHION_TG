@@ -1,0 +1,31 @@
+.root {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  margin-top: var(--space-16);
+  padding-top: var(--space-12);
+  border-top: var(--border-hairline) solid var(--color-border-subtle);
+}
+
+.count {
+  font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.buttons {
+  display: flex;
+  gap: var(--space-8);
+}
+
+/* The end of the list, borrowing Button's disabled look without being a
+   button: there is nowhere left to go, and saying so is clearer than hiding
+   the control and making the pair jump. */
+.spent {
+  color: var(--color-text-disabled);
+  border-color: var(--color-border-subtle);
+  cursor: default;
+}

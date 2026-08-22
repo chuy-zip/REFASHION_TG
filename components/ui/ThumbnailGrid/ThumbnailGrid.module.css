@@ -1,27 +1,17 @@
 .grid {
   display: grid;
+  gap: var(--space-16);
+}
+
+/* auto-fill, not auto-fit: empty tracks stay reserved so four images keep
+   their size instead of stretching to fill a monitor. */
+.md {
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 0.75rem;
 }
 
-.empty {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 3rem 1.5rem;
-  text-align: center;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
+.lg {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
 }
 
-.emptyTitle {
-  font-size: var(--text-lg);
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.emptyHint {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
+/* The empty state lives in components/ui/EmptyState, shared with every other
+   list in the app. */
