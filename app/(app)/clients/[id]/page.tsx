@@ -8,6 +8,7 @@ import { ClientDetailView } from "@/components/clients/ClientDetailView/ClientDe
 import { Icon } from "@/components/ui/Icon/Icon";
 import { getClientAccess } from "@/lib/access";
 import { listClientAssets } from "@/lib/assets-server";
+import { getClientContents } from "@/lib/clients";
 import { listClientMembers } from "@/lib/members";
 import { listClientProjects, PROJECTS_PAGE_SIZE } from "@/lib/projects";
 import { fetchProjectSamples } from "@/lib/designs-server";
@@ -61,6 +62,11 @@ export default async function ClientDetailPage({
 
   const client = clientResult.data as Client;
 
+  // What deleting this client would destroy, for its confirmation. Read here
+  // rather than when the dialog opens: it is one row, and a delete warning that
+  // arrives after the button is already pressable protects nobody.
+  const contents = await getClientContents(supabase, id);
+
   // Depends on which projects came back, so it cannot join the batch above.
   // Bounded by it too: at most PROJECTS_PAGE_SIZE × PROJECT_SAMPLE_SIZE images.
   const samplesByProject = await fetchProjectSamples(
@@ -81,6 +87,7 @@ export default async function ClientDetailPage({
         canDelete={access.canManage}
         members={membersResult.members}
         canManageMembers={access.canManage}
+        contents={contents}
         projects={projectsResult.projects}
         projectsTotal={projectsResult.total}
         projectsPage={page}

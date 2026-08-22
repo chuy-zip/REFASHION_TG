@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { ClientActionsMenu } from "@/components/clients/ClientActionsMenu/ClientActionsMenu";
+import { AddMemberDialog } from "@/components/clients/AddMemberDialog/AddMemberDialog";
 import { MembersSection } from "@/components/clients/MembersSection/MembersSection";
+import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog/ProjectFormDialog";
 import { ProjectsSection } from "@/components/projects/ProjectsSection/ProjectsSection";
 import { AssetsSection } from "@/components/assets/AssetsSection/AssetsSection";
 import type { AssetWithUrl } from "@/lib/assets";
+import type { ClientContents } from "@/lib/clients";
 import type { ProjectSamples } from "@/lib/designs";
 import type { ClientMemberView } from "@/lib/members";
 import type { Client, Project } from "@/lib/types";
@@ -26,6 +29,8 @@ interface ClientDetailViewProps {
   canDelete: boolean;
   members: ClientMemberView[];
   canManageMembers: boolean;
+  /** What deleting this client would destroy; null when it could not be read. */
+  contents: ClientContents | null;
   /** The current page of projects, with their sample strips. */
   projects: Project[];
   projectsTotal: number;
@@ -47,6 +52,7 @@ export function ClientDetailView({
   canDelete,
   members,
   canManageMembers,
+  contents,
   projects,
   projectsTotal,
   projectsPage,
@@ -66,23 +72,42 @@ export function ClientDetailView({
             client={client}
             canEdit={canEdit}
             canDelete={canDelete}
+            contents={contents}
           />
         )}
       </div>
 
-      <nav className={styles.tabs} aria-label="Secciones del cliente">
-        {TABS.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            className={styles.tab}
-            aria-current={tab === id ? "page" : undefined}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      {/* The tab strip carries the action of the tab you are on. Each panel
+          used to open with an <h2> repeating the name of its own tab plus a
+          line describing what was visible right below it — the same thing said
+          three times in 100px. What a section is *for* is explained where it is
+          actually needed: in its empty state. */}
+      <div className={styles.tabBar}>
+        <nav className={styles.tabs} aria-label="Secciones del cliente">
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              className={styles.tab}
+              aria-current={tab === id ? "page" : undefined}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {tab === "members" && canManageMembers && (
+          <AddMemberDialog
+            clientId={client.id}
+            existingMemberIds={members.map((member) => member.user_id)}
+          />
+        )}
+
+        {tab === "projects" && canEdit && (
+          <ProjectFormDialog clientId={client.id} triggerLabel="Crear proyecto" />
+        )}
+      </div>
 
       <div className={styles.content}>
         {tab === "info" && <InfoPanel client={client} />}
@@ -98,7 +123,6 @@ export function ClientDetailView({
 
         {tab === "projects" && (
           <ProjectsSection
-            clientId={client.id}
             projects={projects}
             total={projectsTotal}
             page={projectsPage}

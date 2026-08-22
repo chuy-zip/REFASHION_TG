@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog/ProjectFormDialog";
 import { ProjectSearch } from "@/components/projects/ProjectsSection/ProjectSearch";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
@@ -10,7 +9,6 @@ import type { Project } from "@/lib/types";
 import styles from "./ProjectsSection.module.css";
 
 interface ProjectsSectionProps {
-  clientId: string;
   /** The current page of projects. */
   projects: Project[];
   total: number;
@@ -35,7 +33,6 @@ interface ProjectsSectionProps {
  * Postgres — see `fetchProjectSamples`.
  */
 export function ProjectsSection({
-  clientId,
   projects,
   total,
   page,
@@ -49,18 +46,6 @@ export function ProjectsSection({
 
   return (
     <section>
-      <div className={styles.header}>
-        <div>
-          <h2 className={styles.title}>Proyectos</h2>
-          <p className={styles.subtitle}>
-            Cada proyecto agrupa los diseños de una orden o campaña.
-          </p>
-        </div>
-        {canManage && (
-          <ProjectFormDialog clientId={clientId} triggerLabel="Crear proyecto" />
-        )}
-      </div>
-
       {isSearchable && (
         <div className={styles.toolbar}>
           <ProjectSearch query={query} />

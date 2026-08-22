@@ -14,11 +14,24 @@
 }
 
 /* Horizontal tabs for the client's sections, above the content. */
+/* Tabs on the left, the active tab's action on the right, sharing one rule
+   underneath — the same shape as the presentation screen's toolbar. */
+.tabBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-bottom: var(--space-24);
+  padding-bottom: var(--space-8);
+  border-bottom: var(--border-hairline) solid var(--color-border-subtle);
+}
+
+/* Pulled down onto the bar's rule, so the active tab's underline meets it. */
 .tabs {
   display: flex;
   gap: var(--space-4);
-  margin-bottom: var(--space-24);
-  border-bottom: var(--border-hairline) solid var(--color-border-subtle);
+  margin-bottom: calc(var(--space-8) * -1);
 }
 
 .tab {

@@ -11,6 +11,47 @@ export interface ClientWithCounts extends Client {
   design_count: number;
 }
 
+/** What disappears with a client, for its delete confirmation. */
+export interface ClientContents {
+  project_count: number;
+  design_count: number;
+  image_count: number;
+}
+
+/**
+ * How much a client holds. Read when someone is about to destroy it, so the
+ * warning can say "3 proyectos, 12 diseños y 47 imágenes" instead of talking
+ * in the abstract plural.
+ *
+ * Returns null when the count cannot be read. The caller must not turn that
+ * into zeros: "nothing will be lost" is the one thing a delete dialog cannot
+ * say by mistake.
+ */
+export async function getClientContents(
+  supabase: SupabaseClient,
+  clientId: string
+): Promise<ClientContents | null> {
+  const { data, error } = await supabase
+    .from("client_work_counts")
+    .select("project_count, design_count, image_count")
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  // Swallowing this made a missing migration look exactly like a client with
+  // nothing inside — the dialog said "no se pudo contar" and nothing anywhere
+  // said why. A count that fails is a fact worth printing.
+  if (error && process.env.NODE_ENV === "development") {
+    console.error("[client_work_counts] no se pudo leer:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+  }
+
+  return (data as ClientContents | null) ?? null;
+}
+
 /**
  * Clients the caller may see, alphabetically, each with its project and design
  * counts.
@@ -41,13 +82,21 @@ export async function listClientsWithCounts(
   const clients = (data ?? []) as Client[];
   if (clients.length === 0) return { clients: [], error: null };
 
-  const { data: countRows } = await supabase
+  const { data: countRows, error: countsError } = await supabase
     .from("client_work_counts")
     .select("client_id, project_count, design_count")
     .in(
       "client_id",
       clients.map((client) => client.id)
     );
+
+  if (countsError && process.env.NODE_ENV === "development") {
+    console.error("[client_work_counts] no se pudieron leer:", {
+      message: countsError.message,
+      code: countsError.code,
+      hint: countsError.hint,
+    });
+  }
 
   const countsByClient = new Map<
     string,

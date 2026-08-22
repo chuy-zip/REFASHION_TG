@@ -19,6 +19,15 @@ interface UserRowProps {
   isSelf: boolean;
 }
 
+/* The date a person got access. A people table is one of the few places where a
+   full-width row is the right shape, and this is the column that was missing to
+   justify that width. */
+const sinceFormat = new Intl.DateTimeFormat("es-GT", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
 export function UserRow({ user, roles, isSelf }: UserRowProps) {
   const router = useRouter();
   const { notify } = useToast();
@@ -88,6 +97,10 @@ export function UserRow({ user, roles, isSelf }: UserRowProps) {
           </span>
         )}
       </div>
+
+      <span className={styles.since}>
+        Desde el {sinceFormat.format(new Date(user.created_at))}
+      </span>
 
       <div className={styles.controls}>
         <label className={styles.srOnly} htmlFor={`role-${user.id}`}>

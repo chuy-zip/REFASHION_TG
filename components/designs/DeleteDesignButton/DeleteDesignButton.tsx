@@ -11,6 +11,8 @@ import styles from "./DeleteDesignButton.module.css";
 interface DeleteDesignButtonProps {
   designId: string;
   designName: string;
+  /** How many images go with it. */
+  assetCount: number;
   disabled?: boolean;
   disabledReason?: string;
   /** Controlled mode: parent drives visibility and renders no trigger. */
@@ -27,6 +29,7 @@ interface DeleteDesignButtonProps {
 export function DeleteDesignButton({
   designId,
   designName,
+  assetCount,
   disabled = false,
   disabledReason,
   open: controlledOpen,
@@ -89,9 +92,15 @@ export function DeleteDesignButton({
           <h2 className={styles.title} id={titleId}>
             Eliminar {designName}
           </h2>
+          {/* No typed confirmation here on purpose: the cascade stops at this
+              design, and spending that friction everywhere is what turns it
+              into a reflex. The number is the part that informs. */}
           <p className={styles.warning}>
-            Se eliminarán también sus imágenes asociadas. Esta acción no se
-            puede deshacer.
+            {assetCount === 0
+              ? "Este diseño todavía no tiene imágenes. Esta acción no se puede deshacer."
+              : `Se eliminarán también sus ${assetCount} ${
+                  assetCount === 1 ? "imagen" : "imágenes"
+                }. Esta acción no se puede deshacer.`}
           </p>
 
           {error && (

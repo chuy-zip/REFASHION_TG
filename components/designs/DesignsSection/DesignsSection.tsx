@@ -137,7 +137,11 @@ export function DesignsSection({
                 {/* Outside the link: a <button> cannot live inside an <a>. It
                     floats over the thumbnail, like the catalog's. */}
                 <div className={styles.menu}>
-                  <DesignActionsMenu design={design} canEdit={canManage} />
+                  <DesignActionsMenu
+                    design={design}
+                    canEdit={canManage}
+                    assetCount={design.asset_count}
+                  />
                 </div>
               </li>
             ))}

@@ -1,18 +1,5 @@
-.header {
-  margin-bottom: var(--space-16);
-}
-
-.title {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.subtitle {
-  margin-top: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
+/* No header: the tab already says "Recursos", and uploading moved into the
+   grid itself (AssetUploadTile), so this panel has no action of its own. */
 
 /* Pills and search sit together at the left, not at opposite walls: the search
    filters whatever the selected pill is showing ("Buscar en logotipos…"), and

@@ -23,6 +23,7 @@ interface DesignActivity {
   design_id: string;
   latest_composition_key: string | null;
   last_asset_at: string | null;
+  asset_count: number;
 }
 
 /** The two columns `resolveDesignImageAssetId` needs, plus an identity. */
@@ -45,10 +46,21 @@ async function fetchDesignActivity(
   const byDesign = new Map<string, DesignActivity>();
   if (designIds.length === 0) return byDesign;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("design_activity")
-    .select("design_id, latest_composition_key, last_asset_at")
+    .select("design_id, latest_composition_key, last_asset_at, asset_count")
     .in("design_id", designIds);
+
+  // A failure here is invisible in the UI: every design simply loses its
+  // preview, which looks like "these designs have no image" rather than like a
+  // broken query. Worth a line in the terminal.
+  if (error && process.env.NODE_ENV === "development") {
+    console.error("[design_activity] no se pudo leer:", {
+      message: error.message,
+      code: error.code,
+      hint: error.hint,
+    });
+  }
 
   for (const row of (data ?? []) as DesignActivity[]) {
     byDesign.set(row.design_id, row);
@@ -140,6 +152,7 @@ export async function listProjectDesignsWithPreview(
       return {
         ...design,
         preview_url: previews.get(design.id) ?? null,
+        asset_count: activity.get(design.id)?.asset_count ?? 0,
         last_activity:
           lastAssetAt && lastAssetAt > design.updated_at
             ? lastAssetAt
@@ -174,7 +187,7 @@ export async function fetchProjectSamples(
   const byProject = new Map<string, ProjectSamples>();
   if (projectIds.length === 0) return byProject;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("project_design_samples")
     .select(
       "project_id, design_id, name, base_asset_id, current_asset_id, position, design_count"
@@ -182,6 +195,14 @@ export async function fetchProjectSamples(
     .in("project_id", projectIds)
     .lte("position", PROJECT_SAMPLE_SIZE)
     .order("position", { ascending: true });
+
+  if (error && process.env.NODE_ENV === "development") {
+    console.error("[project_design_samples] no se pudo leer:", {
+      message: error.message,
+      code: error.code,
+      hint: error.hint,
+    });
+  }
 
   const rows = (data ?? []) as {
     project_id: string;

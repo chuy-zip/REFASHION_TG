@@ -66,14 +66,6 @@ export function AssetsSection({
 
   return (
     <section>
-      <div className={styles.header}>
-        <h2 className={styles.title}>Recursos</h2>
-        <p className={styles.subtitle}>
-          Catálogo de imágenes del cliente: prendas base, logotipos, modelos y
-          dibujos técnicos.
-        </p>
-      </div>
-
       <div className={styles.toolbar}>
         <PillTabs
           label="Tipo de recurso"

@@ -103,6 +103,8 @@ export interface DesignWithPreview extends Design {
    * left out.
    */
   last_activity: string;
+  /** How many images the design owns, for its delete confirmation. */
+  asset_count: number;
 }
 
 /** Where a design sits in the hierarchy: which project, and whose client. */

@@ -1,23 +1,5 @@
-.header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-16);
-  margin-bottom: var(--space-16);
-}
-
-.title {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.subtitle {
-  margin-top: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
+/* No header: the tab already names this panel and its action lives in the
+   tab strip (ClientDetailView). */
 
 .toolbar {
   display: flex;

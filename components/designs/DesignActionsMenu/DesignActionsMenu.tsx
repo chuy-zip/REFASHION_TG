@@ -10,6 +10,8 @@ interface DesignActionsMenuProps {
   design: Design;
   /** owner/editor (or admin) of the parent client may edit and delete. */
   canEdit: boolean;
+  /** How many images the delete confirmation will name. */
+  assetCount: number;
   /** Set from the design's own page, which cannot survive its deletion. */
   redirectOnDelete?: string;
 }
@@ -18,6 +20,7 @@ interface DesignActionsMenuProps {
 export function DesignActionsMenu({
   design,
   canEdit,
+  assetCount,
   redirectOnDelete,
 }: DesignActionsMenuProps) {
   const [action, setAction] = useState<null | "edit" | "delete">(null);
@@ -56,6 +59,7 @@ export function DesignActionsMenu({
         <DeleteDesignButton
           designId={design.id}
           designName={design.name}
+          assetCount={assetCount}
           redirectTo={redirectOnDelete}
           open
           onClose={() => setAction(null)}

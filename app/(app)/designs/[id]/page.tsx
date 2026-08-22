@@ -168,6 +168,7 @@ export default async function DesignHubPage({ params }: PageProps) {
           <DesignActionsMenu
             design={design}
             canEdit={access.canEdit}
+            assetCount={designAssets.length}
             redirectOnDelete={`/projects/${project.id}`}
           />
         </div>

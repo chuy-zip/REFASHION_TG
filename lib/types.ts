@@ -85,6 +85,8 @@ export interface UserSummary {
   last_name: string;
   role_id: number;
   role_name: GlobalRole;
+  /** When the profile was created, i.e. when this person got access. */
+  created_at: string;
 }
 
 export interface Client {

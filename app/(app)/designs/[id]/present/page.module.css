@@ -27,8 +27,24 @@
   color: var(--color-text-primary);
 }
 
-.subtitle {
+/* Same condensed metadata line as the hub, and the same reason its links are
+   underlined instead of accent-coloured: two accent links here would compete
+   with the primary action a few centimetres away. */
+.meta {
   margin-top: var(--space-2);
   font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
   color: var(--color-text-secondary);
+}
+
+.metaLink {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 2px;
+}
+
+.metaLink:hover {
+  color: var(--color-accent);
+  text-decoration-color: currentColor;
 }

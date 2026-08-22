@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/Button/Button";
+import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import buttonStyles from "@/components/ui/Button/Button.module.css";
 import type { AssetWithUrl } from "@/lib/assets";
 import styles from "./PresentationTabs.module.css";
@@ -44,7 +44,6 @@ interface PresentationTabsProps {
   compositions: AssetWithUrl[];
   /** Fallback while the design has no composition yet: the clean garment. */
   workingImageUrl: string | null;
-  projectId: string;
 }
 
 /**
@@ -60,7 +59,6 @@ export function PresentationTabs({
   designName,
   compositions,
   workingImageUrl,
-  projectId,
 }: PresentationTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("plana");
 
@@ -78,45 +76,76 @@ export function PresentationTabs({
     null;
 
   const flatUrl = selected?.url ?? workingImageUrl;
+  const isShowingImage = activeTab === "plana" && flatUrl !== null;
 
   return (
     <>
-      <div className={styles.tabs} role="tablist" aria-label="Presentación">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.key}
-            className={styles.tab}
-            onClick={() => setActiveTab(tab.key)}
+      {/* The action rides in the tab strip because it acts on what the strip
+          is showing, and because it depends on which composition is selected —
+          state that lives here and not in the page's title row. */}
+      <div className={styles.toolbar}>
+        <div className={styles.tabs} role="tablist" aria-label="Presentación">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              className={styles.tab}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {selected ? (
+          <a
+            className={`${buttonStyles.base} ${buttonStyles.primary}`}
+            href={selected.downloadUrl}
+            download
           >
-            {tab.label}
-          </button>
-        ))}
+            Descargar
+          </a>
+        ) : (
+          <Button
+            variant="primary"
+            disabled
+            title="Crea una composición en la pantalla de edición para poder descargarla."
+          >
+            Descargar
+          </Button>
+        )}
       </div>
 
-      <div className={styles.stage}>
-        {activeTab === "plana" ? (
-          flatUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
-            <img
-              className={styles.stageImage}
-              src={flatUrl}
-              alt={designName}
-            />
-          ) : (
-            <p className={styles.stageEmpty}>Sin prenda base todavía.</p>
-          )
+      {/* Image surface when there is something to show, and nothing at all
+          when there is not: the dashed box of the empty state is the only
+          frame then, so two frames never stack. The height is kept in both
+          cases so switching tabs does not move the page. */}
+      <div
+        className={`${styles.stage} ${
+          isShowingImage ? styles.stageWithImage : ""
+        }`}
+      >
+        {isShowingImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
+          <img className={styles.stageImage} src={flatUrl!} alt={designName} />
+        ) : activeTab === "plana" ? (
+          <EmptyState
+            size="sm"
+            title="Sin prenda base todavía"
+            hint="Elige una en la pantalla de edición para poder presentar el diseño."
+          />
         ) : (
-          <div className={styles.stageMock}>
-            <p className={styles.stageMockTitle}>Próximamente</p>
-            <p className={styles.stageMockHint}>
-              {activeTab === "modelo_guardado"
+          <EmptyState
+            size="sm"
+            title="Próximamente"
+            hint={
+              activeTab === "modelo_guardado"
                 ? "Elegir un modelo del catálogo del cliente y generar la composición."
-                : "Generar un modelo humano con IA a partir de un prompt."}
-            </p>
-          </div>
+                : "Generar un modelo humano con IA a partir de un prompt."
+            }
+          />
         )}
       </div>
 
@@ -155,31 +184,6 @@ export function PresentationTabs({
           : current.description}
       </p>
 
-      <div className={styles.actions}>
-        <Link
-          className={`${buttonStyles.base} ${buttonStyles.secondary} ${styles.backLink}`}
-          href={`/projects/${projectId}`}
-        >
-          Volver al proyecto
-        </Link>
-        {selected ? (
-          <a
-            className={`${buttonStyles.base} ${buttonStyles.primary}`}
-            href={selected.downloadUrl}
-            download
-          >
-            Descargar
-          </a>
-        ) : (
-          <Button
-            variant="primary"
-            disabled
-            title="Crea una composición en la pantalla de edición para poder descargarla."
-          >
-            Descargar
-          </Button>
-        )}
-      </div>
     </>
   );
 }

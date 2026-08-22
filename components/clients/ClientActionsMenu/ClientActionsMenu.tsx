@@ -4,12 +4,15 @@ import { useState } from "react";
 import { Menu, type MenuItem } from "@/components/ui/Menu/Menu";
 import { ClientFormDialog } from "@/components/clients/ClientFormDialog/ClientFormDialog";
 import { DeleteClientButton } from "@/components/clients/DeleteClientButton/DeleteClientButton";
+import type { ClientContents } from "@/lib/clients";
 import type { Client } from "@/lib/types";
 
 interface ClientActionsMenuProps {
   client: Client;
   canEdit: boolean;
   canDelete: boolean;
+  /** What the delete confirmation will say disappears. */
+  contents: ClientContents | null;
 }
 
 /**
@@ -21,6 +24,7 @@ export function ClientActionsMenu({
   client,
   canEdit,
   canDelete,
+  contents,
 }: ClientActionsMenuProps) {
   const [action, setAction] = useState<null | "edit" | "delete">(null);
 
@@ -56,6 +60,7 @@ export function ClientActionsMenu({
         <DeleteClientButton
           clientId={client.id}
           clientName={client.name}
+          contents={contents}
           open
           onClose={() => setAction(null)}
         />

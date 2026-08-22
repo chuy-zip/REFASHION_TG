@@ -26,6 +26,35 @@ export function projectStatusLabel(status: ProjectStatus): string {
  */
 export const PROJECTS_PAGE_SIZE = 6;
 
+/** What disappears with a project, for its delete confirmation. */
+export interface ProjectContents {
+  design_count: number;
+  image_count: number;
+}
+
+/** Null when it cannot be read: see the note in `getClientContents`. */
+export async function getProjectContents(
+  supabase: SupabaseClient,
+  projectId: string
+): Promise<ProjectContents | null> {
+  const { data, error } = await supabase
+    .from("project_work_counts")
+    .select("design_count, image_count")
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (error && process.env.NODE_ENV === "development") {
+    console.error("[project_work_counts] no se pudo leer:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+  }
+
+  return (data as ProjectContents | null) ?? null;
+}
+
 export interface ProjectListOptions {
   /** Case-insensitive match on the project name. */
   query?: string;

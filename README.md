@@ -149,6 +149,13 @@ graduación). Esto es lo mínimo para no deshacer una decisión sin querer.
 Vercel, conectado a la rama `main` (push despliega). Root Directory vacío, Framework
 Preset **Next.js**. Las variables de entorno se configuran en Vercel aparte de `.env.local`.
 
+**El SQL va primero.** Si una tanda de trabajo trae una migración, se corre en Supabase
+**antes** de subir el código que la usa. Al revés la aplicación queda rota mientras dura la
+ventana, y rota en silencio: una columna inexistente hace fallar la consulta entera, así que la
+pantalla no muestra un error sino datos vacíos ("este diseño no tiene imagen"). Pasó con la
+migración 015 y solo se notó al abrir los logs de Supabase, donde aparecían decenas de
+`42703 column ... does not exist` por simple navegación.
+
 ## Estado
 
 - **Autenticación, usuarios y permisos:** completo. Login/logout, protección de rutas

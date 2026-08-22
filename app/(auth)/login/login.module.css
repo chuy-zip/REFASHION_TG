@@ -9,7 +9,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: var(--spacing-4, var(--space-16));
+  padding: var(--space-16);
 }
 
 .card {
@@ -75,28 +75,18 @@
   cursor: not-allowed;
 }
 
-/* The only primary action on this screen. */
+/*
+ * The only primary action on this screen. It used to be a hand-written copy of
+ * Button's primary variant — the fourth case of the same duplication (see
+ * APRENDIZAJES §5.18). Now it is the primitive, and this rule only says what is
+ * different here: full width, and taller because a login button on a phone is
+ * the one control on screen.
+ */
 .submit {
+  width: 100%;
   min-height: 2.75rem;
   margin-top: var(--space-4);
-  padding: 0 var(--space-16);
   font-size: var(--text-base);
-  font-weight: 500;
-  font-family: inherit;
-  color: var(--color-surface-raised);
-  background: var(--color-accent);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out);
-}
-
-.submit:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-}
-
-.submit:disabled {
-  background: var(--color-text-disabled);
-  cursor: not-allowed;
 }
 
 .error {

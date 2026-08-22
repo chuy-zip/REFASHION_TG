@@ -3,6 +3,7 @@
 import { useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/Button/Button";
 import { PasswordInput } from "@/components/ui/PasswordInput/PasswordInput";
 import { POST_LOGIN_PATH } from "@/lib/routes";
 import styles from "./login.module.css";
@@ -95,9 +96,14 @@ export default function LoginPage() {
           />
         </div>
 
-        <button className={styles.submit} type="submit" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          variant="primary"
+          className={styles.submit}
+          disabled={isSubmitting}
+        >
           {isSubmitting ? "Ingresando…" : "Ingresar"}
-        </button>
+        </Button>
       </form>
     </main>
   );

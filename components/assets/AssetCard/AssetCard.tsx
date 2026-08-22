@@ -6,7 +6,12 @@ import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
 import { DeleteAssetButton } from "@/components/assets/DeleteAssetButton/DeleteAssetButton";
 import { RenameAssetDialog } from "@/components/assets/RenameAssetDialog/RenameAssetDialog";
 import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog/AssetPreviewDialog";
-import { assetTypeLabel, formatFileSize, type AssetWithUrl } from "@/lib/assets";
+import {
+  assetDisplayName,
+  assetTypeLabel,
+  formatFileSize,
+  type AssetWithUrl,
+} from "@/lib/assets";
 import styles from "./AssetCard.module.css";
 
 interface AssetCardProps {
@@ -72,6 +77,7 @@ export function AssetCard({ asset, canEdit }: AssetCardProps) {
         <DeleteAssetButton
           assetId={asset.id}
           assetLabel={label}
+          assetName={assetDisplayName(asset)}
           open
           onClose={() => setIsDeleting(false)}
         />

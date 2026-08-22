@@ -7,6 +7,7 @@ import {
 import { getClientAccess } from "@/lib/access";
 import { listProjectDesignsWithPreview } from "@/lib/designs-server";
 import { DESIGNS_PAGE_SIZE } from "@/lib/designs";
+import { getProjectContents } from "@/lib/projects";
 import { ProjectActionsMenu } from "@/components/projects/ProjectActionsMenu/ProjectActionsMenu";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { PROJECT_STATUS_COPY } from "@/lib/projects";
@@ -70,6 +71,9 @@ export default async function ProjectDetailPage({
 
   const client = clientData as Pick<Client, "id" | "name"> | null;
 
+  // What deleting this project would destroy, for its confirmation.
+  const contents = await getProjectContents(supabase, project.id);
+
   return (
     <main className={styles.page}>
       <Link className={styles.back} href={`/clients/${project.client_id}`}>
@@ -85,7 +89,11 @@ export default async function ProjectDetailPage({
           </Badge>
         </div>
         {access.canEdit && (
-          <ProjectActionsMenu project={project} canEdit={access.canEdit} />
+          <ProjectActionsMenu
+            project={project}
+            canEdit={access.canEdit}
+            contents={contents}
+          />
         )}
       </div>
 

@@ -16,6 +16,7 @@ type ProfileRow = {
   last_name: string;
   role_id: number;
   roles: { name: GlobalRole } | null;
+  created_at: string;
 };
 
 export async function listUsers(
@@ -23,7 +24,7 @@ export async function listUsers(
 ): Promise<{ users: UserSummary[]; error: string | null }> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, email, first_name, last_name, role_id, roles(name)")
+    .select("id, email, first_name, last_name, role_id, roles(name), created_at")
     .order("first_name", { ascending: true });
 
   if (error) return { users: [], error: error.message };
@@ -35,6 +36,7 @@ export async function listUsers(
     last_name: row.last_name,
     role_id: row.role_id,
     role_name: row.roles?.name ?? "viewer",
+    created_at: row.created_at,
   }));
 
   return { users, error: null };
