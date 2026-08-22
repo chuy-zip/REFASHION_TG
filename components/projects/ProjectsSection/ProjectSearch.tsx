@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SearchInput } from "@/components/ui/SearchInput/SearchInput";
 
 /**
@@ -13,12 +13,16 @@ import { SearchInput } from "@/components/ui/SearchInput/SearchInput";
  * dropped on every change: staying on page 3 of a different result set shows an
  * empty screen for no visible reason.
  *
- * It writes `?q=` on the client route, which is also where the Proyectos tab
- * lives — the tab itself is component state and survives the soft navigation.
+ * It writes `?q=` on the client route, where `?tab=projects` also lives now.
+ * That is why the existing parameters are carried over instead of rebuilt: this
+ * used to start from an empty URLSearchParams, which was harmless while the tab
+ * was component state, and would have thrown the user back to "Información" on
+ * the first keystroke the moment the tab moved into the URL.
  */
 export function ProjectSearch({ query }: { query: string }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [value, setValue] = useState(query);
 
   useEffect(() => {
@@ -27,8 +31,10 @@ export function ProjectSearch({ query }: { query: string }) {
     if (value === query) return;
 
     const timer = setTimeout(() => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(searchParams);
       if (value.trim()) params.set("q", value.trim());
+      else params.delete("q");
+      params.delete("page");
 
       const next = params.toString();
       router.replace(next ? `${pathname}?${next}` : pathname, {
@@ -37,7 +43,7 @@ export function ProjectSearch({ query }: { query: string }) {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [value, query, pathname, router]);
+  }, [value, query, pathname, router, searchParams]);
 
   return <SearchInput value={value} onChange={setValue} scope="proyectos" />;
 }

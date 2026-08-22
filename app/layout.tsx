@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/Toast/ToastProvider";
 import "./globals.css";
@@ -31,6 +31,19 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Refashion IA",
   description: "Prototipado de uniformes corporativos asistido por IA",
+};
+
+/**
+ * `themeColor` paints the browser chrome on mobile so the address bar continues
+ * the page instead of framing it. It must match what actually touches the top
+ * edge of the viewport, which is the sticky bar: --color-surface-raised.
+ *
+ * THE ONE HEX OUTSIDE globals.css, and it cannot be otherwise: this becomes a
+ * <meta> tag rendered on the server, where no CSS variable exists to read. If
+ * the surface token ever changes, this changes with it. See STYLE_GUIDE §3.
+ */
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

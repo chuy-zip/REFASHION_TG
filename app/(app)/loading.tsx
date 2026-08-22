@@ -8,7 +8,7 @@ import styles from "./loading.module.css";
  */
 export default function AppLoading() {
   return (
-    <main className={styles.page} aria-busy="true" aria-label="Cargando">
+    <main className={styles.page} aria-busy="true" aria-label="Cargando…">
       <div className={styles.titleRow}>
         <Skeleton className={styles.title} />
         <Skeleton className={styles.action} />

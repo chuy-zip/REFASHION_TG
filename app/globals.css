@@ -106,6 +106,17 @@
   --duration-fast: 120ms; /* state change: hover, focus, active */
   --duration-enter: 160ms; /* something appears: dialog, popover */
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Height of the sticky bar. A token because three unrelated files need the
+     same number: the bar sets it, the editor subtracts it from the viewport,
+     and scroll-padding-top below keeps the bar from covering whatever the
+     browser just scrolled into view. It was already hardcoded in two of them. */
+  --app-bar-height: 3.25rem;
+
+  /* Minimum touch target (WCAG 2.5.5). Applied under `pointer: coarse` only:
+     the floor exists for fingers, and forcing it on a mouse would inflate
+     every dense toolbar in the app for nothing. */
+  --touch-target: 2.75rem;
 }
 
 /* -----------------------------------------------------------------------------
@@ -113,12 +124,43 @@
    belongs in a colocated .module.css, never here.
    -------------------------------------------------------------------------- */
 
+/* The app is light-only, and saying so is not redundant: without it a machine
+   whose OS is in dark mode gets UA-drawn chrome in dark — scrollbars, and the
+   dropdown list of every native <select> — against a white page. The <select>
+   box itself is styled by .input; its popup is not ours to style, only to
+   declare. */
+html {
+  color-scheme: light;
+
+  /* Anchors and programmatic scrolls stop below the sticky bar instead of
+     under it. Matters for keyboard users most: tabbing to something above the
+     fold used to scroll it into a place the bar covered. */
+  scroll-padding-top: calc(var(--app-bar-height) + var(--space-8));
+
+  /* Our own hover/active states already answer a tap; the grey flash Android
+     paints on top of them is a second, uglier answer. */
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: var(--color-surface-base);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   font-size: var(--text-base);
   font-weight: 400;
+}
+
+/* Removes the ~300ms wait a browser spends deciding whether a tap was the
+   first half of a double-tap-to-zoom. Scoped to controls rather than the whole
+   body so pinch-zoom over a garment stays untouched. */
+button,
+a,
+label,
+summary,
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }
 
 /* Keyboard focus is always visible. Never remove without a replacement. */

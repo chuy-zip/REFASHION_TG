@@ -1,6 +1,8 @@
 .container {
   position: fixed;
-  top: 1rem;
+  /* Clears the notch and the status bar on a phone; falls back to plain 1rem
+     everywhere else, because env() resolves to 0 when there is no inset. */
+  top: calc(1rem + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -45,6 +47,7 @@
 }
 
 .close {
+  position: relative;
   flex-shrink: 0;
   width: 1.5rem;
   height: 1.5rem;
@@ -59,6 +62,22 @@
 
 .close:hover {
   color: var(--color-text-primary);
+}
+
+/* The one control that cannot simply grow: its negative margins are cut to a
+   24px box, and widening it would push the message off its own line. So the
+   TARGET grows and the glyph does not — an invisible 44px pad centred on a
+   24px ×. The visual weight of a dismiss button stays where the design put it. */
+@media (pointer: coarse) {
+  .close::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--touch-target);
+    height: var(--touch-target);
+    transform: translate(-50%, -50%);
+  }
 }
 
 @keyframes toast-in {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import buttonStyles from "@/components/ui/Button/Button.module.css";
@@ -62,6 +62,41 @@ export function PresentationTabs({
 }: PresentationTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("plana");
 
+  // Unlike the catalog's filter strip, these really are tabs: three mutually
+  // exclusive views of the same design, only one rendered at a time. So the fix
+  // here is the opposite one — complete the pattern instead of dropping it.
+  const baseId = useId();
+  const panelId = `${baseId}-panel`;
+  const tabId = (key: Tab) => `${baseId}-tab-${key}`;
+  const tablistRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Arrow keys walk the strip and wrap; Home/End jump to the ends. Selection
+   * follows focus, which is the right call for three tabs that cost nothing to
+   * show: the user hears the panel they landed on without a second keystroke.
+   */
+  function handleTabKeys(event: KeyboardEvent<HTMLDivElement>) {
+    const index = TABS.findIndex((tab) => tab.key === activeTab);
+
+    const next =
+      event.key === "ArrowRight"
+        ? (index + 1) % TABS.length
+        : event.key === "ArrowLeft"
+        ? (index - 1 + TABS.length) % TABS.length
+        : event.key === "Home"
+        ? 0
+        : event.key === "End"
+        ? TABS.length - 1
+        : -1;
+
+    if (next === -1) return;
+    event.preventDefault();
+    setActiveTab(TABS[next].key);
+    tablistRef.current
+      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+      [next]?.focus();
+  }
+
   // The newest is the default because it is usually the latest agreement, but
   // any of them can be presented: during a call three get tried and the client
   // picks the second.
@@ -84,13 +119,25 @@ export function PresentationTabs({
           is showing, and because it depends on which composition is selected —
           state that lives here and not in the page's title row. */}
       <div className={styles.toolbar}>
-        <div className={styles.tabs} role="tablist" aria-label="Presentación">
+        <div
+          className={styles.tabs}
+          role="tablist"
+          aria-label="Presentación"
+          ref={tablistRef}
+          onKeyDown={handleTabKeys}
+        >
           {TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               role="tab"
+              id={tabId(tab.key)}
               aria-selected={activeTab === tab.key}
+              aria-controls={panelId}
+              // Roving tabindex: the strip is ONE stop in the tab order, and the
+              // arrows move within it. Three separate stops would make Tab walk
+              // past views the user is not choosing between right now.
+              tabIndex={activeTab === tab.key ? 0 : -1}
               className={styles.tab}
               onClick={() => setActiveTab(tab.key)}
             >
@@ -118,6 +165,20 @@ export function PresentationTabs({
         )}
       </div>
 
+      {/* The panel the strip above points at. One node, relabelled per tab,
+          because only one view is ever in the DOM — three panels with two of
+          them hidden would be furniture. It carries no styles of its own: the
+          blocks inside keep their own margins and the page keeps its rhythm.
+
+          tabIndex 0 because two of the three panels hold nothing focusable
+          ("Próximamente" is a paragraph), and a panel a keyboard cannot reach
+          is a panel whose content never gets read. */}
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={tabId(activeTab)}
+        tabIndex={0}
+      >
       {/* Image surface when there is something to show, and nothing at all
           when there is not: the dashed box of the empty state is the only
           frame then, so two frames never stack. The height is kept in both
@@ -183,7 +244,7 @@ export function PresentationTabs({
           ? "Este diseño todavía no tiene composiciones. Se muestra la prenda sin logotipos."
           : current.description}
       </p>
-
+      </div>
     </>
   );
 }

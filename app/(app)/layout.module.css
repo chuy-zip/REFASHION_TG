@@ -11,3 +11,28 @@
   flex-grow: 1;
   min-width: 0;
 }
+
+/* Off-screen rather than display:none or visibility:hidden — those two remove
+   the link from the tab order, which is the only thing it exists for. It comes
+   back on focus and lands over the bar, above everything. */
+.skip {
+  /* Fixed, not absolute: Shift+Tab back to the top of a scrolled page has to
+     show it where the eye is, not where the document starts. */
+  position: fixed;
+  top: calc(var(--space-8) + env(safe-area-inset-top));
+  left: var(--space-8);
+  z-index: 20;
+  padding: var(--space-8) var(--space-14);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-surface-raised);
+  text-decoration: none;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  /* Out of sight, still focusable. */
+  transform: translateY(-200%);
+}
+
+.skip:focus {
+  transform: translateY(0);
+}

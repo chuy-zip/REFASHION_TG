@@ -10,10 +10,11 @@
 }
 
 /* A grid, not full-width strips. Wider tracks than the client list because the
-   card now carries four thumbnails as well as its text. */
+   card now carries four thumbnails as well as its text. The min() keeps that
+   track from becoming a hard floor wider than a phone; see the client list. */
 .list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(24rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(24rem, 100%), 1fr));
   gap: var(--space-16);
   list-style: none;
 }

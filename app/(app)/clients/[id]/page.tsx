@@ -18,8 +18,10 @@ import styles from "./page.module.css";
 type PageProps = {
   params: Promise<{ id: string }>;
   /** `?q=` filters and `?page=` walks the Proyectos tab, both server-side, so
-      the images that tab resolves stay capped whatever the client holds. */
-  searchParams: Promise<{ q?: string; page?: string }>;
+      the images that tab resolves stay capped whatever the client holds.
+      `?tab=` is read by ClientDetailView on the client and never reaches this
+      component: switching tabs must not re-run these five queries. */
+  searchParams: Promise<{ q?: string; page?: string; tab?: string }>;
 };
 
 /**

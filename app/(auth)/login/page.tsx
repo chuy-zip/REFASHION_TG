@@ -74,6 +74,9 @@ export default function LoginPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
+            // An address is not prose: the red underline under every corporate
+            // domain is noise that suggests an error where there is none.
+            spellCheck={false}
             autoFocus
             required
             disabled={isSubmitting}

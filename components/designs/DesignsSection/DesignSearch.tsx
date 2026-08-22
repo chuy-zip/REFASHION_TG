@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SearchInput } from "@/components/ui/SearchInput/SearchInput";
 
 /**
@@ -14,10 +14,17 @@ import { SearchInput } from "@/components/ui/SearchInput/SearchInput";
  * Typing is debounced so a five-letter word is one navigation and not five, and
  * `page` is dropped on every change: staying on page 3 of a different result
  * set shows an empty screen for no visible reason.
+ *
+ * Existing parameters are carried over rather than rebuilt from nothing. Today
+ * `q` and `page` are all this route has, so it makes no visible difference —
+ * but its twin on the client route had exactly this shape and silently dropped
+ * the tab the day one was added. Keeping both identical is what stops the pair
+ * from drifting again.
  */
 export function DesignSearch({ query }: { query: string }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [value, setValue] = useState(query);
 
   useEffect(() => {
@@ -26,8 +33,10 @@ export function DesignSearch({ query }: { query: string }) {
     if (value === query) return;
 
     const timer = setTimeout(() => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(searchParams);
       if (value.trim()) params.set("q", value.trim());
+      else params.delete("q");
+      params.delete("page");
 
       const next = params.toString();
       router.replace(next ? `${pathname}?${next}` : pathname, {
@@ -36,7 +45,7 @@ export function DesignSearch({ query }: { query: string }) {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [value, query, pathname, router]);
+  }, [value, query, pathname, router, searchParams]);
 
   return <SearchInput value={value} onChange={setValue} scope="diseños" />;
 }

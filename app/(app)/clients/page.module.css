@@ -28,10 +28,14 @@
 
 /* A card catalogue, not a column of full-width strips. A client is a name and
    a handful of short facts; stretched across a wide monitor each row was mostly
-   empty, and adding width made it worse rather than better. */
+   empty, and adding width made it worse rather than better.
+
+   The min() is not decoration: minmax()'s first argument is a hard floor, so a
+   bare 24rem track overflowed any viewport narrower than 384px and put a
+   horizontal scrollbar under the whole page. */
 .list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(24rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(24rem, 100%), 1fr));
   gap: var(--space-16);
   list-style: none;
 }

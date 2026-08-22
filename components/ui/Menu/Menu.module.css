@@ -82,6 +82,23 @@
   background: var(--color-danger-subtle);
 }
 
+/* The 44px floor, on the pointer and not the viewport. The gear is the app's
+   smallest target and the one that opens destructive actions, so it is the
+   worst place to be off by 8px. The items grow with it: a menu row that misses
+   the neighbouring row by a thumb's width is how the wrong thing gets deleted. */
+@media (pointer: coarse) {
+  .trigger {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+
+  .item {
+    min-height: var(--touch-target);
+    display: flex;
+    align-items: center;
+  }
+}
+
 @keyframes menu-in {
   from {
     opacity: 0;

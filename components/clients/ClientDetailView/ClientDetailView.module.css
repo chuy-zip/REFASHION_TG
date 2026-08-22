@@ -34,12 +34,18 @@
   margin-bottom: calc(var(--space-8) * -1);
 }
 
+/* These are <a> now, not <button> (see ClientDetailView.tsx), so the reset an
+   anchor needs is different: no underline, and inline-flex to keep the padded
+   box a button-shaped target instead of a run of text. */
 .tab {
+  display: inline-flex;
+  align-items: center;
   padding: var(--space-8) var(--space-14);
   font-size: var(--text-sm);
   font-weight: 500;
   font-family: inherit;
   color: var(--color-text-secondary);
+  text-decoration: none;
   background: transparent;
   border: none;
   /* Sits on top of the container's bottom border; the active one recolours it. */
@@ -52,6 +58,13 @@
 
 .tab:hover {
   color: var(--color-text-primary);
+}
+
+/* Four targets shoulder to shoulder; §7.1. */
+@media (pointer: coarse) {
+  .tab {
+    min-height: var(--touch-target);
+  }
 }
 
 /* Active tab: accent text with an accent underline (classic tab affordance). */

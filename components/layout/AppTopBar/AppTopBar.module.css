@@ -14,7 +14,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-8) var(--space-20);
-  min-height: 3.25rem;
+  min-height: var(--app-bar-height);
   padding: var(--space-8) var(--space-24);
   background: var(--color-surface-raised);
   border-bottom: var(--border-hairline) solid var(--color-border-subtle);

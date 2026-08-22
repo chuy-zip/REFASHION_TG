@@ -30,10 +30,21 @@
   border-color: var(--color-border-strong);
 }
 
-.pill[aria-selected="true"] {
+/* Was [aria-selected]. The strip stopped claiming to be a tablist, so the
+   attribute that carries "this one is on" is now the one buttons actually
+   have. See PillTabs.tsx. */
+.pill[aria-pressed="true"] {
   color: var(--color-accent);
   background: var(--color-accent-subtle);
   border-color: var(--color-accent);
+}
+
+/* The smallest control in the app by some margin: 6px of padding around 14px
+   of text lands near 28px, well under the floor. */
+@media (pointer: coarse) {
+  .pill {
+    min-height: var(--touch-target);
+  }
 }
 
 .count {

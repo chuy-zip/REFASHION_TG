@@ -40,6 +40,14 @@
   border-bottom-color: var(--color-accent);
 }
 
+/* 8px of padding around 14px of text is ~30px. These three sit shoulder to
+   shoulder, so a miss lands on the neighbour rather than on nothing. */
+@media (pointer: coarse) {
+  .tab {
+    min-height: var(--touch-target);
+  }
+}
+
 /* Keeps its height whatever the tab holds, so switching does not move the
    page. Transparent by default: when the tab has no image, the empty state's
    dashed box is the only frame, and two frames never stack. */
