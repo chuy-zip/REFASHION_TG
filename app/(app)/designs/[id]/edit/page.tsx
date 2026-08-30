@@ -105,15 +105,25 @@ export default async function DesignEditPage({ params }: PageProps) {
   return (
     <main className={styles.page}>
       <div className={styles.head}>
-        {/* Up to the design's hub, not to the project: the hub is where you
-            came from, and where the history and the other destinations live. */}
-        <Link className={styles.back} href={`/designs/${design.id}`}>
-          <Icon name="arrowBack" size={16} />
-          {design.name}
-        </Link>
-
         <div className={styles.header}>
-          <div>
+          {/* The way back sits ON the title row instead of above it, and it no
+              longer repeats the design's name.
+
+              It used to be a full line reading "← diseño de prueba 2" directly
+              above an <h1> reading "diseño de prueba 2": the same words twice,
+              costing a whole row on the one screen where vertical space is the
+              canvas. Up to the design's hub, not the project — that is where
+              the history and the other destinations live. */}
+          <Link
+            className={styles.back}
+            href={`/designs/${design.id}`}
+            aria-label="Volver al diseño"
+            title="Volver al diseño"
+          >
+            <Icon name="arrowBack" size={18} />
+          </Link>
+
+          <div className={styles.identity}>
             <h1 className={styles.title}>{design.name}</h1>
             <p className={styles.subtitle}>
               {client?.name} · {garmentTypeLabel(design.garment_type)} · v

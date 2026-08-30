@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { Image as KonvaImage, Layer, Rect, Stage, Transformer } from "react-konva";
 import type Konva from "konva";
 import { Button } from "@/components/ui/Button/Button";
+import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
+import { MaskTools, type MaskTool } from "@/components/designs/MaskTools/MaskTools";
+import { ColorPanel } from "@/components/designs/ColorPanel/ColorPanel";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
 import {
@@ -26,12 +29,15 @@ import {
   toPngBlob,
   type BackgroundRemoval,
 } from "@/lib/background-removal";
+import { DEFAULT_BRUSH, isMaskEmpty, rasterizeMask, type MaskStroke } from "@/lib/mask";
+import { parseHex, recolorRegion } from "@/lib/recolor";
 import type { DesignLayer } from "@/lib/types";
 import {
   useCrossOriginImage,
   useCrossOriginImages,
   type LoadedImage,
 } from "./useCrossOriginImage";
+import { MaskLayer } from "./MaskLayer";
 import styles from "./DesignWorkspace.module.css";
 
 /** A layer plus everything needed to draw it. */
@@ -56,6 +62,9 @@ interface DesignWorkspaceProps {
 
 /** What a layer draws: the logo as it arrived, or a live cut-out preview. */
 type LayerImage = LoadedImage | HTMLCanvasElement;
+
+/** Which module currently owns the canvas. */
+type WorkspaceMode = "logos" | "mask";
 
 /** Fraction of the garment width a freshly placed logo takes. */
 const DEFAULT_WIDTH_RATIO = 0.25;
@@ -139,13 +148,51 @@ export function DesignWorkspace({
   } | null>(null);
   const [isApplyingCut, setIsApplyingCut] = useState(false);
 
+  // Which module has the canvas. One route with tool modes, not two screens:
+  // the stage, the R2 loading, the zoom and the export are built once and
+  // shared (FASE_1_5 §7.5). The logo layer draws in BOTH modes, because
+  // deciding a colour without seeing the logo on it is deciding blind.
+  const [mode, setMode] = useState<WorkspaceMode>("logos");
+
+  // The mask, kept as strokes in ratio space so it survives the working image
+  // changing size along the pipeline (see lib/mask.ts).
+  const [strokes, setStrokes] = useState<MaskStroke[]>([]);
+  const [tool, setTool] = useState<MaskTool>("brush");
+  const [brush, setBrush] = useState<number>(DEFAULT_BRUSH);
+  const isPainting = useRef(false);
+
+  // The colour starts on the accent rather than on a literal: any hex written
+  // here would be a second palette living outside globals.css (§5.1). It is
+  // only a starting point — the first thing the user does is move it.
+  const [color, setColor] = useState<string>(() =>
+    designToken("--color-accent")
+  );
+  // The recoloured garment, live on the canvas until it is applied or dropped.
+  // Same shape as the background-removal preview: a proposal, not the design.
+  //
+  // Tagged with what produced it — the exact strokes array and the exact colour
+  // — and matched at render. That is the third time this project needs the
+  // pattern (APRENDIZAJES §5.14): an effect that clears state synchronously is
+  // both a lint error and a race, because a result arriving after the user
+  // moved on would otherwise have to be cancelled from inside the effect that
+  // produced it. Here it is simply not the current one.
+  const [recolorPreview, setRecolorPreview] = useState<{
+    strokes: MaskStroke[];
+    color: string;
+    canvas: HTMLCanvasElement;
+  } | null>(null);
+  const [isApplyingColor, setIsApplyingColor] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const nodeRefs = useRef(new Map<string, Konva.Image>());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [availableWidth, setAvailableWidth] = useState(0);
+  // Both dimensions, not just the width. The stage has to fit the box it is
+  // given, and that box now has a definite height: measuring only the width let
+  // a tall garment run past the bottom edge with nowhere to scroll to.
+  const [available, setAvailable] = useState({ width: 0, height: 0 });
 
   const { image: workingImage, status: workingStatus } =
     useCrossOriginImage(workingImageUrl);
@@ -188,11 +235,17 @@ export function DesignWorkspace({
   const naturalWidth = workingImage?.naturalWidth ?? 0;
   const naturalHeight = workingImage?.naturalHeight ?? 0;
 
-  // Fit to the column, never upscale: a small garment image blown up would
-  // look sharp on the stage and blurry on the export, which is a lie.
+  // Fit to the box on BOTH axes, and never upscale: a small garment image blown
+  // up would look sharp on the stage and blurry on the export, which is a lie.
+  // The smaller of the two ratios is what makes the whole garment visible —
+  // taking only the width is what used to crop it against a fixed page height.
   const scale =
-    naturalWidth > 0 && availableWidth > 0
-      ? Math.min(availableWidth / naturalWidth, 1)
+    naturalWidth > 0 && available.width > 0 && available.height > 0
+      ? Math.min(
+          available.width / naturalWidth,
+          available.height / naturalHeight,
+          1
+        )
       : 0;
 
   useEffect(() => {
@@ -200,7 +253,12 @@ export function DesignWorkspace({
     if (!element) return;
 
     const observer = new ResizeObserver(([entry]) => {
-      setAvailableWidth(entry.contentRect.width);
+      // contentRect excludes the box's own padding, so the stage is fitted to
+      // the room it actually has rather than to the room plus its margins.
+      setAvailable({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      });
     });
     observer.observe(element);
     return () => observer.disconnect();
@@ -251,6 +309,49 @@ export function DesignWorkspace({
   /** The preview only counts while it matches the layer being cut. */
   const preview =
     cutPreview && cutPreview.layerId === cutLayerId ? cutPreview.removal : null;
+
+  // The recolour, live under the picker.
+  //
+  // Debounced for the same reason the cut is: dragging a slider fires dozens of
+  // times a second and each pass walks every pixel. 80ms is short enough to
+  // still read as "while you choose" and long enough to skip the intermediate
+  // values nobody sees.
+  //
+  // Runs only in mask mode and only with something painted, so leaving the mode
+  // costs nothing — and it never touches the stored image: dropping the colour
+  // is forgetting this canvas.
+  useEffect(() => {
+    if (mode !== "mask" || !workingImage || isMaskEmpty(strokes)) return;
+
+    const target = parseHex(color);
+    if (!target) return;
+
+    const timer = setTimeout(() => {
+      try {
+        const mask = rasterizeMask({
+          strokes,
+          width: workingImage.naturalWidth,
+          height: workingImage.naturalHeight,
+          mode: "mask",
+        });
+        setRecolorPreview({
+          strokes,
+          color,
+          canvas: recolorRegion({ image: workingImage, mask, target }),
+        });
+      } catch {
+        // getImageData throws on a tainted canvas, exactly like toBlob does.
+        // The images arrive through useCrossOriginImage so this should not
+        // happen — but it is the failure that only shows up at the end
+        // (APRENDIZAJES §5.9b), so it is caught rather than assumed away.
+        setError(
+          "No se pudo leer la imagen para cambiarle el color. Recarga la página e inténtalo de nuevo."
+        );
+      }
+    }, PREVIEW_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [mode, workingImage, strokes, color]);
 
   const persistGeometry = useCallback(
     async (layerId: string, geometry: Partial<DesignLayer>) => {
@@ -536,10 +637,154 @@ export function DesignWorkspace({
   // moving layers around underneath it would be editing two things at once.
   const canManipulate = canCompose && !isCutting;
 
+  /** The recolour only counts while it matches the strokes and colour on screen. */
+  const activeRecolor =
+    recolorPreview &&
+    recolorPreview.strokes === strokes &&
+    recolorPreview.color === color
+      ? recolorPreview.canvas
+      : null;
+
+  const isMasking = mode === "mask";
+  // Layers stop responding while painting: a drag meant for the brush must not
+  // pick up a logo underneath it.
+  const canMoveLayers = canManipulate && !isMasking;
+  const canPaint = canCompose && isMasking;
+
+  /**
+   * Where the pointer is, as a ratio of the working image.
+   *
+   * Konva reports stage coordinates, which are already divided by the zoom, so
+   * dividing by the natural size is all that is left. Ratios are what the mask
+   * stores, for the same reason `design_layers` stores them: the image changes
+   * size along the pipeline and pixels would not survive it.
+   */
+  function pointerRatio(): { x: number; y: number } | null {
+    const stage = stageRef.current;
+    const point = stage?.getRelativePointerPosition();
+    if (!point || naturalWidth === 0 || naturalHeight === 0) return null;
+    return { x: point.x / naturalWidth, y: point.y / naturalHeight };
+  }
+
+  function startStroke() {
+    if (!canPaint) return;
+    const point = pointerRatio();
+    if (!point) return;
+
+    isPainting.current = true;
+    setStrokes((current) => [
+      ...current,
+      { points: [point], width: brush, erase: tool === "eraser" },
+    ]);
+  }
+
+  function extendStroke() {
+    if (!isPainting.current) return;
+    const point = pointerRatio();
+    if (!point) return;
+
+    // Appends to the last stroke rather than pushing a new one: a stroke is the
+    // whole drag, and that is what the eraser's compositing operates on.
+    setStrokes((current) => {
+      if (current.length === 0) return current;
+      const last = current[current.length - 1];
+      return [
+        ...current.slice(0, -1),
+        { ...last, points: [...last.points, point] },
+      ];
+    });
+  }
+
+  function endStroke() {
+    isPainting.current = false;
+  }
+
+  function clearMask() {
+    // The preview needs no clearing: it is tagged with the strokes array that
+    // produced it, and this one is a different array.
+    setStrokes([]);
+  }
+
+  /**
+   * Keeps the recoloured garment as a new step of the design.
+   *
+   * `origin = 'derived'` and not `'generated'`: this came out of a reproducible
+   * transformation, not out of a model that charged for it. That is exactly the
+   * line migration 012 drew, and it is what keeps the running cost of a design
+   * honest — a recolour must never show up as money spent.
+   *
+   * `asset_type` is still `'inpainting'` because that is what it is: zone
+   * editing of Módulo 2. The type says what the image is, the origin says how it
+   * was obtained.
+   */
+  async function handleApplyColor() {
+    if (!activeRecolor || !workingAssetId) return;
+
+    setIsApplyingColor(true);
+    setError(null);
+
+    const blob = await toPngBlob(activeRecolor);
+    if (!blob) {
+      setIsApplyingColor(false);
+      setError("No se pudo guardar el color. Recarga la página e inténtalo de nuevo.");
+      return;
+    }
+
+    const uploaded = await uploadDesignAsset({
+      designId,
+      assetType: "inpainting",
+      blob,
+      // Same shape as the composition export two hundred lines up: the design
+      // names the file, and what follows says which step it is. A file called
+      // "color-2f3e8c.png" sitting in a downloads folder says nothing about
+      // which garment it belongs to, and the strip will list several of these.
+      // The '#' is dropped: it is legal in a filename and awkward in every
+      // URL that later carries it.
+      baseName: `${designName} color ${color.replace("#", "").toUpperCase()}`,
+      parentAssetId: workingAssetId,
+      origin: "derived",
+    });
+
+    if (!uploaded.ok) {
+      setIsApplyingColor(false);
+      setError(uploaded.error);
+      return;
+    }
+
+    // The cursor follows: what was just applied is what the design is working
+    // on now. Going back to an earlier step stays a separate, explicit act.
+    const pointed = await apiPatch(`/api/designs/${designId}`, {
+      current_asset_id: uploaded.data.id,
+    });
+
+    setIsApplyingColor(false);
+
+    if (!pointed.ok) {
+      setError(pointed.error);
+      return;
+    }
+
+    setStrokes([]);
+    notify({ type: "success", message: "Color aplicado." });
+    router.refresh();
+  }
+
   return (
     <div className={styles.workspace}>
-      <div className={styles.canvasColumn} ref={containerRef}>
-        <div className={styles.stageBox}>
+      {isMasking && (
+        <MaskTools
+          tool={tool}
+          onToolChange={setTool}
+          brush={brush}
+          onBrushChange={setBrush}
+          onClear={clearMask}
+          isEmpty={isMaskEmpty(strokes)}
+          disabled={!canPaint}
+        />
+      )}
+
+      <div className={styles.canvasColumn}>
+        <div className={styles.stageBox} ref={containerRef}>
           {!workingImageUrl ? (
             <div className={styles.stageMessage}>
               <p className={styles.stageMessageTitle}>Sin prenda base todavía</p>
@@ -566,14 +811,31 @@ export function DesignWorkspace({
               height={stageHeight}
               scaleX={scale}
               scaleY={scale}
+              style={canPaint ? { cursor: "crosshair" } : undefined}
               onMouseDown={(event) => {
+                if (canPaint) {
+                  startStroke();
+                  return;
+                }
                 // Clicking the garment itself clears the selection.
                 if (event.target === event.target.getStage()) setSelectedId(null);
               }}
+              onMouseMove={extendStroke}
+              onMouseUp={endStroke}
+              // A drag that leaves the canvas has ended as far as the mask is
+              // concerned; without this the next re-entry continues the old
+              // stroke and draws a line across the garment.
+              onMouseLeave={endStroke}
+              onTouchStart={startStroke}
+              onTouchMove={extendStroke}
+              onTouchEnd={endStroke}
             >
               <Layer listening={false}>
+                {/* The proposal replaces the garment while it is on screen, so
+                    the logo above it is judged against the colour that would
+                    actually ship — not against the one being replaced. */}
                 <KonvaImage
-                  image={workingImage ?? undefined}
+                  image={activeRecolor ?? workingImage ?? undefined}
                   width={naturalWidth}
                   height={naturalHeight}
                 />
@@ -590,8 +852,8 @@ export function DesignWorkspace({
                     }
                     naturalWidth={naturalWidth}
                     naturalHeight={naturalHeight}
-                    draggable={canManipulate}
-                    onSelect={() => canManipulate && setSelectedId(layer.id)}
+                    draggable={canMoveLayers}
+                    onSelect={() => canMoveLayers && setSelectedId(layer.id)}
                     onDragEnd={handleDragEnd}
                     onTransformEnd={handleTransformEnd}
                     registerNode={(node) => {
@@ -602,6 +864,9 @@ export function DesignWorkspace({
                 ))}
                 <Transformer
                   ref={transformerRef}
+                  // Hidden while painting: the handles belong to a logo nobody
+                  // is moving right now, and they sit on top of the brush.
+                  visible={!isMasking}
                   rotateEnabled
                   keepRatio
                   enabledAnchors={[
@@ -615,6 +880,22 @@ export function DesignWorkspace({
                   }
                 />
               </Layer>
+
+              {/* One signal at a time. While the brush is moving there is no
+                  recolour yet (it is debounced), so the accent overlay shows
+                  WHERE the paint is landing. The moment the recolour appears it
+                  shows WHAT it will look like, in the real colour, over exactly
+                  the same region — so the overlay steps aside instead of
+                  tinting it. Two translucent layers of different colours over
+                  the same pixels was reading as a third colour. */}
+              {isMasking && !activeRecolor && (
+                <MaskLayer
+                  strokes={strokes}
+                  naturalWidth={naturalWidth}
+                  naturalHeight={naturalHeight}
+                  color={designToken("--color-accent")}
+                />
+              )}
             </Stage>
           )}
         </div>
@@ -625,6 +906,51 @@ export function DesignWorkspace({
           <p className={styles.error} role="alert">
             {error}
           </p>
+        )}
+
+        {/* The two modules, as a mode switch and not as two screens. They are
+            toggle buttons and not tabs on purpose: nothing is being swapped
+            underneath — the canvas, the garment and the logo preview stay put,
+            only the tools change (STYLE_GUIDE §7.2). */}
+        {canEdit && (
+          <div className={styles.group}>
+            <PillTabs
+              label="Qué estoy editando"
+              selected={mode}
+              onSelect={(key) => {
+                setMode(key as WorkspaceMode);
+                // Leaving mask mode drops the selection so the transformer does
+                // not come back around a logo the user stopped thinking about.
+                if (key === "mask") setSelectedId(null);
+              }}
+              options={[
+                { key: "logos", label: "Componer logos" },
+                { key: "mask", label: "Editar prenda" },
+              ]}
+            />
+          </div>
+        )}
+
+        {/* Only the active mode's panel. Showing both was the prototype's
+            layout and was discarded (FASE_1_5 §7.5): two tasks competing for
+            attention leave the canvas squashed between them. */}
+        {/* Rendered from the moment the mode opens, not when the first stroke
+            lands. Appearing on the first drag resized the panel — and therefore
+            the canvas — in the middle of the gesture that created it, which
+            moved the garment out from under the brush. */}
+        {isMasking && (
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>Color de la prenda</span>
+            <ColorPanel
+              color={color}
+              onColorChange={setColor}
+              onApply={handleApplyColor}
+              onDiscard={clearMask}
+              hasMask={!isMaskEmpty(strokes)}
+              isApplying={isApplyingColor}
+              disabled={!canPaint}
+            />
+          </div>
         )}
 
         <div className={styles.group}>

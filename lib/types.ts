@@ -169,6 +169,17 @@ export interface Asset {
   original_filename: string | null;
   mime_type: string;
   file_size_bytes: number | null;
+  /**
+   * Pixel size of the stored object (migration 016). Null when never measured:
+   * rows created before it, since backfilling would mean downloading every
+   * object to ask its size.
+   *
+   * Image inference needs both, and needs them in multiples of 64 — so the
+   * request cannot even be built without knowing the original. See
+   * `lib/generation/`.
+   */
+  width_px: number | null;
+  height_px: number | null;
   origin: AssetOrigin;
   runware_task_id: string | null;
   cost_usd: number | null;

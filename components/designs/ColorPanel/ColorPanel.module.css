@@ -1,0 +1,96 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+/* react-colorful ships its own class names and its own dimensions. Rather than
+   fight them, the wrapper sets the size and the radii the app uses, and the
+   library fills it. Its internals are reached with :global because they are not
+   this module's classes — the alternative is a second stylesheet somewhere
+   else, which is exactly what colocation exists to avoid. */
+.picker :global(.react-colorful) {
+  width: 100%;
+  height: 9rem;
+}
+
+.picker :global(.react-colorful__saturation) {
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-bottom: none;
+}
+
+.picker :global(.react-colorful__hue) {
+  height: 0.75rem;
+  margin-top: var(--space-8);
+  border-radius: var(--radius-sm);
+}
+
+.picker :global(.react-colorful__pointer) {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-width: 2px;
+}
+
+.hexRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* Sunken so an unset or invalid colour reads as a hole and not as a swatch
+   that happens to be grey. */
+.swatch {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+}
+
+.hexLabel {
+  font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
+  color: var(--color-text-secondary);
+}
+
+/* Monospace and tabular: this is an exact value the client signs off on, and
+   §3 reserves the mono family for exactly that. */
+.hex {
+  flex-grow: 1;
+  min-width: 0;
+  min-height: 2.25rem;
+  padding: 0 var(--space-10);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.hex[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.actions > * {
+  flex-grow: 1;
+}
+
+@media (pointer: coarse) {
+  .hex {
+    min-height: var(--touch-target);
+  }
+}

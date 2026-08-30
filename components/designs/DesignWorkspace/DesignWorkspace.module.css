@@ -1,10 +1,29 @@
 /* Canvas and rail, edge to edge. No gap and no page padding between them: the
    working surface should reach the window, not float inside a card. */
+/* `nowrap`, and that single word is the whole fix.
+   A WRAPPING flex line takes its cross size from its tallest item, so the rail
+   — whose content is a colour picker plus a logo grid — was deciding how tall
+   the row had to be. The canvas box stretched to match, ended up taller than
+   the window, and centred the garment inside it: empty space above, cropped
+   below, and no scrollbar because the page itself was the right height all
+   along. The rail's `overflow-y: auto` never engaged either, since it was never
+   the one being constrained.
+   Without wrapping, the line is exactly as tall as this container, both
+   children stretch to it, and each scrolls or scales inside its own share. */
 .workspace {
   display: flex;
   flex-grow: 1;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-height: 0;
+}
+
+/* Below the wrap point the rail goes under the canvas, so the axis flips
+   instead of wrapping — same result, said explicitly. There the page scrolls
+   as a page (see the edit route's stylesheet). */
+@media (max-width: 48rem) {
+  .workspace {
+    flex-direction: column;
+  }
 }
 
 /* Reserves the canvas height while the Konva chunk downloads, so the page does
@@ -19,18 +38,35 @@
   display: flex;
   flex: 1 1 24rem;
   min-width: 0;
+  /* Lets the stage box shrink to the room it is given instead of holding the
+     column open at the garment's natural height. */
+  min-height: 0;
 }
 
 /* An image surface: no border, no radius. The garment draws its own edge, and
    framing it like a data panel is what made every screen read the same. */
+/* `min-height: 0` and not the 30rem it had: with a definite page height the box
+   has to be able to SHRINK, or it keeps a floor taller than the window and the
+   garment runs off the bottom with nowhere to scroll. The stage scales itself
+   to whatever room this ends up with, so a short window makes a smaller
+   garment instead of a cropped one. The 30rem floor lives on in `.loadingBox`,
+   which is what it was really for: holding the space while Konva downloads. */
 .stageBox {
   display: flex;
   flex-grow: 1;
   align-items: center;
   justify-content: center;
-  min-height: 30rem;
+  min-height: 0;
   padding: var(--space-24);
   background: var(--color-surface-sunken);
+}
+
+/* Wrapped layout: the rail sits under the canvas and the page scrolls as a
+   page, so here the canvas does need a floor or it collapses to nothing. */
+@media (max-width: 48rem) {
+  .stageBox {
+    min-height: 24rem;
+  }
 }
 
 .stageMessage {
@@ -53,10 +89,28 @@
 /* One continuous piece, not a stack of cards. Four bordered boxes in a column
    was the same recipe the rest of the app repeats, and it made the tools read
    as four unrelated widgets instead of one instrument. */
+/* 20rem, not the 17rem it started at: the rail's job grew. It now holds a
+   colour picker and a two-button mode switch, and at 17rem those two buttons
+   wrapped one under the other.
+
+   `min-width: 0` is what makes the width DETERMINISTIC. Without it a flex item
+   cannot shrink below its content's min-content size, so a wide child silently
+   widened the rail — which is why the mode buttons sat side by side once the
+   picker appeared and stacked before it. The rail decides its own width; its
+   contents do not get a vote.
+
+   It scrolls on its own so a long rail never pushes the canvas down: the
+   garment stays put and only the tools move. */
 .panel {
   display: flex;
   flex-direction: column;
-  flex: 0 0 17rem;
+  flex: 0 0 20rem;
+  min-width: 0;
+  /* Both are needed for the scroll to work: `min-height` so the rail may be
+     shorter than its contents, `overflow-y` so what is left over can be
+     reached. */
+  min-height: 0;
+  overflow-y: auto;
   background: var(--color-surface-raised);
   border-left: var(--border-hairline) solid var(--color-border-subtle);
 }

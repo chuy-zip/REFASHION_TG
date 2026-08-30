@@ -48,6 +48,8 @@ export async function POST(request: Request) {
     original_filename,
     mime_type,
     file_size_bytes,
+    width_px,
+    height_px,
     origin,
     parent_asset_id,
   } = parsed.data;
@@ -89,6 +91,8 @@ export async function POST(request: Request) {
       original_filename,
       mime_type,
       file_size_bytes,
+      width_px: width_px ?? null,
+      height_px: height_px ?? null,
       origin: origin ?? "upload",
       parent_asset_id: parent_asset_id ?? null,
     })

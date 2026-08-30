@@ -1,27 +1,67 @@
 /* No max-width here, unlike the list screens: this page IS a canvas, and every
    pixel it does not use is a pixel the garment does not get. */
+/* A DEFINITE height, not a minimum.
+   `min-height` lets the page grow with its content, and a growing page is what
+   made the rail's `overflow-y: auto` useless: a scroll container only scrolls
+   once something above it says how tall it may be. Without that, adding a row
+   to the rail made the whole page taller, which re-measured the canvas column,
+   which rescaled the stage — the garment moved because a button appeared. */
 .page {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - var(--app-bar-height));
+  height: calc(100vh - var(--app-bar-height));
 }
 
+/* Below the wrap point the rail sits under the canvas instead of beside it, so
+   the column is genuinely taller than the window and the page has to scroll as
+   a page. Pinning the height there would clip it. */
+@media (max-width: 48rem) {
+  .page {
+    height: auto;
+    min-height: calc(100vh - var(--app-bar-height));
+  }
+}
+
+/* Tighter than the list screens on purpose: what this row does not take, the
+   garment gets. */
 .head {
-  padding: var(--space-20) var(--space-24) var(--space-16);
+  flex-shrink: 0;
+  padding: var(--space-12) var(--space-24) var(--space-12);
 }
 
+/* Icon only: the destination is named by the aria-label and the tooltip, and
+   the title beside it already says which design this is. */
 .back {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-12);
-  font-size: var(--text-sm);
-  color: var(--color-accent);
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  margin-left: calc(var(--space-8) * -1);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
   text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
 }
 
 .back:hover {
-  text-decoration: underline;
+  color: var(--color-text-primary);
+  background: var(--color-surface-sunken);
+}
+
+/* Name and metadata travel together, so the row wraps as one block and the
+   subtitle never ends up beside the arrow. */
+.identity {
+  min-width: 0;
+}
+
+@media (pointer: coarse) {
+  .back {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
 }
 
 /* Title on the left, the one control on the right. It used to be a plain block,
@@ -29,10 +69,16 @@
    metadata instead of an action. */
 .header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-24);
+  align-items: center;
+  gap: var(--space-10);
   flex-wrap: wrap;
+}
+
+/* The action is pushed right by the gap, not by space-between: with the arrow
+   now on this row, space-between would have spread three items instead of
+   two. */
+.header > :last-child {
+  margin-left: auto;
 }
 
 .title {

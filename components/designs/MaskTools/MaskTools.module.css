@@ -1,0 +1,119 @@
+/* Data surface: it holds controls, not an image, so it keeps its hairline
+   (STYLE_GUIDE §4). The border is on the right because the rail sits against
+   the canvas, and the line is what separates the two surfaces. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  flex-shrink: 0;
+  padding: var(--space-12) var(--space-8);
+  background: var(--color-surface-raised);
+  border-right: var(--border-hairline) solid var(--color-border-subtle);
+}
+
+/* 40px, not the 36px of a Button. A tool you reach for on every other stroke
+   is not a form control, and at 36px with a 20px glyph the icon read as small
+   against the canvas beside it. */
+.tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.tool:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-surface-sunken);
+}
+
+.tool[aria-pressed="true"] {
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.tool:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.divider {
+  width: 1.5rem;
+  height: var(--border-hairline);
+  background: var(--color-border-subtle);
+  margin: var(--space-8) 0;
+}
+
+.label {
+  font-size: var(--text-xs);
+  font-stretch: var(--font-stretch-condensed);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.sizes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+
+/* The hit area is a fixed square; only the dot inside changes size. A target
+   that shrinks with the value it selects is hardest to hit exactly when the
+   user wants the finest brush. */
+.size {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 1.875rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.size:hover:not(:disabled) {
+  background: var(--color-surface-sunken);
+}
+
+.size:disabled {
+  cursor: not-allowed;
+}
+
+.dot {
+  display: block;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.size[aria-pressed="true"] .dot {
+  background: var(--color-accent);
+}
+
+.size:disabled .dot {
+  background: var(--color-text-disabled);
+}
+
+/* §7.1: the 44px floor asked of the pointer, not the viewport. */
+@media (pointer: coarse) {
+  .tool {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+
+  .size {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+}

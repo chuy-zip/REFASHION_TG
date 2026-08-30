@@ -1,6 +1,7 @@
 import { apiPost } from "@/lib/api-client";
 import { extensionForMimeType, type AssetWithUrl } from "@/lib/assets";
 import { SVG_MIME_TYPE, isSvgFile, rasterizeSvgToPng } from "@/lib/svg-raster";
+import { measureImageBlob } from "@/lib/image-size";
 import type {
   AssetOrigin,
   ClientAssetType,
@@ -135,6 +136,13 @@ async function upload({
     return { ok: false, error: "No se pudo subir la imagen a almacenamiento." };
   }
 
+  // Measured here and not on the server: the browser is about to decode this
+  // image anyway, while the server would have to download it back from R2.
+  // Módulo 2 cannot build a request without these two numbers (migration 016).
+  // A blob we cannot decode simply arrives unmeasured — null is a legitimate
+  // value and it must not fail an upload that already succeeded.
+  const size = await measureImageBlob(blob);
+
   const confirm = await apiPost<AssetWithUrl>("/api/assets/confirm", {
     ...owner,
     asset_id,
@@ -143,6 +151,8 @@ async function upload({
     original_filename: `${baseName.trim()}.${extensionForMimeType(blob.type)}`,
     mime_type: blob.type,
     file_size_bytes: blob.size,
+    width_px: size?.width ?? null,
+    height_px: size?.height ?? null,
     origin,
     parent_asset_id: parentAssetId ?? null,
   });

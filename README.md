@@ -164,7 +164,7 @@ migración 015 y solo se notó al abrir los logs de Supabase, donde aparecían d
 - **Clientes, proyectos y diseños:** CRUD completo, con permisos impuestos por RLS.
 - **Catálogo de imágenes (R2):** completo. Subida por presigned URL, preview, descarga,
   renombrar y eliminar, en la pestaña Recursos del cliente.
-- **Flujo de diseño:** un solo wizard de creación con dos entradas (sidebar y proyecto),
+- **Flujo de diseño:** un solo wizard de creación con dos entradas (barra superior y proyecto),
   selector visual de punto de partida con subida incorporada, y asignación de prenda base
   desde la pantalla de trabajo. Tres rutas por diseño: `/designs/[id]` (hub de solo
   lectura, con el historial), `/edit` (pantalla de trabajo) y `/present`.
@@ -186,9 +186,17 @@ migración 015 y solo se notó al abrir los logs de Supabase, donde aparecían d
   siendo placeholder: son el Módulo 3.
 - **Borrado seguro:** eliminar una imagen del catálogo avisa qué diseños la usan, como
   imagen de trabajo o como logotipo. Advertencia, no bloqueo.
-- **Refactor visual en curso** (rama `ui-refactor`): tipografía Archivo, acento añil, escala
-  de espaciado por fin declarada, y el sidebar reemplazado por una barra superior. El plan,
-  las decisiones y lo que falta están en `REFACTOR_VISUAL.md`, fuera del repo.
-- **Siguiente:** terminar ese refactor y después el Módulo 2, edición por zonas con máscaras e
-  inpainting. Es el primero que llama a un servicio externo de pago, así que trae consigo el
-  registro de `cost_usd` y el manejo de tareas asíncronas.
+- **Borrado con confirmación proporcional:** toda confirmación dice **cuánto** se pierde
+  (proyectos, diseños e imágenes contados por las vistas de la migración 015), y donde la
+  cascada es profunda —un cliente, o una imagen usada en varios diseños— exige **escribir
+  el nombre del recurso**. Se pide el nombre y no una palabra fija porque el error real no es
+  borrar sin querer: es borrar **el equivocado**.
+- **Refactor visual completo** (rama `ui-refactor`, sin commitear): tipografía Archivo, acento
+  añil, escala de espaciado por fin declarada, el sidebar reemplazado por una barra superior,
+  quince primitivos de UI, las tres listas jerárquicas con búsqueda y paginado en la URL, y
+  una pasada de accesibilidad (área táctil bajo `pointer: coarse`, ARIA que cumple lo que
+  promete, `color-scheme`, enlace de salto). Todo en `REFACTOR_VISUAL.md`, fuera del repo.
+- **Siguiente:** Módulo 2, edición por zonas con máscaras e inpainting. Es el primero que
+  llama a un servicio externo de pago, así que trae consigo el registro de `cost_usd` y el
+  manejo de tareas asíncronas. Entra con él el teclado en el lienzo, que hoy solo se opera
+  con el mouse.

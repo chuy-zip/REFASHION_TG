@@ -255,6 +255,21 @@ export const confirmAssetSchema = z
       .number()
       .int()
       .positive("El tamaño del archivo no es válido."),
+    /**
+     * Measured in the browser before uploading (migration 016). Optional
+     * because a caller that cannot decode the image is better off saying
+     * nothing than guessing — null already means "not measured".
+     */
+    width_px: z.coerce
+      .number()
+      .int()
+      .positive("El ancho de la imagen no es válido.")
+      .nullish(),
+    height_px: z.coerce
+      .number()
+      .int()
+      .positive("El alto de la imagen no es válido.")
+      .nullish(),
     /** Defaults to 'upload' server-side when omitted. */
     origin: assetOrigin.optional(),
     /**
@@ -285,6 +300,40 @@ export const confirmAssetSchema = z
   });
 
 export type ConfirmAssetInput = z.infer<typeof confirmAssetSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Generación (Módulo 2)                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** What kind of edit was asked for. Decides the prompt, not the plumbing. */
+export const inpaintIntent = z.enum(["color", "shape", "texture"], {
+  message: "El tipo de edición no es válido.",
+});
+
+export const inpaintSchema = z.object({
+  design_id: z.uuid("El diseño no es válido."),
+  /** The clean garment the mask was painted on. Becomes `parent_asset_id`. */
+  image_asset_id: z.uuid("La imagen de trabajo no es válida."),
+  /** Already stored as an `asset_type = 'mask'` of this same design. */
+  mask_asset_id: z.uuid("La máscara no es válida."),
+  intent: inpaintIntent,
+  prompt: z
+    .string()
+    .trim()
+    .min(3, "Describe qué quieres cambiar.")
+    .max(3000, "La descripción es demasiado larga."),
+  /**
+   * 0..1. The parameter that separates adjusting a tone from replacing a
+   * collar, and the reason FLUX Fill [dev] was chosen over [pro] — [pro] does
+   * not expose it.
+   */
+  strength: z.coerce
+    .number()
+    .min(0, "La intensidad no es válida.")
+    .max(1, "La intensidad no es válida."),
+});
+
+export type InpaintRequestInput = z.infer<typeof inpaintSchema>;
 
 /* -------------------------------------------------------------------------- */
 /* Design layers (Módulo 1)                                                    */
