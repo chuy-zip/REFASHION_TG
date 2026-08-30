@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/Skeleton/Skeleton";
 import type { AssetWithUrl } from "@/lib/assets";
+import type { WorkStep } from "@/components/designs/StepStrip/StepStrip";
 import type { WorkspaceLayer } from "./DesignWorkspace";
 import styles from "./DesignWorkspace.module.css";
 
@@ -31,6 +32,9 @@ interface DesignWorkspaceLoaderProps {
   workingAssetId: string | null;
   logos: AssetWithUrl[];
   initialLayers: WorkspaceLayer[];
+  /** Where the working image has been, oldest first. */
+  steps: WorkStep[];
+  currentAssetId: string | null;
   canEdit: boolean;
 }
 

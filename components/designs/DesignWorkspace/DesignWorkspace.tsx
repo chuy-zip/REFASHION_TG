@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button/Button";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { MaskTools, type MaskTool } from "@/components/designs/MaskTools/MaskTools";
 import { ColorPanel } from "@/components/designs/ColorPanel/ColorPanel";
+import { StepStrip, type WorkStep } from "@/components/designs/StepStrip/StepStrip";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
 import {
@@ -57,6 +58,9 @@ interface DesignWorkspaceProps {
   workingAssetId: string | null;
   logos: AssetWithUrl[];
   initialLayers: WorkspaceLayer[];
+  /** Where the working image has been, oldest first. */
+  steps: WorkStep[];
+  currentAssetId: string | null;
   canEdit: boolean;
 }
 
@@ -118,6 +122,8 @@ export function DesignWorkspace({
   workingAssetId,
   logos,
   initialLayers,
+  steps,
+  currentAssetId,
   canEdit,
 }: DesignWorkspaceProps) {
   const router = useRouter();
@@ -182,6 +188,12 @@ export function DesignWorkspace({
     canvas: HTMLCanvasElement;
   } | null>(null);
   const [isApplyingColor, setIsApplyingColor] = useState(false);
+
+  // Which step is being LOOKED at, which is not where the design is standing.
+  // Keeping them apart is what lets a click preview without changing anything
+  // (FASE_1_5 §7.4).
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [isResuming, setIsResuming] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -572,6 +584,41 @@ export function DesignWorkspace({
     void persistGeometry(layer.id, geometry);
   }
 
+  /**
+   * Moves the cursor back to an earlier step.
+   *
+   * One column update and nothing else: the image is already in R2 and already
+   * has its row, so going back never generates and never charges. That is the
+   * whole economic argument for keeping the history on the server, and it is
+   * what H-15 asks for — "prefiero el azul de hace dos cambios".
+   *
+   * The route verifies the asset actually belongs to this design before
+   * pointing at it: `current_asset_id` is a foreign key writable from the API,
+   * and those are checked below RLS.
+   */
+  async function handleResume(assetId: string) {
+    setIsResuming(true);
+    setError(null);
+
+    const result = await apiPatch(`/api/designs/${designId}`, {
+      current_asset_id: assetId,
+    });
+
+    setIsResuming(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    // The mask belonged to the image being left behind: a region painted over
+    // one garment means nothing over another.
+    setStrokes([]);
+    setSelectedStepId(null);
+    notify({ type: "success", message: "Volviste a ese paso." });
+    router.refresh();
+  }
+
   async function handleExport() {
     const stage = stageRef.current;
     if (!stage || !workingImage) return;
@@ -580,8 +627,13 @@ export function DesignWorkspace({
     setSelectedId(null);
     setIsExporting(true);
 
-    // Let the deselection paint before grabbing pixels, so the transformer
-    // handles are gone from the bitmap.
+    // Let the deselection and the mask overlay clear before grabbing pixels.
+    //
+    // `stage.toBlob()` captures EVERY layer, which is why the transformer had
+    // to be hidden first — and the mask overlay is the same class of thing: a
+    // control drawn on the canvas, not part of the design. A composition
+    // exported with a mask still painted came out with the accent ink baked
+    // into it, which is the one thing that must never reach the client.
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
     let blob: Blob | null = null;
@@ -888,7 +940,7 @@ export function DesignWorkspace({
                   the same region — so the overlay steps aside instead of
                   tinting it. Two translucent layers of different colours over
                   the same pixels was reading as a third colour. */}
-              {isMasking && !activeRecolor && (
+              {isMasking && !activeRecolor && !isExporting && (
                 <MaskLayer
                   strokes={strokes}
                   naturalWidth={naturalWidth}
@@ -899,6 +951,19 @@ export function DesignWorkspace({
             </Stage>
           )}
         </div>
+
+        {/* Below the canvas, where a filmstrip goes: it is the chronology of
+            the image above it. Inside the rail it would have competed with the
+            tools for the same narrow column. */}
+        <StepStrip
+          steps={steps}
+          currentId={currentAssetId ?? workingAssetId}
+          selectedId={selectedStepId}
+          onSelect={setSelectedStepId}
+          onResume={handleResume}
+          isResuming={isResuming}
+          canEdit={canEdit}
+        />
       </div>
 
       <div className={styles.panel}>

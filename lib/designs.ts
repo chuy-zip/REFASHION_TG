@@ -236,6 +236,19 @@ export async function assetIsUsableAsCurrent(
  * is also the ceiling on how many images that screen resolves: every design
  * card carries a preview, so the page size *is* the image budget.
  */
+/**
+ * Which asset types count as a step of the working image.
+ *
+ * The strip on the working screen shows the CLEAN garment as it advances — the
+ * images a mask is painted on and that a generation consumes. A composition is
+ * a render of the garment *with its logos*, which is a different history and
+ * belongs to the hub's strip.
+ *
+ * Written here rather than as a filter at the call site because two screens ask
+ * the same question and would otherwise answer it differently.
+ */
+export const WORK_STEP_TYPES = ["inpainting"] as const;
+
 export const DESIGNS_PAGE_SIZE = 12;
 
 /**

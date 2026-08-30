@@ -5,7 +5,7 @@ import {
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
 import { getClientAccess } from "@/lib/access";
-import { listClientAssets } from "@/lib/assets-server";
+import { listClientAssets, listDesignAssets } from "@/lib/assets-server";
 import { assetDisplayName } from "@/lib/assets";
 import { getReadUrl } from "@/lib/r2";
 import { listDesignLayers } from "@/lib/layers";
@@ -13,6 +13,7 @@ import {
   designHasWorkOnTop,
   garmentTypeLabel,
   resolveDesignImageAssetId,
+  WORK_STEP_TYPES,
 } from "@/lib/designs";
 import { BaseGarmentPicker } from "@/components/designs/BaseGarmentPicker/BaseGarmentPicker";
 import { DesignWorkspaceLoader } from "@/components/designs/DesignWorkspace/DesignWorkspaceLoader";
@@ -58,17 +59,23 @@ export default async function DesignEditPage({ params }: PageProps) {
 
   const user = await getAuthenticatedUser();
 
-  const [{ data: clientData }, access, { assets: catalog }, { layers }] =
-    await Promise.all([
-      supabase
-        .from("clients")
-        .select("id, name")
-        .eq("id", project.client_id)
-        .maybeSingle(),
-      getClientAccess(supabase, project.client_id, user?.id ?? ""),
-      listClientAssets(supabase, project.client_id),
-      listDesignLayers(supabase, design.id),
-    ]);
+  const [
+    { data: clientData },
+    access,
+    { assets: catalog },
+    { layers },
+    { assets: designAssets },
+  ] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, name")
+      .eq("id", project.client_id)
+      .maybeSingle(),
+    getClientAccess(supabase, project.client_id, user?.id ?? ""),
+    listClientAssets(supabase, project.client_id),
+    listDesignLayers(supabase, design.id),
+    listDesignAssets(supabase, design.id),
+  ]);
 
   const client = clientData as Pick<Client, "id" | "name"> | null;
 
@@ -91,6 +98,45 @@ export default async function DesignEditPage({ params }: PageProps) {
   }
 
   const logos = catalog.filter((asset) => asset.asset_type === "logo");
+
+  /**
+   * The strip: where the working image has been, oldest first.
+   *
+   * The base garment opens it because that is where every design starts, and it
+   * is marked so the strip can draw it as what it is — an image belonging to
+   * the client's catalogue, not a step this design produced.
+   *
+   * `listDesignAssets` already comes back ordered by creation, which is the
+   * order the strip promises: it never reorders, so position means history.
+   */
+  const baseAsset = design.base_asset_id
+    ? catalog.find((asset) => asset.id === design.base_asset_id) ?? null
+    : null;
+
+  const steps = [
+    ...(baseAsset
+      ? [
+          {
+            id: baseAsset.id,
+            url: baseAsset.url,
+            createdAt: baseAsset.created_at,
+            costUsd: null,
+            isOrigin: true,
+          },
+        ]
+      : []),
+    ...designAssets
+      .filter((asset) =>
+        (WORK_STEP_TYPES as readonly string[]).includes(asset.asset_type)
+      )
+      .map((asset) => ({
+        id: asset.id,
+        url: asset.url,
+        createdAt: asset.created_at,
+        costUsd: asset.cost_usd,
+        isOrigin: false,
+      })),
+  ];
 
   // Pair each layer with its logo's signed URL. A layer whose asset is gone
   // simply does not draw: the FK cascades, so this only guards against a
@@ -152,6 +198,8 @@ export default async function DesignEditPage({ params }: PageProps) {
         workingAssetId={workingAssetId}
         logos={logos}
         initialLayers={workspaceLayers}
+        steps={steps}
+        currentAssetId={design.current_asset_id}
         canEdit={access.canEdit}
       />
     </main>

@@ -34,8 +34,12 @@
 }
 
 /* The canvas column measures itself: the stage scale comes from this width. */
+/* Column, not row: the canvas fills what is left and the strip sits under it.
+   The strip is the chronology of the image above it, so it belongs to that
+   column and not to the tool rail. */
 .canvasColumn {
   display: flex;
+  flex-direction: column;
   flex: 1 1 24rem;
   min-width: 0;
   /* Lets the stage box shrink to the room it is given instead of holding the
