@@ -1,0 +1,63 @@
+.root {
+  border-top: var(--border-hairline) solid var(--color-border-subtle);
+}
+
+/* The whole row is the target, not just the words: a control that folds a
+   section away is aimed at casually, and a text-sized hit area makes it a
+   chore. `list-style: none` plus the WebKit pseudo-element is what it takes to
+   drop the native triangle in every engine. */
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  min-height: 2.25rem;
+  padding: var(--space-4) 0;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:hover .label {
+  color: var(--color-text-primary);
+}
+
+/* No focus rule of its own: globals.css already draws one on :focus-visible
+   for everything. The radius is here only so that ring follows a rounded row
+   instead of a square one. */
+.summary {
+  border-radius: var(--radius-sm);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.chevron {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.root[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.body {
+  padding-bottom: var(--space-10);
+}
+
+@media (pointer: coarse) {
+  .summary {
+    min-height: var(--touch-target);
+  }
+}

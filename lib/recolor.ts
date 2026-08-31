@@ -19,6 +19,37 @@
  * to the region's average, and only takes the new hue and saturation. Flatten
  * the luminance instead and the shirt turns into a paper cut-out.
  *
+ * That relative brightness is a **shading factor**, and the model behind it is
+ * the one that holds for matte fabric: `pixel = colour × shading`. It is right,
+ * and it is also where the method used to break — because the shading does not
+ * always fit.
+ *
+ * **Why a black shirt could not become a light one.** On a black garment the
+ * folds run from luma 10 to 96 around a mean of 32, so the brightest of them
+ * carries a shading factor of 3. Asked for a light yellow (luma 229) the
+ * physical answer is 229 × 3, and every channel lands past 255. Two things
+ * broke at once there: the highlights **flattened into one white patch**,
+ * because everything above the mean clipped to the same value; and the **hue
+ * drifted before it got there**, because each channel reaches 255 at a
+ * different factor — a yellow clips red at 1.02× and blue at 1.42×, so it goes
+ * pale before it goes white.
+ *
+ * Nothing was wrong with the picker and nothing was wrong with the colour. The
+ * distance in brightness between the colour and the garment is what decides it,
+ * which is why the same picker looked right for every dark colour: navy on
+ * black needs a factor of 1.34 and it fits.
+ *
+ * **Two bounds fix it, and both are one line.** The fold contrast is never more
+ * than the physical model asks for, and never more than the headroom allows —
+ * `foldScale()`. When the physical answer fits, this returns exactly what it
+ * always did, pixel for pixel. When it does not, the folds are compressed into
+ * the room there is instead of being flattened against the ceiling.
+ *
+ * And where a channel still goes past 255, `clipColor()` desaturates towards
+ * the pixel's own luminance rather than clipping each channel on its own. That
+ * is the W3C Compositing and Blending Level 1 rule, and it is what turns a hue
+ * drift into what a highlight actually looks like.
+ *
  * Same family as `lib/background-removal.ts`: pure, synchronous, no dependency,
  * no network — and the same CORS caveat, since `getImageData()` throws on a
  * tainted canvas exactly like `toBlob()` does (APRENDIZAJES §5.9b).
@@ -66,6 +97,161 @@ export function toHex({ r, g, b }: Rgb): string {
  */
 function luma({ r, g, b }: Rgb): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Where the folds stop and the sheen begins. The top half-percent of a garment
+ * photo is specular highlight and JPEG ringing, not fabric.
+ */
+const HIGH_PERCENTILE = 0.995;
+
+/** The luma below which `share` of the region's pixels fall. */
+function percentile(
+  histogram: Uint32Array,
+  count: number,
+  share: number
+): number {
+  const wanted = count * share;
+  let seen = 0;
+  for (let value = 0; value < histogram.length; value += 1) {
+    seen += histogram[value];
+    if (seen >= wanted) return value;
+  }
+  return histogram.length - 1;
+}
+
+/**
+ * Brings a colour back inside 0..255 **without changing its luminance**, by
+ * pulling it towards its own grey.
+ *
+ * The naive alternative — clamping each channel on its own — is what makes a
+ * bright yellow turn white through pale green: red saturates first, then green,
+ * and for a moment the pixel is a colour nobody asked for. Scaling the whole
+ * chroma down around the luminance keeps the hue and only spends saturation,
+ * which is what a real highlight does.
+ *
+ * W3C Compositing and Blending Level 1, `ClipColor`.
+ */
+function clipColor(color: Rgb): Rgb {
+  const l = luma(color);
+  const channels = [color.r, color.g, color.b];
+  const low = Math.min(...channels);
+  const high = Math.max(...channels);
+
+  let result = color;
+
+  if (low < 0) {
+    const range = l - low;
+    if (range <= 0) return { r: l, g: l, b: l };
+    const pull = (v: number) => l + ((v - l) * l) / range;
+    result = { r: pull(result.r), g: pull(result.g), b: pull(result.b) };
+  }
+
+  if (high > 255) {
+    const range = high - l;
+    if (range <= 0) return { r: l, g: l, b: l };
+    const pull = (v: number) => l + ((v - l) * (255 - l)) / range;
+    result = { r: pull(result.r), g: pull(result.g), b: pull(result.b) };
+  }
+
+  return result;
+}
+
+/**
+ * How much fold contrast the new colour can carry: **the smaller of what the
+ * physics asks for and what the headroom allows.**
+ *
+ * The first bound is `targetLuma / referenceLuma`, which is the slope of the
+ * multiplicative model — ask for no more contrast than the fabric actually has.
+ * Taking only this one is what used to blow out a light colour on a dark shirt.
+ *
+ * The second is the room left above the target before 255, divided by how far
+ * the brightest fold reaches above the region's mean. It is what says "this
+ * colour has 26 levels of headroom and the folds need 64, so they go in at
+ * 41%".
+ *
+ * There is no third bound for the shadows. It would be `targetLuma /
+ * (referenceLuma - lowLuma)`, and since `lowLuma` is never negative that is
+ * always at least the physical slope — it could never bind, so it is not
+ * written.
+ */
+function foldScale(
+  referenceLuma: number,
+  highLuma: number,
+  targetLuma: number
+): number {
+  const physical = targetLuma / Math.max(referenceLuma, 1);
+  const headroom = highLuma > referenceLuma
+    ? (255 - targetLuma) / (highLuma - referenceLuma)
+    : Infinity;
+  return Math.min(physical, headroom);
+}
+
+export interface Hsl {
+  /** Degrees, 0..360. */
+  h: number;
+  /** Percent, 0..100. */
+  s: number;
+  /** Percent, 0..100. */
+  l: number;
+}
+
+/**
+ * RGB to HSL, for the panel's numeric controls.
+ *
+ * Hue, saturation and lightness are the three axes a person actually reasons
+ * about — "the same blue but lighter" is one number here and three there. It
+ * lives in this file because it is colour arithmetic, next to `parseHex` and
+ * `luma`, and because the lightness it exposes is the very quantity
+ * `foldScale` is bounded by.
+ */
+export function rgbToHsl({ r, g, b }: Rgb): Hsl {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const span = max - min;
+  const l = (max + min) / 2;
+
+  if (span === 0) return { h: 0, s: 0, l: l * 100 };
+
+  const s = span / (l > 0.5 ? 2 - max - min : max + min);
+
+  const h =
+    max === rn
+      ? ((gn - bn) / span + (gn < bn ? 6 : 0))
+      : max === gn
+      ? (bn - rn) / span + 2
+      : (rn - gn) / span + 4;
+
+  return { h: h * 60, s: s * 100, l: l * 100 };
+}
+
+/** HSL back to RGB. Exact inverse of `rgbToHsl` up to rounding. */
+export function hslToRgb({ h, s, l }: Hsl): Rgb {
+  const sn = s / 100;
+  const ln = l / 100;
+
+  const chroma = (1 - Math.abs(2 * ln - 1)) * sn;
+  const hp = (((h % 360) + 360) % 360) / 60;
+  const x = chroma * (1 - Math.abs((hp % 2) - 1));
+  const m = ln - chroma / 2;
+
+  const [r, g, b] =
+    hp < 1 ? [chroma, x, 0]
+    : hp < 2 ? [x, chroma, 0]
+    : hp < 3 ? [0, chroma, x]
+    : hp < 4 ? [0, x, chroma]
+    : hp < 5 ? [x, 0, chroma]
+    : [chroma, 0, x];
+
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255),
+  };
 }
 
 export interface RecolorOptions {
@@ -119,29 +305,43 @@ export function recolorRegion({
   maskCtx.drawImage(mask, 0, 0, width, height);
   const maskPixels = maskCtx.getImageData(0, 0, width, height).data;
 
-  // First pass: the average brightness of what is actually being recoloured.
-  // It has to be the region's own average and not the whole image's — a white
-  // shirt on a dark background would otherwise come out washed out, because the
-  // background would drag the reference down.
+  // First pass: how bright the region being recoloured actually is, and how far
+  // its folds reach. Both have to come from the region itself and not from the
+  // whole image — a white shirt on a dark background would otherwise come out
+  // washed out, because the background would drag the reference down.
+  //
+  // A histogram rather than a running min/max: the top of the range is taken as
+  // a percentile, and a single specular pixel must not be allowed to decide how
+  // much contrast the whole garment gets. It costs one pass and 256 numbers.
+  const histogram = new Uint32Array(256);
   let sum = 0;
   let count = 0;
 
   for (let i = 0; i < maskPixels.length; i += 4) {
     if (maskPixels[i] < 8) continue;
-    const p = i;
-    sum += luma({ r: pixels[p], g: pixels[p + 1], b: pixels[p + 2] });
+    const value = luma({ r: pixels[i], g: pixels[i + 1], b: pixels[i + 2] });
+    sum += value;
     count += 1;
+    histogram[Math.min(255, Math.max(0, Math.round(value)))] += 1;
   }
 
   if (count === 0) return canvas;
 
   const referenceLuma = sum / count;
-  const targetLuma = luma(target);
 
-  // Guard against a division by ~0 on an almost-black region: there is no fold
-  // information left to preserve there, and this is the known limit of the
-  // method (`FASE_2_INPAINTING` §2.3, "prenda oscura hacia un color claro").
+  // Guard against a division by ~0 on an almost-black region.
   const safeReference = Math.max(referenceLuma, 1);
+  // And on a black target, where every fold is black by definition: the ratio
+  // below would be 0/0 without it.
+  const targetLuma = luma(target);
+  const safeTarget = Math.max(targetLuma, 1);
+
+  // Where the brightest folds sit. Not the maximum: the brightest half-percent
+  // of a garment photo is sheen and compression artefacts, and letting it set
+  // the scale would compress everything else to protect a handful of pixels.
+  const highLuma = percentile(histogram, count, HIGH_PERCENTILE);
+
+  const scale = foldScale(referenceLuma, highLuma, targetLuma);
 
   for (let i = 0; i < pixels.length; i += 4) {
     const weight = maskPixels[i] / 255;
@@ -149,16 +349,25 @@ export function recolorRegion({
 
     const original = { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2] };
 
-    // The pixel's brightness *relative to its region* is what carries the fold.
-    // Scale the target colour by it and the shadow survives the change of hue.
-    const ratio = luma(original) / safeReference;
-    const scale = targetLuma > 0 ? ratio : 1;
+    // The fold, kept as a distance from the region's mean and scaled by what
+    // the new colour can carry. At the mean this is exactly the target, which
+    // is what keeps the promise that the hex asked for is the hex delivered.
+    const foldLuma = Math.max(
+      0,
+      targetLuma + (luma(original) - safeReference) * scale
+    );
 
-    const recolored = {
-      r: target.r * scale,
-      g: target.g * scale,
-      b: target.b * scale,
-    };
+    // Multiplicative, as before: scaling all three channels together is what
+    // preserves the chromaticity of matte fabric. The only thing that changed
+    // is that the factor now comes from a bounded luminance instead of an
+    // unbounded one.
+    const ratio = foldLuma / safeTarget;
+
+    const recolored = clipColor({
+      r: target.r * ratio,
+      g: target.g * ratio,
+      b: target.b * ratio,
+    });
 
     // Grey in the mask blends, so a feathered edge does not leave a hard seam
     // between the recoloured region and the rest of the garment.
