@@ -196,7 +196,22 @@ migración 015 y solo se notó al abrir los logs de Supabase, donde aparecían d
   quince primitivos de UI, las tres listas jerárquicas con búsqueda y paginado en la URL, y
   una pasada de accesibilidad (área táctil bajo `pointer: coarse`, ARIA que cumple lo que
   promete, `color-scheme`, enlace de salto). Todo en `REFACTOR_VISUAL.md`, fuera del repo.
-- **Siguiente:** Módulo 2, edición por zonas con máscaras e inpainting. Es el primero que
-  llama a un servicio externo de pago, así que trae consigo el registro de `cost_usd` y el
-  manejo de tareas asíncronas. Entra con él el teclado en el lienzo, que hoy solo se opera
-  con el mouse.
+- **Módulo 2, edición por zonas: construido contra un simulador, ciclo completo.** Una sola
+  ruta con dos modos (`Componer logos` / `Editar prenda (IA)`), pincel y goma sobre el mismo
+  lienzo Konva, y dos caminos para la misma región pintada:
+  - **Color, determinista** (`lib/recolor.ts`): conserva la luminancia de cada píxel y le
+    cambia matiz y saturación, así que los pliegues sobreviven y el hexadecimal que sale es
+    el que entró. Sin llamadas, sin costo, previsualizado mientras se mueve el selector. Existe
+    porque los modelos de difusión **no honran códigos de color de forma confiable**, que es un
+    problema abierto de investigación y no una limitación de un proveedor.
+  - **Forma y textura, generativo**: prompt, intensidad y la llamada a
+    `POST /api/generate/inpainting`.
+- **La tira de pasos, con cursor.** El historial es un árbol por dentro (`parent_asset_id`) y
+  una línea por fuera: nada se reordena y lo único que se mueve es el marcador de "estás
+  aquí". Volver a un paso anterior es un `UPDATE` de una columna — no genera y no cobra.
+- **`lib/generation/` aísla al proveedor.** Ningún componente sabe que Runware existe: las
+  pantallas hablan con la ruta y la ruta con `getGenerationProvider()`, que **hoy devuelve
+  siempre el simulador**. Este imita latencia, costo y **falla 1 de cada 12**, porque un
+  simulador que siempre funciona produce una interfaz que no sabe fallar.
+- **Siguiente:** terminar el Módulo 2 (ver `FASE_2_INPAINTING.md` §4d) y después el Módulo 3,
+  Virtual Try-On. Entra con ellos el teclado en el lienzo, que hoy solo se opera con el mouse.

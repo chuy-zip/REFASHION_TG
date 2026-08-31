@@ -116,6 +116,7 @@ export function ProjectsSection({
                               <img
                                 className={styles.swatchImage}
                                 src={sample.preview_url}
+                                crossOrigin="anonymous"
                                 alt={sample.name}
                               />
                             ) : null}

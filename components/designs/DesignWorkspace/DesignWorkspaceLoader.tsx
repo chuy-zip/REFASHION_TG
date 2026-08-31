@@ -35,6 +35,8 @@ interface DesignWorkspaceLoaderProps {
   /** Where the working image has been, oldest first. */
   steps: WorkStep[];
   currentAssetId: string | null;
+  /** True while the generation provider is the simulator. */
+  isSimulated: boolean;
   canEdit: boolean;
 }
 

@@ -190,7 +190,7 @@ export function PresentationTabs({
       >
         {isShowingImage ? (
           // eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply
-          <img className={styles.stageImage} src={flatUrl!} alt={designName} />
+          <img className={styles.stageImage} src={flatUrl!} alt={designName} crossOrigin="anonymous" />
         ) : activeTab === "plana" ? (
           <EmptyState
             size="sm"
@@ -229,6 +229,7 @@ export function PresentationTabs({
                 <img
                   className={styles.pickerThumb}
                   src={asset.url}
+                  crossOrigin="anonymous"
                   alt={`Composición del ${dateFormat.format(
                     new Date(asset.created_at)
                   )}`}

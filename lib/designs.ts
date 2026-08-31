@@ -249,6 +249,26 @@ export async function assetIsUsableAsCurrent(
  */
 export const WORK_STEP_TYPES = ["inpainting"] as const;
 
+/**
+ * Asset types that are a **state the design passed through**, and therefore
+ * belong in a history someone reads.
+ *
+ * A mask is deliberately not one. It is an *input* to a step, not a step: it
+ * describes where an edit was asked for, it cannot be reopened, edited or
+ * reused, and it is not something anyone would want to go back to. Listing it
+ * beside the garments turns a chronology into a log, and a black rectangle in
+ * the middle of a row of shirts is noise that has to be explained every time.
+ *
+ * It is still stored, and on purpose: together with `generation_prompt` it is
+ * what makes a generation reproducible — the prompt says what was asked, the
+ * mask says where. That is a record worth keeping for the report, and it is a
+ * black-and-white PNG that compresses to a few tens of kilobytes. Kept, not
+ * shown.
+ */
+export function isHistoryStep(assetType: string): boolean {
+  return assetType !== "mask";
+}
+
 export const DESIGNS_PAGE_SIZE = 12;
 
 /**

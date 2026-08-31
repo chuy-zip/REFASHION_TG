@@ -1,0 +1,80 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
+  color: var(--color-text-secondary);
+}
+
+.prompt {
+  padding: var(--space-8) var(--space-10);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.strengthHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+/* Mono and tabular: the value is read while dragging, and a proportional font
+   makes it jitter as the digits change width. */
+.strengthValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.strength {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+/* The ends of the range say which way is which: "0.2 to 1" describes the
+   control, not what it does to the garment. */
+.strengthEnds {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  font-stretch: var(--font-stretch-condensed);
+  color: var(--color-text-disabled);
+}
+
+.cost {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+/* A state, not a decoration: it says no service is being called. Warning and
+   not danger — nothing is wrong, something is merely not real yet. */
+.simulated {
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+@media (pointer: coarse) {
+  .strength {
+    /* A 4px track is a mouse target. Under a finger the whole control needs
+       room, and the thumb is the part being aimed at. */
+    min-height: var(--touch-target);
+  }
+}

@@ -13,6 +13,8 @@ interface MaskToolsProps {
   brush: number;
   onBrushChange: (brush: number) => void;
   onClear: () => void;
+  /** Picks the whole garment at once, by telling it apart from the background. */
+  onSelectGarment: () => void;
   /** Nothing painted yet: clearing would do nothing and says so. */
   isEmpty: boolean;
   disabled?: boolean;
@@ -27,9 +29,11 @@ interface MaskToolsProps {
  * left-hand rail — `FASE_1_5` §7.5 kept a single right rail for module
  * *panels*, and this is a tool selector, which is a different thing.
  *
- * Presentational on purpose: the strokes live in the workspace, because the
- * canvas, the recolour preview and the generation request all read them. A rail
- * that owned them would make itself the only way to reach them.
+ * Presentational on purpose: the mask lives in the workspace, because the
+ * canvas, the recolour preview and the generation request all read it. A rail
+ * that owned it would make itself the only way to reach it. That holds for the
+ * automatic selection too — the rail asks for it, it does not compute it: the
+ * fill needs the working image, which is the canvas's business, not the rail's.
  */
 export function MaskTools({
   tool,
@@ -37,11 +41,29 @@ export function MaskTools({
   brush,
   onBrushChange,
   onClear,
+  onSelectGarment,
   isEmpty,
   disabled = false,
 }: MaskToolsProps) {
   return (
     <div className={styles.rail} role="group" aria-label="Herramientas de máscara">
+      {/* First, and set apart, because it is where painting starts: it lays
+          down the whole garment and the brush and eraser correct it. Not
+          aria-pressed like the two below it — this one acts and is done, it
+          does not stay chosen. */}
+      <button
+        type="button"
+        className={styles.tool}
+        aria-label="Seleccionar toda la prenda"
+        title="Seleccionar toda la prenda"
+        disabled={disabled}
+        onClick={onSelectGarment}
+      >
+        <Icon name="autoSelect" size={22} />
+      </button>
+
+      <div className={styles.divider} />
+
       <button
         type="button"
         className={styles.tool}

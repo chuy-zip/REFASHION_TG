@@ -10,6 +10,7 @@ import { listDesignAssets } from "@/lib/assets-server";
 import { assetDisplayName, type AssetWithUrl } from "@/lib/assets";
 import {
   DESIGN_STATUS_COPY,
+  isHistoryStep,
   garmentTypeLabel,
   resolveDesignImageAssetId,
 } from "@/lib/designs";
@@ -183,6 +184,7 @@ export default async function DesignHubPage({ params }: PageProps) {
             <img
               className={styles.canvasImage}
               src={heroAsset.url}
+              crossOrigin="anonymous"
               alt={design.name}
             />
           ) : (
@@ -203,7 +205,13 @@ export default async function DesignHubPage({ params }: PageProps) {
         )}
       </figure>
 
-      <DesignTimeline originAsset={originAsset} assets={designAssets} />
+      {/* Masks are filtered out here rather than at the query: they still count
+          as images of the design for anything that asks how much would be lost
+          by deleting it. What they are not is a step of the history. */}
+      <DesignTimeline
+        originAsset={originAsset}
+        assets={designAssets.filter((asset) => isHistoryStep(asset.asset_type))}
+      />
     </main>
   );
 }

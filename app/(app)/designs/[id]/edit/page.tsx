@@ -6,6 +6,7 @@ import {
 } from "@/lib/supabase/server";
 import { getClientAccess } from "@/lib/access";
 import { listClientAssets, listDesignAssets } from "@/lib/assets-server";
+import { isSimulated } from "@/lib/generation";
 import { assetDisplayName } from "@/lib/assets";
 import { getReadUrl } from "@/lib/r2";
 import { listDesignLayers } from "@/lib/layers";
@@ -200,6 +201,9 @@ export default async function DesignEditPage({ params }: PageProps) {
         initialLayers={workspaceLayers}
         steps={steps}
         currentAssetId={design.current_asset_id}
+        // Read here and not in the canvas: the provider lives behind
+        // `server-only`, so the browser is told the answer rather than asking.
+        isSimulated={isSimulated()}
         canEdit={access.canEdit}
       />
     </main>

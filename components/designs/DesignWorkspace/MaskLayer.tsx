@@ -2,10 +2,10 @@
 
 import { useMemo } from "react";
 import { Image as KonvaImage, Layer } from "react-konva";
-import { rasterizeMask, type MaskStroke } from "@/lib/mask";
+import { rasterizeMask, type Mask } from "@/lib/mask";
 
 interface MaskLayerProps {
-  strokes: MaskStroke[];
+  mask: Mask;
   /** Natural size of the working image; ratios are resolved against it. */
   naturalWidth: number;
   naturalHeight: number;
@@ -30,12 +30,13 @@ interface MaskLayerProps {
  *
  * The second reason matters more: this uses **the same `rasterizeMask` that
  * builds the mask sent for inference**. What the user sees and what the model
- * receives are now the same pixels, including the feathered edge. Two
- * implementations of "where did they paint" is how a mask ends up meaning one
- * thing on screen and another in the request.
+ * receives are now the same pixels, including the feathered edge — and, since
+ * the automatic selection goes through that same function, including the shape
+ * the flood fill found. Two implementations of "where did they paint" is how a
+ * mask ends up meaning one thing on screen and another in the request.
  */
 export function MaskLayer({
-  strokes,
+  mask,
   naturalWidth,
   naturalHeight,
   color,
@@ -43,13 +44,13 @@ export function MaskLayer({
   const overlay = useMemo(() => {
     if (naturalWidth === 0 || naturalHeight === 0) return null;
     return rasterizeMask({
-      strokes,
+      mask,
       width: naturalWidth,
       height: naturalHeight,
       mode: "overlay",
       color,
     });
-  }, [strokes, naturalWidth, naturalHeight, color]);
+  }, [mask, naturalWidth, naturalHeight, color]);
 
   if (!overlay) return null;
 

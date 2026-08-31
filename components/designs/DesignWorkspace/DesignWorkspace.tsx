@@ -9,6 +9,10 @@ import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { MaskTools, type MaskTool } from "@/components/designs/MaskTools/MaskTools";
 import { ColorPanel } from "@/components/designs/ColorPanel/ColorPanel";
 import { StepStrip, type WorkStep } from "@/components/designs/StepStrip/StepStrip";
+import {
+  GenerationPanel,
+  type GenerativeIntent,
+} from "@/components/designs/GenerationPanel/GenerationPanel";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
 import {
@@ -30,7 +34,16 @@ import {
   toPngBlob,
   type BackgroundRemoval,
 } from "@/lib/background-removal";
-import { DEFAULT_BRUSH, isMaskEmpty, rasterizeMask, type MaskStroke } from "@/lib/mask";
+import {
+  DEFAULT_BRUSH,
+  EMPTY_MASK,
+  isMaskEmpty,
+  maskToPngBlob,
+  rasterizeMask,
+  type Mask,
+} from "@/lib/mask";
+import { isUsefulSelection, selectGarment } from "@/lib/garment-select";
+import { snapToInferenceSize } from "@/lib/generation/dimensions";
 import { parseHex, recolorRegion } from "@/lib/recolor";
 import type { DesignLayer } from "@/lib/types";
 import {
@@ -61,6 +74,8 @@ interface DesignWorkspaceProps {
   /** Where the working image has been, oldest first. */
   steps: WorkStep[];
   currentAssetId: string | null;
+  /** True while the generation provider is the simulator. */
+  isSimulated: boolean;
   canEdit: boolean;
 }
 
@@ -124,6 +139,7 @@ export function DesignWorkspace({
   initialLayers,
   steps,
   currentAssetId,
+  isSimulated,
   canEdit,
 }: DesignWorkspaceProps) {
   const router = useRouter();
@@ -160,9 +176,10 @@ export function DesignWorkspace({
   // deciding a colour without seeing the logo on it is deciding blind.
   const [mode, setMode] = useState<WorkspaceMode>("logos");
 
-  // The mask, kept as strokes in ratio space so it survives the working image
-  // changing size along the pipeline (see lib/mask.ts).
-  const [strokes, setStrokes] = useState<MaskStroke[]>([]);
+  // The mask: the garment picked in one gesture plus the brush and eraser
+  // passes over it, kept as gestures rather than as pixels so it survives the
+  // working image changing size along the pipeline (see lib/mask.ts).
+  const [mask, setMask] = useState<Mask>(EMPTY_MASK);
   const [tool, setTool] = useState<MaskTool>("brush");
   const [brush, setBrush] = useState<number>(DEFAULT_BRUSH);
   const isPainting = useRef(false);
@@ -176,14 +193,14 @@ export function DesignWorkspace({
   // The recoloured garment, live on the canvas until it is applied or dropped.
   // Same shape as the background-removal preview: a proposal, not the design.
   //
-  // Tagged with what produced it — the exact strokes array and the exact colour
-  // — and matched at render. That is the third time this project needs the
+  // Tagged with what produced it — the exact mask object and the exact colour —
+  // and matched at render. That is the third time this project needs the
   // pattern (APRENDIZAJES §5.14): an effect that clears state synchronously is
   // both a lint error and a race, because a result arriving after the user
   // moved on would otherwise have to be cancelled from inside the effect that
   // produced it. Here it is simply not the current one.
   const [recolorPreview, setRecolorPreview] = useState<{
-    strokes: MaskStroke[];
+    mask: Mask;
     color: string;
     canvas: HTMLCanvasElement;
   } | null>(null);
@@ -194,6 +211,13 @@ export function DesignWorkspace({
   // (FASE_1_5 §7.4).
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [isResuming, setIsResuming] = useState(false);
+
+  // The generative half: shape and texture. Colour never comes here — an exact
+  // recolour is one panel away and a model would only approximate it.
+  const [intent, setIntent] = useState<GenerativeIntent>("shape");
+  const [description, setDescription] = useState("");
+  const [strength, setStrength] = useState(0.85);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -333,23 +357,27 @@ export function DesignWorkspace({
   // costs nothing — and it never touches the stored image: dropping the colour
   // is forgetting this canvas.
   useEffect(() => {
-    if (mode !== "mask" || !workingImage || isMaskEmpty(strokes)) return;
+    if (mode !== "mask" || !workingImage || isMaskEmpty(mask)) return;
 
     const target = parseHex(color);
     if (!target) return;
 
     const timer = setTimeout(() => {
       try {
-        const mask = rasterizeMask({
-          strokes,
+        const rasterized = rasterizeMask({
+          mask,
           width: workingImage.naturalWidth,
           height: workingImage.naturalHeight,
           mode: "mask",
         });
         setRecolorPreview({
-          strokes,
+          mask,
           color,
-          canvas: recolorRegion({ image: workingImage, mask, target }),
+          canvas: recolorRegion({
+            image: workingImage,
+            mask: rasterized,
+            target,
+          }),
         });
       } catch {
         // getImageData throws on a tainted canvas, exactly like toBlob does.
@@ -363,7 +391,7 @@ export function DesignWorkspace({
     }, PREVIEW_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [mode, workingImage, strokes, color]);
+  }, [mode, workingImage, mask, color]);
 
   const persistGeometry = useCallback(
     async (layerId: string, geometry: Partial<DesignLayer>) => {
@@ -612,10 +640,89 @@ export function DesignWorkspace({
     }
 
     // The mask belonged to the image being left behind: a region painted over
-    // one garment means nothing over another.
-    setStrokes([]);
+    // one garment means nothing over another, and the automatic selection is a
+    // bitmap the size of the garment it was worked out from.
+    setMask(EMPTY_MASK);
     setSelectedStepId(null);
     notify({ type: "success", message: "Volviste a ese paso." });
+    router.refresh();
+  }
+
+  /**
+   * Sends the masked region off to be regenerated.
+   *
+   * Three steps, in this order and for a reason:
+   *
+   *   1. The mask is rasterised **at the size inference will use**, snapped to
+   *      the 64px grid by the same function the server uses to build the
+   *      request. Two answers to "how big is this" is how a mask ends up
+   *      describing a region the model never sees.
+   *   2. It is stored as a real asset of the design (`asset_type = 'mask'`), so
+   *      the provider can fetch it by URL and so the record of what was asked
+   *      survives the session.
+   *   3. Only then the generation. The route re-checks that both images belong
+   *      to this design before reading them — foreign keys are verified below
+   *      RLS, and the browser is not a place to enforce that.
+   *
+   * The result is the design's new working image, and the route moves the
+   * cursor onto it. A failure writes nothing and charges nothing: the design is
+   * left exactly as it was, which is what makes pressing again safe.
+   */
+  async function handleGenerate() {
+    if (!workingImage || !workingAssetId || isMaskEmpty(mask)) return;
+
+    setIsGenerating(true);
+    setError(null);
+
+    const size = snapToInferenceSize({
+      width: workingImage.naturalWidth,
+      height: workingImage.naturalHeight,
+    });
+
+    const maskBlob = await maskToPngBlob(
+      rasterizeMask({ mask, ...size, mode: "mask" })
+    );
+
+    if (!maskBlob) {
+      setIsGenerating(false);
+      setError("No se pudo preparar la máscara. Inténtalo de nuevo.");
+      return;
+    }
+
+    const stored = await uploadDesignAsset({
+      designId,
+      assetType: "mask",
+      blob: maskBlob,
+      baseName: `${designName} mascara`,
+      parentAssetId: workingAssetId,
+      origin: "derived",
+    });
+
+    if (!stored.ok) {
+      setIsGenerating(false);
+      setError(stored.error);
+      return;
+    }
+
+    const result = await apiPost("/api/generate/inpainting", {
+      design_id: designId,
+      image_asset_id: workingAssetId,
+      mask_asset_id: stored.data.id,
+      intent,
+      prompt: description,
+      strength,
+    });
+
+    setIsGenerating(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setMask(EMPTY_MASK);
+    setDescription("");
+    notify({ type: "success", message: "Listo, se generó un paso nuevo." });
     router.refresh();
   }
 
@@ -689,10 +796,10 @@ export function DesignWorkspace({
   // moving layers around underneath it would be editing two things at once.
   const canManipulate = canCompose && !isCutting;
 
-  /** The recolour only counts while it matches the strokes and colour on screen. */
+  /** The recolour only counts while it matches the mask and colour on screen. */
   const activeRecolor =
     recolorPreview &&
-    recolorPreview.strokes === strokes &&
+    recolorPreview.mask === mask &&
     recolorPreview.color === color
       ? recolorPreview.canvas
       : null;
@@ -724,10 +831,13 @@ export function DesignWorkspace({
     if (!point) return;
 
     isPainting.current = true;
-    setStrokes((current) => [
+    setMask((current) => ({
       ...current,
-      { points: [point], width: brush, erase: tool === "eraser" },
-    ]);
+      strokes: [
+        ...current.strokes,
+        { points: [point], width: brush, erase: tool === "eraser" },
+      ],
+    }));
   }
 
   function extendStroke() {
@@ -737,13 +847,16 @@ export function DesignWorkspace({
 
     // Appends to the last stroke rather than pushing a new one: a stroke is the
     // whole drag, and that is what the eraser's compositing operates on.
-    setStrokes((current) => {
-      if (current.length === 0) return current;
-      const last = current[current.length - 1];
-      return [
-        ...current.slice(0, -1),
-        { ...last, points: [...last.points, point] },
-      ];
+    setMask((current) => {
+      if (current.strokes.length === 0) return current;
+      const last = current.strokes[current.strokes.length - 1];
+      return {
+        ...current,
+        strokes: [
+          ...current.strokes.slice(0, -1),
+          { ...last, points: [...last.points, point] },
+        ],
+      };
     });
   }
 
@@ -752,9 +865,53 @@ export function DesignWorkspace({
   }
 
   function clearMask() {
-    // The preview needs no clearing: it is tagged with the strokes array that
-    // produced it, and this one is a different array.
-    setStrokes([]);
+    // The preview needs no clearing: it is tagged with the mask that produced
+    // it, and this is a different one.
+    setMask(EMPTY_MASK);
+  }
+
+  /**
+   * Picks the whole garment at once (`lib/garment-select.ts`).
+   *
+   * The one control in the rail that decides where the paint goes instead of
+   * following the hand, and the reason the module is usable at all: a shirt
+   * takes a minute to trace with a brush and half of that minute is spent
+   * keeping the colour off the background.
+   *
+   * It replaces the base and **keeps the strokes**, so pressing it after having
+   * painted does not throw that work away — the passes simply land on top of a
+   * selection instead of on nothing.
+   *
+   * Synchronous, like the background removal it is built on: it walks every
+   * pixel once and there is nothing useful to render halfway through. And it
+   * refuses to apply a selection that covers almost nothing or almost
+   * everything, because both mean the fill did not find the garment, and a
+   * useless mask applied in silence is worse than one that says so.
+   */
+  function handleSelectGarment() {
+    if (!workingImage) return;
+    setError(null);
+
+    let selection;
+    try {
+      selection = selectGarment(workingImage, DEFAULT_TOLERANCE);
+    } catch {
+      // getImageData throws on a tainted canvas, exactly like toBlob does
+      // (APRENDIZAJES §5.9b).
+      setError(
+        "No se pudo leer la imagen para seleccionar la prenda. Recarga la página e inténtalo de nuevo."
+      );
+      return;
+    }
+
+    if (!isUsefulSelection(selection.coveredShare)) {
+      setError(
+        "No se pudo distinguir la prenda del fondo. Píntala con el pincel, o usa una imagen con el fondo despejado."
+      );
+      return;
+    }
+
+    setMask((current) => ({ ...current, selection: selection.shape }));
   }
 
   /**
@@ -816,7 +973,7 @@ export function DesignWorkspace({
       return;
     }
 
-    setStrokes([]);
+    setMask(EMPTY_MASK);
     notify({ type: "success", message: "Color aplicado." });
     router.refresh();
   }
@@ -830,7 +987,8 @@ export function DesignWorkspace({
           brush={brush}
           onBrushChange={setBrush}
           onClear={clearMask}
-          isEmpty={isMaskEmpty(strokes)}
+          onSelectGarment={handleSelectGarment}
+          isEmpty={isMaskEmpty(mask)}
           disabled={!canPaint}
         />
       )}
@@ -850,8 +1008,8 @@ export function DesignWorkspace({
                 No se pudo cargar la imagen
               </p>
               <p className={styles.stageMessageHint}>
-                Recarga la página. Si persiste, la imagen pudo haberse
-                eliminado del catálogo.
+                Recarga la página. Si persiste, revisa la consola del navegador:
+                ahí queda la dirección de la imagen que falló.
               </p>
             </div>
           ) : workingStatus !== "loaded" || scale === 0 ? (
@@ -942,7 +1100,7 @@ export function DesignWorkspace({
                   the same pixels was reading as a third colour. */}
               {isMasking && !activeRecolor && !isExporting && (
                 <MaskLayer
-                  strokes={strokes}
+                  mask={mask}
                   naturalWidth={naturalWidth}
                   naturalHeight={naturalHeight}
                   color={designToken("--color-accent")}
@@ -1011,8 +1169,31 @@ export function DesignWorkspace({
               onColorChange={setColor}
               onApply={handleApplyColor}
               onDiscard={clearMask}
-              hasMask={!isMaskEmpty(strokes)}
+              hasMask={!isMaskEmpty(mask)}
               isApplying={isApplyingColor}
+              disabled={!canPaint}
+            />
+          </div>
+        )}
+
+        {/* Two ways to change the same painted region, and the split the user
+            perceives is the one they already think in: change the COLOUR, or
+            change the TELA. That one is exact and free and the other calls a
+            model is an engineering decision they never have to hold. */}
+        {isMasking && (
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>Cambiar con IA</span>
+            <GenerationPanel
+              intent={intent}
+              onIntentChange={setIntent}
+              description={description}
+              onDescriptionChange={setDescription}
+              strength={strength}
+              onStrengthChange={setStrength}
+              onGenerate={handleGenerate}
+              hasMask={!isMaskEmpty(mask)}
+              isGenerating={isGenerating}
+              isSimulated={isSimulated}
               disabled={!canPaint}
             />
           </div>

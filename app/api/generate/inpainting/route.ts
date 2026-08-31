@@ -8,6 +8,7 @@ import { resolveDesignPath } from "@/lib/designs";
 import { assetDisplayName } from "@/lib/assets";
 import { getGenerationProvider } from "@/lib/generation";
 import { resolveGenerationInputs } from "@/lib/generation/inputs";
+import { composePrompt } from "@/lib/generation/prompt";
 import { inpaintSchema } from "@/lib/validation";
 import {
   jsonError,
@@ -80,12 +81,18 @@ export async function POST(request: Request) {
     getReadUrl(mask.r2_key),
   ]);
 
+  // The user's words go in verbatim, inside a frame that says what must not
+  // change. Composed here rather than in the browser so there is exactly one
+  // answer to "what was actually asked for", and so the frame can be tuned
+  // without shipping a new client (`lib/generation/prompt.ts`).
+  const composed = composePrompt(intent, prompt);
+
   const provider = getGenerationProvider();
   const outcome = await provider.inpaint({
     imageUrl,
     maskUrl,
     size,
-    prompt,
+    prompt: composed,
     intent,
     strength,
   });
@@ -133,7 +140,10 @@ export async function POST(request: Request) {
       origin: "generated",
       runware_task_id: result.taskId,
       cost_usd: result.costUsd,
-      generation_prompt: prompt,
+      // The COMPOSED text, not the user's fragment: this column is the record
+      // of what the model was actually asked, and it is what makes a result
+      // reproducible months later. The user's own words are the tail of it.
+      generation_prompt: composed,
       // The lineage that sustains objetivo específico 2: this image came out of
       // that one. It is also what makes the history a tree while the strip
       // stays a line.

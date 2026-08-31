@@ -41,6 +41,17 @@ export function useCrossOriginImage(src: string | null) {
     };
     element.onerror = () => {
       if (!cancelled) setFailedSrc(src);
+      // The browser gives an <img> load failure no reason: onerror carries no
+      // status and no message, so a 403 from an expired signature, a missing
+      // object and a CORS rejection all arrive identically. Printing the URL is
+      // the only way to tell them apart, and the Network tab has the status.
+      //
+      // Same lesson as the 42703 spike: a swallowed cause turns a specific
+      // failure into a vague one, and the vague one is the expensive kind
+      // (APRENDIZAJES §5.22).
+      if (process.env.NODE_ENV === "development") {
+        console.error("[canvas] la imagen no cargó:", src);
+      }
     };
 
     element.src = src;

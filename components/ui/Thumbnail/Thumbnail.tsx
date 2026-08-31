@@ -76,6 +76,22 @@ export function Thumbnail({
         className={`${styles.image} ${isLoaded ? styles.loaded : ""}`}
         src={src}
         alt={alt}
+        // ONE request mode for every R2 image in the app, and it is not
+        // optional here.
+        //
+        // R2 answers with `Vary: Origin`, and an <img> without this attribute
+        // sends no Origin at all — so the response comes back with no
+        // `Access-Control-Allow-Origin` and is cached that way. The canvas then
+        // asks for the SAME url in CORS mode, finds that cached response, and
+        // the browser blocks it. Nothing is wrong with the object, the policy
+        // or the signature: the two requests simply disagreed about the mode.
+        //
+        // It surfaced when the step strip started showing thumbnails of the
+        // very images the canvas draws. It is the second time this project
+        // pays for it (APRENDIZAJES §5.9b), which is why the fix is a rule and
+        // not a patch: every R2 image is requested the same way, so the two
+        // can never poison each other.
+        crossOrigin="anonymous"
         onLoad={() => setIsLoaded(true)}
       />
       {children}
