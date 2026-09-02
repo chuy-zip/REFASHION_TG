@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { LOGIN_PATH, POST_LOGIN_PATH } from "@/lib/routes";
+import { LOGIN_PATH, LOGOUT_PATH, POST_LOGIN_PATH } from "@/lib/routes";
 
 /**
  * Auth gate for the whole app.
@@ -8,6 +8,11 @@ import { LOGIN_PATH, POST_LOGIN_PATH } from "@/lib/routes";
  *   /api/*  without a valid JWT  -> 401 JSON (the API is private, never a redirect)
  *   page    without a session    -> redirect to /login
  *   /login  with a session       -> redirect into the app
+ *
+ * With exactly one exception, `LOGOUT_PATH`: signing out has to work when the
+ * session is already broken, which is precisely when the gate would turn it
+ * away. It is safe to leave open because it only ever deletes cookies from the
+ * caller's own browser.
  *
  * It also refreshes the Supabase session on every request. Route Handlers still
  * call getAuthenticatedUser() themselves — this is the front door, not the lock
@@ -45,6 +50,10 @@ export default async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isApiRoute = pathname.startsWith("/api/");
+
+  // Before the gate, not inside it: the whole point is that this one works
+  // without a user.
+  if (pathname === LOGOUT_PATH) return response;
 
   if (!user) {
     if (isApiRoute) {

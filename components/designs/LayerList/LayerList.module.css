@@ -1,0 +1,55 @@
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.layerList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  list-style: none;
+}
+
+.layerItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* Truncates rather than wraps: a filename can be arbitrarily long and there is
+   a button to its right that must not be pushed off. `min-width: 0` is what
+   lets a flex child shrink below its own content at all. */
+.layerName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: var(--space-6) var(--space-8);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: var(--border-hairline) solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.layerName:hover:not(:disabled) {
+  background: var(--color-surface-sunken);
+}
+
+.layerName:disabled {
+  cursor: not-allowed;
+  color: var(--color-text-disabled);
+}
+
+.layerSelected {
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+}
+
+.layerSelected:hover {
+  background: var(--color-accent-subtle);
+}

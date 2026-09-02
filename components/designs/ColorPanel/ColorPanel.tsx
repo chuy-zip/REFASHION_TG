@@ -223,6 +223,9 @@ export function ColorPanel({
                       handleAxis(axis, Number(event.target.value))
                     }
                     aria-label={`${label}, valor exacto`}
+                    // Not a field a password manager has any business filling:
+                    // it is a number between 0 and 360.
+                    autoComplete="off"
                     disabled={disabled}
                   />
                   {unit}

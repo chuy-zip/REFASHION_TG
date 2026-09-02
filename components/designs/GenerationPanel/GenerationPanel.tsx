@@ -7,12 +7,9 @@ import { PROMPT_PLACEHOLDER } from "@/lib/generation/prompt";
 import type { InpaintIntent } from "@/lib/generation/types";
 import styles from "./GenerationPanel.module.css";
 
-/** What the generative path is asked to change. Colour has its own, exact way. */
-export type GenerativeIntent = Exclude<InpaintIntent, "color">;
-
 interface GenerationPanelProps {
-  intent: GenerativeIntent;
-  onIntentChange: (intent: GenerativeIntent) => void;
+  intent: InpaintIntent;
+  onIntentChange: (intent: InpaintIntent) => void;
   description: string;
   onDescriptionChange: (description: string) => void;
   strength: number;
@@ -26,12 +23,16 @@ interface GenerationPanelProps {
 }
 
 /**
- * The generative half of Módulo 2: what the colour picker cannot do.
+ * The generative half of Módulo 2: what the colour picker cannot do — plus the
+ * one thing it can, offered on purpose.
  *
- * Shape and texture, never colour. A diffusion model does not honour a colour
- * code reliably — an open research problem, not a limitation of one provider —
- * so asking it for "azul marino" when an exact recolour is one panel away would
- * be choosing the imprecise tool on purpose (`FASE_2_INPAINTING` §2.3).
+ * Shape and texture are here because nothing else does them. **Colour is here
+ * to be measured against the exact path**, not to compete with it: the claim
+ * that diffusion models do not honour a colour code reliably is the reason the
+ * deterministic recolour exists (`FASE_2_INPAINTING` §2.3), and a claim this
+ * project rests on has to be something it can demonstrate rather than cite. The
+ * panel says outright that the other path is exact, so nobody reaches for this
+ * one by accident.
  *
  * **The cost is shown before spending, not after.** During a call a seller
  * tries five things while quoting a client, and a price that only appears in
@@ -64,10 +65,11 @@ export function GenerationPanel({
       <PillTabs
         label="Qué cambiar con IA"
         selected={intent}
-        onSelect={(key) => onIntentChange(key as GenerativeIntent)}
+        onSelect={(key) => onIntentChange(key as InpaintIntent)}
         options={[
           { key: "shape", label: "Forma" },
           { key: "texture", label: "Textura" },
+          { key: "color", label: "Color" },
         ]}
       />
 
@@ -113,6 +115,14 @@ export function GenerationPanel({
           <span>Reemplazar</span>
         </div>
       </div>
+
+      {/* Always present and always the same two lines, so switching intent
+          does not resize the panel. Only the words change. */}
+      <p className={styles.note}>
+        {intent === "color"
+          ? "Este camino le pide el color a un modelo, y los modelos no respetan un código de color con exactitud. Para cambiar el color de verdad, usa el selector de arriba: ese es exacto."
+          : "El color no se pide por aquí: el selector de arriba lo aplica exacto y sin costo."}
+      </p>
 
       <Button
         variant="primary"

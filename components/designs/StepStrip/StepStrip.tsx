@@ -101,9 +101,12 @@ export function StepStrip({
 
       <div className={styles.row}>
         <ol className={styles.list}>
-          {steps.map((step) => {
+          {steps.map((step, index) => {
             const isCurrent = step.id === currentId;
             const isSelected = step.id === selectedId;
+            const when = step.isOrigin
+              ? "Prenda base"
+              : stepTime.format(new Date(step.createdAt));
 
             return (
               <li key={step.id} className={styles.item}>
@@ -112,6 +115,12 @@ export function StepStrip({
                   className={styles.step}
                   aria-pressed={isSelected}
                   aria-current={isCurrent ? "step" : undefined}
+                  // The visible caption is a bare date, which read out on its
+                  // own says nothing about what it is or where it sits. The
+                  // thumbnail cannot help — it is decorative here, because the
+                  // garment it shows is exactly what a screen reader cannot
+                  // convey.
+                  aria-label={`Paso ${index + 1} de ${steps.length}, ${when}`}
                   onClick={() => onSelect(isSelected ? null : step.id)}
                 >
                   <span className={styles.frame}>
@@ -124,11 +133,7 @@ export function StepStrip({
                     />
                   </span>
 
-                  <span className={styles.meta}>
-                    {step.isOrigin
-                      ? "Prenda base"
-                      : stepTime.format(new Date(step.createdAt))}
-                  </span>
+                  <span className={styles.meta}>{when}</span>
 
                   {isCurrent && (
                     <span className={styles.here}>Estás aquí</span>

@@ -1,0 +1,45 @@
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.sliderLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Mono and tabular: the value is read while dragging, and a proportional font
+   makes it jitter as the digits change width. */
+.sliderValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.warning {
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+}
+
+.cutActions {
+  display: flex;
+  gap: var(--space-8);
+}
+
+@media (pointer: coarse) {
+  /* §7.1: the 44px floor asked of the pointer, not the viewport. A 4px track
+     is a mouse target; under a finger the whole control needs room. */
+  .slider {
+    min-height: var(--touch-target);
+  }
+}

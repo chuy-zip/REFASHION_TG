@@ -61,6 +61,10 @@
   min-width: 0;
   padding-bottom: var(--space-4);
   overflow-x: auto;
+  /* A sideways scroller inside a page steals the browser's back gesture the
+     moment it reaches its end: two fingers on a trackpad keep going and the
+     user leaves the design. Contained, the scroll stops at the edge. */
+  overscroll-behavior-x: contain;
   list-style: none;
 }
 

@@ -40,9 +40,10 @@ const KEEP = "manteniendo el mismo tejido, color e iluminación de la prenda";
  * English and say so in the interface, not to translate behind the user's back.
  */
 const FRAME: Record<InpaintIntent, (description: string) => string> = {
-  // Never reaches a model today — the deterministic path answers colour
-  // (`lib/recolor.ts`). Kept so the generative comparison of `FASE_2_INPAINTING`
-  // §2.3 can be run: the point of that experiment is measuring both.
+  // Offered alongside the deterministic recolour (`lib/recolor.ts`), not
+  // instead of it: this is the arm of the `FASE_2_INPAINTING` §2.3 comparison
+  // that a model answers. The description reaching here is usually a hex,
+  // because measuring whether the model honours the exact code is the point.
   color: (description) =>
     `Cambia únicamente el color de esta zona de la prenda a ${description}, conservando los pliegues, las sombras y la textura del tejido.`,
 
@@ -68,7 +69,7 @@ export function composePrompt(
  * the shape of a good one far faster than a sentence explaining it.
  */
 export const PROMPT_PLACEHOLDER: Record<InpaintIntent, string> = {
-  color: "azul marino…",
+  color: "#1E2A5A o azul marino…",
   shape: "un cuello tipo polo con dos botones…",
   texture: "tela de rayas finas azul marino y blanco…",
 };

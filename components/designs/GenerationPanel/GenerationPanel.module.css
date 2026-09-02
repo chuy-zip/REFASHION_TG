@@ -58,6 +58,13 @@
   color: var(--color-text-disabled);
 }
 
+/* A caveat, not an error: the path works, it is simply the imprecise one. */
+.note {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
 .cost {
   font-size: var(--text-xs);
   line-height: 1.45;

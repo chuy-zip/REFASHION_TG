@@ -186,6 +186,17 @@ export interface Asset {
   generation_prompt: string | null;
   /** Traces the iteration chain back to the source asset. */
   parent_asset_id: string | null;
+  /**
+   * The mask that produced this generated image; null on everything else
+   * (migration 017).
+   *
+   * The direction is deliberate. The mask keeps its own `parent_asset_id` —
+   * the working image it was painted over, which is a true and useful fact
+   * about it — and the *generation* is what points at the mask. So the pairing
+   * that used to be inferred from timestamps is now recorded, and a mask no
+   * generation claims is orphaned by definition rather than by guesswork.
+   */
+  mask_asset_id: string | null;
   created_at: string;
 }
 

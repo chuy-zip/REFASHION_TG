@@ -9,14 +9,13 @@ import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { MaskTools, type MaskTool } from "@/components/designs/MaskTools/MaskTools";
 import { ColorPanel } from "@/components/designs/ColorPanel/ColorPanel";
 import { StepStrip, type WorkStep } from "@/components/designs/StepStrip/StepStrip";
-import {
-  GenerationPanel,
-  type GenerativeIntent,
-} from "@/components/designs/GenerationPanel/GenerationPanel";
+import { LogoPicker } from "@/components/designs/LogoPicker/LogoPicker";
+import { LogoBackground } from "@/components/designs/LogoBackground/LogoBackground";
+import { LayerList } from "@/components/designs/LayerList/LayerList";
+import { GenerationPanel } from "@/components/designs/GenerationPanel/GenerationPanel";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
 import {
-  uploadAcceptFor,
   uploadClientAsset,
   uploadDerivedClientAsset,
   uploadDesignAsset,
@@ -28,7 +27,6 @@ import {
 } from "@/lib/assets";
 import {
   DEFAULT_TOLERANCE,
-  MAX_TOLERANCE,
   hasTransparentBackground,
   removeBackground,
   toPngBlob,
@@ -44,6 +42,7 @@ import {
 } from "@/lib/mask";
 import { isUsefulSelection, selectGarment } from "@/lib/garment-select";
 import { snapToInferenceSize } from "@/lib/generation/dimensions";
+import type { InpaintIntent } from "@/lib/generation/types";
 import { parseHex, recolorRegion } from "@/lib/recolor";
 import type { DesignLayer } from "@/lib/types";
 import {
@@ -93,9 +92,6 @@ const DEFAULT_WIDTH_RATIO = 0.25;
  * whole bitmap. One frame of grace collapses the burst into a single pass.
  */
 const PREVIEW_DEBOUNCE_MS = 80;
-
-/** Past this share removed, the tolerance is eating the logo, not the background. */
-const OVERCUT_SHARE = 0.9;
 
 /**
  * Each new layer lands slightly off the previous one. Without this they stack
@@ -212,9 +208,10 @@ export function DesignWorkspace({
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [isResuming, setIsResuming] = useState(false);
 
-  // The generative half: shape and texture. Colour never comes here — an exact
-  // recolour is one panel away and a model would only approximate it.
-  const [intent, setIntent] = useState<GenerativeIntent>("shape");
+  // The generative half. Colour is offered here too, but as the measured arm of
+  // the §2.3 comparison rather than as the way to change a colour — the panel
+  // itself says which one is exact.
+  const [intent, setIntent] = useState<InpaintIntent>("shape");
   const [description, setDescription] = useState("");
   const [strength, setStrength] = useState(0.85);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -223,7 +220,6 @@ export function DesignWorkspace({
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const nodeRefs = useRef(new Map<string, Konva.Image>());
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Both dimensions, not just the width. The stage has to fit the box it is
   // given, and that box now has a definite height: measuring only the width let
@@ -251,6 +247,19 @@ export function DesignWorkspace({
     ? layerImages[selectedLayer.url]
     : undefined;
   const isCutting = cutLayerId !== null;
+
+  // Which layers could not be loaded, as ids, because that is what the list
+  // asks about. Derived here and not in the list itself: the images are loaded
+  // by this component and the list has no business knowing about URLs.
+  const brokenLayerIds = useMemo(
+    () =>
+      new Set(
+        layers
+          .filter((layer) => layerImages[layer.url] === "error")
+          .map((layer) => layer.id)
+      ),
+    [layers, layerImages]
+  );
 
   /**
    * Step 1 of §6.3: a logo that already comes cut out has nothing to remove,
@@ -478,8 +487,6 @@ export function DesignWorkspace({
     });
 
     setIsUploadingLogo(false);
-    // Let the same file be picked again after a failure.
-    if (fileInputRef.current) fileInputRef.current.value = "";
 
     if (!result.ok) {
       setError(result.error);
@@ -1185,7 +1192,17 @@ export function DesignWorkspace({
             <span className={styles.groupLabel}>Cambiar con IA</span>
             <GenerationPanel
               intent={intent}
-              onIntentChange={setIntent}
+              onIntentChange={(next) => {
+                setIntent(next);
+                // Switching to colour proposes the hex already chosen in the
+                // picker, so both paths are asked for the SAME colour — which
+                // is the only way the ΔE₀₀ comparison means anything. Proposed
+                // and not imposed: it stays editable, because "#1E2A5A" against
+                // "azul marino" is itself worth measuring.
+                if (next === "color" && description.trim() === "") {
+                  setDescription(color);
+                }
+              }}
               description={description}
               onDescriptionChange={setDescription}
               strength={strength}
@@ -1201,202 +1218,48 @@ export function DesignWorkspace({
 
         <div className={styles.group}>
           <span className={styles.groupLabel}>Logotipos</span>
-          {availableLogos.length === 0 ? (
-            <p className={styles.hint}>
-              Este cliente no tiene logotipos todavía. Sube uno para colocarlo
-              sobre la prenda.
-            </p>
-          ) : (
-            <div className={styles.logoRow}>
-              {availableLogos.map((logo) => (
-                <button
-                  key={logo.id}
-                  type="button"
-                  className={styles.logoButton}
-                  onClick={() => handleAddLogo(logo)}
-                  disabled={!canManipulate || isBusy}
-                  title={assetDisplayName(logo)}
-                >
-                  {/*
-                    crossOrigin is NOT decoration here. The canvas loads this
-                    exact URL as a CORS request; if this thumbnail fetches it
-                    first without CORS, R2 answers without an
-                    Access-Control-Allow-Origin header (no Origin was sent),
-                    the browser caches that response, and the canvas then
-                    reuses it and is blocked. Same URL, two request modes, one
-                    poisoned cache entry. Both must ask the same way.
-                  */}
-                  {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
-                  <img
-                    className={styles.logoThumb}
-                    src={logo.url}
-                    alt={assetDisplayName(logo)}
-                    crossOrigin="anonymous"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Hidden because the Button is the control: a bare file input cannot
-              be styled to match, and two visible triggers for one action is
-              exactly the ambiguity the guide forbids. */}
-          <input
-            ref={fileInputRef}
-            className={styles.fileInput}
-            type="file"
-            accept={uploadAcceptFor("logo")}
-            onChange={(event) =>
-              handleLogoFile(event.target.files?.[0] ?? null)
-            }
-            tabIndex={-1}
-            aria-hidden="true"
+          <LogoPicker
+            logos={availableLogos}
+            onAdd={handleAddLogo}
+            onUpload={handleLogoFile}
+            isUploading={isUploadingLogo}
+            canAdd={canManipulate && !isBusy}
+            canUpload={canEdit && !isUploadingLogo && !isCutting}
+            canEdit={canEdit}
           />
-          <Button
-            variant="secondary"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!canEdit || isUploadingLogo || isCutting}
-            title={
-              canEdit ? undefined : "No tienes permisos para editar este cliente."
-            }
-          >
-            {isUploadingLogo ? "Subiendo…" : "+ Subir logotipo"}
-          </Button>
-          <p className={styles.hint}>
-            PNG, JPEG, WEBP o SVG. Un SVG se convierte a PNG al subirlo.
-          </p>
         </div>
 
         {selectedLayer && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Fondo del logotipo</span>
-
-            {!selectedImage || selectedImage === "error" ? (
-              <p className={styles.hint}>
-                La imagen de esta capa no se pudo cargar, así que no se le puede
-                quitar el fondo.
-              </p>
-            ) : cutLayerId === selectedLayer.id ? (
-              <>
-                <label className={styles.sliderLabel} htmlFor="cut-tolerance">
-                  Tolerancia
-                  <span className={styles.sliderValue}>
-                    {Math.round(tolerance * 100)}
-                  </span>
-                </label>
-                <input
-                  id="cut-tolerance"
-                  className={styles.slider}
-                  type="range"
-                  min={0}
-                  max={Math.round(MAX_TOLERANCE * 100)}
-                  step={1}
-                  value={Math.round(tolerance * 100)}
-                  onChange={(event) =>
-                    setTolerance(Number(event.target.value) / 100)
-                  }
-                  disabled={isApplyingCut}
-                />
-                <p className={styles.hint}>
-                  {preview
-                    ? `Se quitó el ${Math.round(
-                        preview.removedShare * 100
-                      )}% de la imagen. Sube la tolerancia si queda fondo, bájala si se come el logotipo.`
-                    : "Calculando…"}
-                </p>
-                {preview && preview.removedShare > OVERCUT_SHARE && (
-                  <p className={styles.warning}>
-                    Con esta tolerancia se está borrando casi todo el logotipo.
-                  </p>
-                )}
-                <div className={styles.cutActions}>
-                  <Button
-                    variant="secondary"
-                    onClick={handleCancelCut}
-                    disabled={isApplyingCut}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleApplyCut}
-                    disabled={!preview || isApplyingCut}
-                  >
-                    {isApplyingCut ? "Quitando…" : "Quitar fondo"}
-                  </Button>
-                </div>
-              </>
-            ) : selectedIsCutOut ? (
-              <p className={styles.hint}>
-                Este logotipo ya tiene el fondo transparente. No hace falta
-                recortarlo.
-              </p>
-            ) : (
-              <>
-                <p className={styles.hint}>
-                  El logotipo tiene fondo. Puedes recortarlo sin salir de acá; se
-                  guarda como un logotipo nuevo y el original no se toca.
-                </p>
-                <Button
-                  variant="secondary"
-                  onClick={() => handleStartCut(selectedLayer.id)}
-                  disabled={!canCompose}
-                  title={
-                    canEdit
-                      ? undefined
-                      : "No tienes permisos para editar este cliente."
-                  }
-                >
-                  Quitar fondo
-                </Button>
-              </>
-            )}
+            <LogoBackground
+              isBroken={!selectedImage || selectedImage === "error"}
+              isCutOut={selectedIsCutOut}
+              isCutting={cutLayerId === selectedLayer.id}
+              tolerance={tolerance}
+              onToleranceChange={setTolerance}
+              preview={preview}
+              isApplying={isApplyingCut}
+              onStart={() => handleStartCut(selectedLayer.id)}
+              onCancel={handleCancelCut}
+              onApply={handleApplyCut}
+              canStart={canCompose}
+              canEdit={canEdit}
+            />
           </div>
         )}
 
         <div className={styles.group}>
           <span className={styles.groupLabel}>Capas</span>
-          {layers.length === 0 ? (
-            <p className={styles.hint}>
-              Todavía no hay capas. Elige un logotipo para colocarlo sobre la
-              prenda.
-            </p>
-          ) : (
-            <ul className={styles.layerList}>
-              {[...layers]
-                .sort((a, b) => b.z_index - a.z_index)
-                .map((layer) => (
-                  <li key={layer.id} className={styles.layerItem}>
-                    <button
-                      type="button"
-                      className={`${styles.layerName} ${
-                        selectedId === layer.id ? styles.layerSelected : ""
-                      }`}
-                      onClick={() => setSelectedId(layer.id)}
-                      disabled={isCutting && cutLayerId !== layer.id}
-                      title={
-                        layerImages[layer.url] === "error"
-                          ? "La imagen de esta capa no se pudo cargar."
-                          : layer.name
-                      }
-                    >
-                      {layer.name}
-                      {layerImages[layer.url] === "error"
-                        ? " · no cargó"
-                        : ""}
-                    </button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => handleRemoveLayer(layer.id)}
-                      disabled={!canEdit || isCutting}
-                      title="Quitar la capa (el logotipo sigue en el catálogo)"
-                    >
-                      Quitar
-                    </Button>
-                  </li>
-                ))}
-            </ul>
-          )}
+          <LayerList
+            layers={layers}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onRemove={handleRemoveLayer}
+            brokenIds={brokenLayerIds}
+            cutLayerId={cutLayerId}
+            canEdit={canEdit}
+          />
         </div>
 
         <div className={styles.group}>

@@ -148,6 +148,17 @@ export async function POST(request: Request) {
       // that one. It is also what makes the history a tree while the strip
       // stays a line.
       parent_asset_id: image_asset_id,
+      // WHICH region was edited, recorded instead of inferred (migration 017).
+      // Without it a generation and its mask are siblings that have to be
+      // matched by timestamp, which breaks on two generations in a row — and a
+      // result whose mask cannot be identified is not reproducible, which is
+      // what §7 needs it to be.
+      //
+      // It also turns the leak into something findable: the mask is uploaded
+      // *before* the provider is called, so a failed generation leaves one
+      // behind. With this column, a mask no row points at is orphaned by
+      // definition.
+      mask_asset_id,
     })
     .select()
     .single();
