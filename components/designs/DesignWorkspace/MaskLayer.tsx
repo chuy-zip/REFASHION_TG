@@ -4,6 +4,18 @@ import { useMemo } from "react";
 import { Image as KonvaImage, Layer } from "react-konva";
 import { rasterizeMask, type Mask } from "@/lib/mask";
 
+/**
+ * Longest side the overlay is rasterised at, whatever the garment's real size.
+ *
+ * This is a translucent preview stretched over the stage, not the mask that
+ * leaves for inference — that one is still built at full resolution, from the
+ * same gestures, in `handleGenerate`. Painting it at four megapixels bought
+ * nothing anybody could see and cost the thing that matters most here: it has
+ * to be redrawn on every pointer move, and at full size it could not keep up.
+ * The strokes were in state the whole time; they simply never got drawn.
+ */
+const OVERLAY_MAX_SIDE = 900;
+
 interface MaskLayerProps {
   mask: Mask;
   /** Natural size of the working image; ratios are resolved against it. */
@@ -28,6 +40,13 @@ interface MaskLayerProps {
  * into a single canvas and drawing *that* at 40% composites once, so an overlap
  * looks exactly like a single pass, which is what a brush does.
  *
+ * **Small on purpose.** It is rasterised at `OVERLAY_MAX_SIDE` and stretched,
+ * because it is redrawn on every pointer move and at the garment's real size it
+ * could not keep up — which is not a theoretical cost: it is what made brush
+ * strokes fail to appear while they were being painted, on a mask that had
+ * recorded them correctly all along. What leaves for inference is still built
+ * at full resolution.
+ *
  * The second reason matters more: this uses **the same `rasterizeMask` that
  * builds the mask sent for inference**. What the user sees and what the model
  * receives are now the same pixels, including the feathered edge — and, since
@@ -43,10 +62,18 @@ export function MaskLayer({
 }: MaskLayerProps) {
   const overlay = useMemo(() => {
     if (naturalWidth === 0 || naturalHeight === 0) return null;
+
+    // Never upscale: a small garment is already cheap, and stretching its
+    // overlay would only blur the edge the user is trying to judge.
+    const scale = Math.min(
+      1,
+      OVERLAY_MAX_SIDE / Math.max(naturalWidth, naturalHeight)
+    );
+
     return rasterizeMask({
       mask,
-      width: naturalWidth,
-      height: naturalHeight,
+      width: Math.max(1, Math.round(naturalWidth * scale)),
+      height: Math.max(1, Math.round(naturalHeight * scale)),
       mode: "overlay",
       color,
     });

@@ -13,6 +13,10 @@ interface MaskToolsProps {
   brush: number;
   onBrushChange: (brush: number) => void;
   onClear: () => void;
+  /** Steps back one gesture: a stroke, a clear, an automatic selection. */
+  onUndo: () => void;
+  /** Nothing to step back to. */
+  canUndo: boolean;
   /** Picks the whole garment at once, by telling it apart from the background. */
   onSelectGarment: () => void;
   /** Nothing painted yet: clearing would do nothing and says so. */
@@ -41,6 +45,8 @@ export function MaskTools({
   brush,
   onBrushChange,
   onClear,
+  onUndo,
+  canUndo,
   onSelectGarment,
   isEmpty,
   disabled = false,
@@ -86,6 +92,21 @@ export function MaskTools({
         onClick={() => onToolChange("eraser")}
       >
         <Icon name="eraser" size={22} />
+      </button>
+
+      {/* Beside the thing it most often has to fix. Painting is a gesture that
+          goes wrong, and until this existed the only ways back were the eraser
+          — which is a different gesture, not an undo — and clearing everything,
+          which is what people were pressing by accident in the first place. */}
+      <button
+        type="button"
+        className={styles.tool}
+        aria-label="Deshacer"
+        title={canUndo ? "Deshacer" : "No hay nada que deshacer"}
+        disabled={disabled || !canUndo}
+        onClick={onUndo}
+      >
+        <Icon name="undo" size={22} />
       </button>
 
       <button

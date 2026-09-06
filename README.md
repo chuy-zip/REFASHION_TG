@@ -104,6 +104,10 @@ dejaría de describir lo que hay en la base.
 | 011 | `designs.status` (draft / active / completed) |
 | 012 | Tercer valor de `assets.origin`: `derived` |
 | 013 | `designs.current_asset_id` y la tabla `design_layers` (capas de logo) |
+| 014 | Tres vistas de solo lectura que alimentan las listas (`client_work_counts`, `project_design_samples`, `design_activity`) |
+| 015 | Conteos que usan las confirmaciones de borrado, sobre esas vistas |
+| 016 | `assets.width_px` / `height_px`: la inferencia los exige y la máscara debe medir exactamente igual que la imagen |
+| 017 | `assets.mask_asset_id`: la generación apunta a la máscara que la produjo, en vez de emparejarlas por hora |
 
 Al agregar una tabla nueva hacen falta **cuatro** pasos, no dos: crearla, habilitar RLS,
 escribir las políticas **y** otorgar los `GRANT` a `authenticated`. El proyecto tiene
@@ -191,9 +195,9 @@ migración 015 y solo se notó al abrir los logs de Supabase, donde aparecían d
   cascada es profunda —un cliente, o una imagen usada en varios diseños— exige **escribir
   el nombre del recurso**. Se pide el nombre y no una palabra fija porque el error real no es
   borrar sin querer: es borrar **el equivocado**.
-- **Refactor visual completo** (rama `ui-refactor`, sin commitear): tipografía Archivo, acento
+- **Refactor visual completo** (rama `ui-refactor`, ya fusionada a `main`): tipografía Archivo, acento
   añil, escala de espaciado por fin declarada, el sidebar reemplazado por una barra superior,
-  quince primitivos de UI, las tres listas jerárquicas con búsqueda y paginado en la URL, y
+  dieciséis primitivos de UI, las tres listas jerárquicas con búsqueda y paginado en la URL, y
   una pasada de accesibilidad (área táctil bajo `pointer: coarse`, ARIA que cumple lo que
   promete, `color-scheme`, enlace de salto). Todo en `REFACTOR_VISUAL.md`, fuera del repo.
 - **Módulo 2, edición por zonas: construido contra un simulador, ciclo completo.** Una sola
@@ -204,8 +208,19 @@ migración 015 y solo se notó al abrir los logs de Supabase, donde aparecían d
     el que entró. Sin llamadas, sin costo, previsualizado mientras se mueve el selector. Existe
     porque los modelos de difusión **no honran códigos de color de forma confiable**, que es un
     problema abierto de investigación y no una limitación de un proveedor.
-  - **Forma y textura, generativo**: prompt, intensidad y la llamada a
-    `POST /api/generate/inpainting`.
+  - **Forma, textura y color, generativo**: prompt, intensidad y la llamada a
+    `POST /api/generate/inpainting`. El color está ahí **para poder medirlo contra el camino
+    exacto**, no para competir con él, y el panel lo dice: una afirmación en la que descansa
+    el proyecto tiene que poder demostrarse, no solo citarse.
+- **Seleccionar toda la prenda de un gesto** (`lib/garment-select.ts`). Quitarle el fondo a un
+  logotipo y seleccionar una prenda son la misma pregunta con la respuesta usada al revés, así
+  que esto no reimplementa nada: llama a `removeBackground()` y se queda con su canal alfa. Se
+  niega a aplicar una selección que cubra menos del 2% o más del 98%, porque las dos cosas
+  significan que el relleno no encontró la prenda.
+- **La máscara se guarda como una lista de gestos**, no como un mapa de bits: una selección
+  abajo y los trazos encima, en orden. Eso es lo que hace que **deshacer** (botón y Ctrl+Z) sea
+  quedarse con el objeto anterior, y que la misma máscara sirva para el overlay en pantalla y
+  para el PNG que sale a inferencia — las dos cosas rasterizadas por la misma función.
 - **La tira de pasos, con cursor.** El historial es un árbol por dentro (`parent_asset_id`) y
   una línea por fuera: nada se reordena y lo único que se mueve es el marcador de "estás
   aquí". Volver a un paso anterior es un `UPDATE` de una columna — no genera y no cobra.
@@ -213,5 +228,9 @@ migración 015 y solo se notó al abrir los logs de Supabase, donde aparecían d
   pantallas hablan con la ruta y la ruta con `getGenerationProvider()`, que **hoy devuelve
   siempre el simulador**. Este imita latencia, costo y **falla 1 de cada 12**, porque un
   simulador que siempre funciona produce una interfaz que no sabe fallar.
-- **Siguiente:** terminar el Módulo 2 (ver `FASE_2_INPAINTING.md` §4d) y después el Módulo 3,
-  Virtual Try-On. Entra con ellos el teclado en el lienzo, que hoy solo se opera con el mouse.
+- **El ciclo generativo está probado de punta a punta contra el simulador** (2-sep-2026):
+  genera, registra el costo, escribe el vínculo con su máscara y aparece como un paso de la
+  tira. Era el requisito antes de gastar créditos.
+- **Siguiente:** los experimentos de `FASE_2_INPAINTING.md` §7, que son los primeros que
+  gastan, y después el Módulo 3, Virtual Try-On. Entra con ellos el teclado en el lienzo, que
+  hoy solo se opera con el mouse fuera del deshacer.

@@ -51,6 +51,7 @@ import {
   type LoadedImage,
 } from "./useCrossOriginImage";
 import { MaskLayer } from "./MaskLayer";
+import { BrushCursor } from "./BrushCursor";
 import styles from "./DesignWorkspace.module.css";
 
 /** A layer plus everything needed to draw it. */
@@ -92,6 +93,17 @@ const DEFAULT_WIDTH_RATIO = 0.25;
  * whole bitmap. One frame of grace collapses the burst into a single pass.
  */
 const PREVIEW_DEBOUNCE_MS = 80;
+
+/**
+ * How many mask gestures can be stepped back.
+ *
+ * Deep enough to cover a run of bad strokes, shallow enough that the whole
+ * history stays a handful of small objects — a mask is a list of gestures, not
+ * a bitmap, so each entry costs almost nothing. The one exception is an
+ * automatic selection, which carries a full-frame canvas; the cap is what keeps
+ * a session of pressing the wand from holding twenty of them alive.
+ */
+const UNDO_LIMIT = 12;
 
 /**
  * Each new layer lands slightly off the previous one. Without this they stack
@@ -176,7 +188,16 @@ export function DesignWorkspace({
   // passes over it, kept as gestures rather than as pixels so it survives the
   // working image changing size along the pipeline (see lib/mask.ts).
   const [mask, setMask] = useState<Mask>(EMPTY_MASK);
+
+  // Previous masks, oldest first. Only whole gestures are recorded — the start
+  // of a stroke, a clear, a selection — never the points arriving during a
+  // drag, because "undo" means the stroke and not the last pixel of it.
+  const [undoStack, setUndoStack] = useState<Mask[]>([]);
   const [tool, setTool] = useState<MaskTool>("brush");
+  // The ref answers "is a drag in progress" synchronously, inside the pointer
+  // handlers; the state is what the canvas renders from. Both, because a ref
+  // does not re-render and the canvas has to change while the pointer is down.
+  const [isDrawing, setIsDrawing] = useState(false);
   const [brush, setBrush] = useState<number>(DEFAULT_BRUSH);
   const isPainting = useRef(false);
 
@@ -649,7 +670,7 @@ export function DesignWorkspace({
     // The mask belonged to the image being left behind: a region painted over
     // one garment means nothing over another, and the automatic selection is a
     // bitmap the size of the garment it was worked out from.
-    setMask(EMPTY_MASK);
+    resetMask();
     setSelectedStepId(null);
     notify({ type: "success", message: "Volviste a ese paso." });
     router.refresh();
@@ -727,7 +748,7 @@ export function DesignWorkspace({
       return;
     }
 
-    setMask(EMPTY_MASK);
+    resetMask();
     setDescription("");
     notify({ type: "success", message: "Listo, se generó un paso nuevo." });
     router.refresh();
@@ -811,6 +832,30 @@ export function DesignWorkspace({
       ? recolorPreview.canvas
       : null;
 
+  /**
+   * What the garment layer actually shows.
+   *
+   * The middle term is the fix for a flash. Every stroke invalidates the
+   * recolour, and for the 80ms of the debounce plus however long the pass takes
+   * the canvas used to fall back to the raw garment — so painting on a shirt
+   * that had just turned navy made it blink back to white on every stroke.
+   *
+   * While the pointer is down, the previous recolour stays up. It is slightly
+   * behind the mask, which is fine: it is a preview, and a preview that lags by
+   * one stroke reads as continuous where a colour that flickers reads as
+   * broken. It is only used **while drawing**, so clearing the mask still
+   * returns the garment immediately, and only when the colour still matches —
+   * showing the old hue after the picker moved would be showing the wrong
+   * answer rather than an old one.
+   */
+  const stageImage =
+    activeRecolor ??
+    (isDrawing && recolorPreview && recolorPreview.color === color
+      ? recolorPreview.canvas
+      : null) ??
+    workingImage ??
+    undefined;
+
   const isMasking = mode === "mask";
   // Layers stop responding while painting: a drag meant for the brush must not
   // pick up a logo underneath it.
@@ -832,12 +877,92 @@ export function DesignWorkspace({
     return { x: point.x / naturalWidth, y: point.y / naturalHeight };
   }
 
+  /**
+   * Remembers the mask about to be replaced.
+   *
+   * Called at the START of a gesture, not at the end: by the time a drag
+   * finishes, the thing worth going back to is gone. Cheap because a mask is a
+   * list of gestures — the stored object is the same one that was on screen,
+   * not a copy of any pixels.
+   */
+  function pushUndo(previous: Mask) {
+    setUndoStack((stack) => [...stack.slice(-(UNDO_LIMIT - 1)), previous]);
+  }
+
+  /**
+   * Steps back one gesture.
+   *
+   * The top of the stack is read from the render value rather than from inside
+   * a `setUndoStack` updater. Putting the `setMask` in there would have been
+   * shorter and would have worked, but an updater has to be pure — React calls
+   * it twice in development to check exactly that — and a state setter inside
+   * one is a side effect hiding in a place nobody looks for side effects.
+   */
+  const handleUndo = useCallback(() => {
+    const previous = undoStack[undoStack.length - 1];
+    if (previous === undefined) return;
+    setMask(previous);
+    setUndoStack((stack) => stack.slice(0, -1));
+  }, [undoStack]);
+
+  /**
+   * Ctrl+Z, because a painting tool that only undoes from a button is a
+   * painting tool people do not undo in.
+   *
+   * Two guards, and both matter. It is off outside mask mode, where there is
+   * nothing to undo and the shortcut would eat a keystroke for no reason. And
+   * it steps aside inside a text field: the prompt box and the hex input have
+   * their own undo, which belongs to the browser and is the one the user means
+   * while their cursor is in there.
+   */
+  useEffect(() => {
+    if (!canPaint) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "z" && event.key !== "Z") return;
+      if (!event.ctrlKey && !event.metaKey) return;
+      // Redo is a different feature; leaving Shift alone keeps the door open
+      // rather than quietly doing the wrong thing with it.
+      if (event.shiftKey) return;
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest("input, textarea, [contenteditable]")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      handleUndo();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canPaint, handleUndo]);
+
+  /**
+   * Drops the mask AND its history, for when the image underneath changes.
+   *
+   * Keeping the history across a new working image would offer to restore a
+   * region painted over a different garment, which is the kind of undo that is
+   * worse than none.
+   */
+  function resetMask() {
+    setMask(EMPTY_MASK);
+    setUndoStack([]);
+  }
+
   function startStroke() {
     if (!canPaint) return;
     const point = pointerRatio();
     if (!point) return;
 
+    // The whole drag is one step back, so this is the only place a stroke is
+    // recorded — extendStroke appends to a stroke that already exists.
+    pushUndo(mask);
     isPainting.current = true;
+    setIsDrawing(true);
     setMask((current) => ({
       ...current,
       strokes: [
@@ -869,9 +994,14 @@ export function DesignWorkspace({
 
   function endStroke() {
     isPainting.current = false;
+    setIsDrawing(false);
   }
 
   function clearMask() {
+    // Undoable rather than confirmed. A dialog on every clear is friction on an
+    // action used deliberately and often in a painting tool; being able to step
+    // back costs the user nothing and covers the accident just as well.
+    pushUndo(mask);
     // The preview needs no clearing: it is tagged with the mask that produced
     // it, and this is a different one.
     setMask(EMPTY_MASK);
@@ -918,6 +1048,7 @@ export function DesignWorkspace({
       return;
     }
 
+    pushUndo(mask);
     setMask((current) => ({ ...current, selection: selection.shape }));
   }
 
@@ -980,7 +1111,7 @@ export function DesignWorkspace({
       return;
     }
 
-    setMask(EMPTY_MASK);
+    resetMask();
     notify({ type: "success", message: "Color aplicado." });
     router.refresh();
   }
@@ -994,6 +1125,8 @@ export function DesignWorkspace({
           brush={brush}
           onBrushChange={setBrush}
           onClear={clearMask}
+          onUndo={handleUndo}
+          canUndo={undoStack.length > 0}
           onSelectGarment={handleSelectGarment}
           isEmpty={isMaskEmpty(mask)}
           disabled={!canPaint}
@@ -1052,7 +1185,7 @@ export function DesignWorkspace({
                     the logo above it is judged against the colour that would
                     actually ship — not against the one being replaced. */}
                 <KonvaImage
-                  image={activeRecolor ?? workingImage ?? undefined}
+                  image={stageImage}
                   width={naturalWidth}
                   height={naturalHeight}
                 />
@@ -1098,18 +1231,36 @@ export function DesignWorkspace({
                 />
               </Layer>
 
-              {/* One signal at a time. While the brush is moving there is no
-                  recolour yet (it is debounced), so the accent overlay shows
-                  WHERE the paint is landing. The moment the recolour appears it
-                  shows WHAT it will look like, in the real colour, over exactly
-                  the same region — so the overlay steps aside instead of
-                  tinting it. Two translucent layers of different colours over
-                  the same pixels was reading as a third colour. */}
-              {isMasking && !activeRecolor && !isExporting && (
+              {/* One signal at a time, EXCEPT while the pointer is down.
+                  Between gestures the recolour is the better answer — it shows
+                  what the garment will actually look like, in the real colour,
+                  over exactly the same region — so the overlay steps aside
+                  rather than tinting it, because two translucent layers of
+                  different colours over the same pixels read as a third.
+
+                  But during a stroke the question is not "what will it look
+                  like", it is "where is the paint landing", and only the
+                  overlay answers that. Without this, a stroke painted onto an
+                  already-recoloured garment left no trace at all until the next
+                  pass — which is exactly how a working brush comes to look
+                  broken. */}
+              {isMasking && (isDrawing || !activeRecolor) && !isExporting && (
                 <MaskLayer
                   mask={mask}
                   naturalWidth={naturalWidth}
                   naturalHeight={naturalHeight}
+                  color={designToken("--color-accent")}
+                />
+              )}
+
+              {/* Above the overlay, because it describes the next stroke and
+                  not the ones already painted. Not while exporting: it is a
+                  cursor, and a cursor baked into a PNG is a defect. */}
+              {isMasking && canPaint && !isExporting && (
+                <BrushCursor
+                  brush={brush}
+                  naturalWidth={naturalWidth}
+                  isEraser={tool === "eraser"}
                   color={designToken("--color-accent")}
                 />
               )}
