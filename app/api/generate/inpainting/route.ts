@@ -9,6 +9,7 @@ import { assetDisplayName } from "@/lib/assets";
 import { getGenerationProvider } from "@/lib/generation";
 import { resolveGenerationInputs } from "@/lib/generation/inputs";
 import { composePrompt } from "@/lib/generation/prompt";
+import { readPngSize } from "@/lib/png-size";
 import { inpaintSchema } from "@/lib/validation";
 import {
   jsonError,
@@ -66,6 +67,9 @@ export async function POST(request: Request) {
   const resolved = await resolveGenerationInputs(
     supabase,
     design_id,
+    // Del diseño resuelto en el servidor, nunca del navegador: es lo que
+    // permite aceptar una prenda del catálogo sin aflojar la regla.
+    path.clientId,
     image_asset_id,
     mask_asset_id
   );
@@ -103,6 +107,10 @@ export async function POST(request: Request) {
 
   const result = outcome.data;
 
+  // Lo que de verdad volvió. Si no se puede leer se cae a lo pedido, que es la
+  // mejor suposición disponible — pero se intenta medir primero.
+  const entregado = readPngSize(await result.image.arrayBuffer());
+
   // The same three-step upload the browser does, run here because the bytes are
   // already on this side. Presigning our own URL rather than adding a "put
   // object" helper keeps one way of writing to R2 — and it is the exact shape
@@ -131,8 +139,13 @@ export async function POST(request: Request) {
       original_filename: `${intent}-${Date.now()}.png`,
       mime_type: "image/png",
       file_size_bytes: result.image.size,
-      width_px: size.width,
-      height_px: size.height,
+      // MEDIDO, no supuesto. Antes decía `size.width`, o sea el tamaño que se
+      // pidió: con el simulador es cierto por construcción, con un proveedor
+      // real es una suposición, y una medida falsa acá alimenta el encajado del
+      // paso siguiente. `readPngSize` lee la cabecera del PNG y no necesita
+      // ninguna librería de imágenes en el servidor.
+      width_px: entregado?.width ?? size.width,
+      height_px: entregado?.height ?? size.height,
       // 'generated' is reserved for images that cost money and came out of a
       // model (FASE_1_5 §3.1). The simulator claims it too, because everything
       // downstream — the strip, the running total, the lineage — has to behave

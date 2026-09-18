@@ -41,7 +41,6 @@ import {
   type Mask,
 } from "@/lib/mask";
 import { isUsefulSelection, selectGarment } from "@/lib/garment-select";
-import { snapToInferenceSize } from "@/lib/generation/dimensions";
 import type { InpaintIntent } from "@/lib/generation/types";
 import { parseHex, recolorRegion } from "@/lib/recolor";
 import type { DesignLayer } from "@/lib/types";
@@ -104,6 +103,17 @@ const PREVIEW_DEBOUNCE_MS = 80;
  * a session of pressing the wand from holding twenty of them alive.
  */
 const UNDO_LIMIT = 12;
+
+/**
+ * Bajo esto, el fondo y la prenda están tan cerca en color que el relleno no
+ * tenía con qué separarlos — el caso de la camisa blanca sobre fondo blanco.
+ * Sirve solo para elegir qué decirle al usuario; quién decide si la selección
+ * vale es `isUsefulSelection`, que es donde vive la regla.
+ */
+const CONTRASTE_MINIMO = 53;
+
+/** Compartido y estable: una pila vacía nueva por render sería otra identidad. */
+const EMPTY_UNDO: Mask[] = [];
 
 /**
  * Each new layer lands slightly off the previous one. Without this they stack
@@ -187,12 +197,50 @@ export function DesignWorkspace({
   // The mask: the garment picked in one gesture plus the brush and eraser
   // passes over it, kept as gestures rather than as pixels so it survives the
   // working image changing size along the pipeline (see lib/mask.ts).
-  const [mask, setMask] = useState<Mask>(EMPTY_MASK);
+  //
+  // **Tagged with the image it was painted on**, and derived from that tag
+  // rather than cleared by whoever changes the image. The previous version
+  // cleared it at the three places that changed the working image from inside
+  // this component, and that was reasoning about a list of callers instead of
+  // about the invariant — so it missed the fourth: `BaseGarmentPicker`, which
+  // lives in the page above and swaps the garment underneath. A region painted
+  // over one garment means nothing over another, and the automatic selection is
+  // a bitmap the size of the garment it was worked out from.
+  const [paintedOn, setPaintedOn] = useState<string | null>(workingImageUrl);
+  const [rawMask, setRawMask] = useState<Mask>(EMPTY_MASK);
+  const [rawUndo, setRawUndo] = useState<Mask[]>(EMPTY_UNDO);
 
-  // Previous masks, oldest first. Only whole gestures are recorded — the start
-  // of a stroke, a clear, a selection — never the points arriving during a
-  // drag, because "undo" means the stroke and not the last pixel of it.
-  const [undoStack, setUndoStack] = useState<Mask[]>([]);
+  const maskBelongsHere = paintedOn === workingImageUrl;
+  const mask = maskBelongsHere ? rawMask : EMPTY_MASK;
+  const undoStack = maskBelongsHere ? rawUndo : EMPTY_UNDO;
+
+  // Both setters re-stamp the tag, so any gesture adopts the image on screen.
+  // They resolve the base value themselves: an updater must never be handed a
+  // mask that belonged to a picture that is no longer there.
+  // `useCallback` no es adorno: `handleUndo` los usa y a su vez lo usa el
+  // efecto del atajo de teclado, así que sin esto el efecto se volvería a
+  // registrar en cada render.
+  const setMask = useCallback(
+    (next: Mask | ((current: Mask) => Mask)) => {
+      setPaintedOn(workingImageUrl);
+      setRawMask((current) => {
+        const base = maskBelongsHere ? current : EMPTY_MASK;
+        return typeof next === "function" ? next(base) : next;
+      });
+    },
+    [workingImageUrl, maskBelongsHere]
+  );
+
+  const setUndoStack = useCallback(
+    (next: Mask[] | ((current: Mask[]) => Mask[])) => {
+      setPaintedOn(workingImageUrl);
+      setRawUndo((current) => {
+        const base = maskBelongsHere ? current : EMPTY_UNDO;
+        return typeof next === "function" ? next(base) : next;
+      });
+    },
+    [workingImageUrl, maskBelongsHere]
+  );
   const [tool, setTool] = useState<MaskTool>("brush");
   // The ref answers "is a drag in progress" synchronously, inside the pointer
   // handlers; the state is what the canvas renders from. Both, because a ref
@@ -702,13 +750,23 @@ export function DesignWorkspace({
     setIsGenerating(true);
     setError(null);
 
-    const size = snapToInferenceSize({
-      width: workingImage.naturalWidth,
-      height: workingImage.naturalHeight,
-    });
-
+    // **La máscara se rasteriza al tamaño REAL de la imagen, no al encajado.**
+    //
+    // Antes iba al tamaño que se le pide al modelo (múltiplos de 64) mientras
+    // la imagen iba a su tamaño natural, así que las dos llegaban midiendo
+    // distinto y la alineación dependía de qué hiciera el proveedor con esa
+    // diferencia. Ahora coinciden por construcción: lo que el proveedor haga
+    // para meterlas en su lienzo se lo hace a las dos por igual.
+    //
+    // Quién decide el lienzo sigue siendo el servidor, con `snapToInferenceSize`
+    // sobre las dimensiones que tiene registradas. Acá no hace falta saberlo.
     const maskBlob = await maskToPngBlob(
-      rasterizeMask({ mask, ...size, mode: "mask" })
+      rasterizeMask({
+        mask,
+        width: workingImage.naturalWidth,
+        height: workingImage.naturalHeight,
+        mode: "mask",
+      })
     );
 
     if (!maskBlob) {
@@ -744,6 +802,17 @@ export function DesignWorkspace({
     setIsGenerating(false);
 
     if (!result.ok) {
+      // **La máscara se sube antes de llamar, así que un rechazo la deja
+      // huérfana.** Se limpia acá porque acá es donde se creó: una sesión de
+      // pruebas dejó tres máscaras sin dueño en la base sin que nadie lo
+      // notara.
+      //
+      // Esto trata el síntoma. El arreglo de fondo es invertir el orden —
+      // validar antes de subir, o subir dentro de la misma petición — y queda
+      // anotado en `FASE_2_INPAINTING` §4k. Mientras tanto, lo que no se puede
+      // evitar es que el navegador se cierre a mitad; lo que sí, es dejar
+      // basura cada vez que el servidor dice que no.
+      void apiDelete(`/api/assets/${stored.data.id}`);
       setError(result.error);
       return;
     }
@@ -903,7 +972,7 @@ export function DesignWorkspace({
     if (previous === undefined) return;
     setMask(previous);
     setUndoStack((stack) => stack.slice(0, -1));
-  }, [undoStack]);
+  }, [undoStack, setMask, setUndoStack]);
 
   /**
    * Ctrl+Z, because a painting tool that only undoes from a button is a
@@ -1041,9 +1110,14 @@ export function DesignWorkspace({
       return;
     }
 
-    if (!isUsefulSelection(selection.coveredShare)) {
+    if (!isUsefulSelection(selection)) {
+      // Dos motivos distintos, y conviene decir cuál: si el fondo y la prenda
+      // son casi del mismo color no hay tolerancia que lo arregle, y mandar al
+      // usuario a "probar con otra imagen" sería mandarlo a perder el tiempo.
       setError(
-        "No se pudo distinguir la prenda del fondo. Píntala con el pincel, o usa una imagen con el fondo despejado."
+        selection.contrast < CONTRASTE_MINIMO
+          ? "La prenda y el fondo son casi del mismo color, así que no se pueden separar solos. Píntala con el pincel."
+          : "No se pudo distinguir la prenda del fondo. Píntala con el pincel, o usa una imagen con el fondo despejado."
       );
       return;
     }
