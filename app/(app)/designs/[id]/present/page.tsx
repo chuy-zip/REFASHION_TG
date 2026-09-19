@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import { getReadUrl } from "@/lib/r2";
 import { resolveDesignImageAssetId } from "@/lib/designs";
-import { listDesignAssets } from "@/lib/assets-server";
+import { listClientAssets, listDesignAssets } from "@/lib/assets-server";
 import { Icon } from "@/components/ui/Icon/Icon";
 import { PresentationTabs } from "@/components/designs/PresentationTabs/PresentationTabs";
 import type { Asset, Client, Design, Project } from "@/lib/types";
@@ -50,6 +50,12 @@ export default async function DesignPresentPage({ params }: PageProps) {
     (asset) => asset.asset_type === "composition"
   );
 
+  // Las fotos de modelo del cliente, para las dos pestañas de prueba virtual.
+  // Se leen acá y no dentro de las pestañas porque no cambian mientras la
+  // pantalla está abierta, y las dos harían la misma consulta.
+  const { assets: catalog } = await listClientAssets(supabase, project.client_id);
+  const models = catalog.filter((asset) => asset.asset_type === "model_photo");
+
   const imageAssetId = resolveDesignImageAssetId(design);
 
   let workingImageUrl: string | null = null;
@@ -92,6 +98,7 @@ export default async function DesignPresentPage({ params }: PageProps) {
         designName={design.name}
         compositions={compositions}
         workingImageUrl={workingImageUrl}
+        models={models}
       />
     </main>
   );

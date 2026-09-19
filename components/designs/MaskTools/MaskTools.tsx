@@ -4,7 +4,20 @@ import { Icon } from "@/components/ui/Icon/Icon";
 import { BRUSH_SIZES } from "@/lib/mask";
 import styles from "./MaskTools.module.css";
 
-export type MaskTool = "brush" | "eraser";
+/**
+ * What the pointer does.
+ *
+ * `brush` and `flat` both paint the same region; they differ in what the region
+ * BECOMES. The fabric brush keeps the garment's shading, so the result still
+ * reads as cloth. The flat brush throws the shading away, which is the point:
+ * it is for covering something up before a model sees it, and the measurements
+ * showed that leaving the original structure under a mask is exactly what
+ * leaves a ghost of it in the result.
+ *
+ * `picker` paints nothing. It reads a colour out of the garment, which is what
+ * makes covering a patch match the cloth around it.
+ */
+export type MaskTool = "brush" | "flat" | "eraser" | "picker";
 
 interface MaskToolsProps {
   tool: MaskTool;
@@ -17,8 +30,35 @@ interface MaskToolsProps {
   onUndo: () => void;
   /** Nothing to step back to. */
   canUndo: boolean;
-  /** Picks the whole garment at once, by telling it apart from the background. */
-  onSelectGarment: () => void;
+  /**
+   * Picks the whole garment at once, by telling it apart from the background.
+   *
+   * Absent when the mode has no use for it. The selection returns the garment's
+   * whole silhouette, which is the question recolouring asks and not the one
+   * inpainting asks, so it is offered while painting and withheld while marking
+   * a zone.
+   */
+  onSelectGarment?: () => void;
+  /**
+   * Why the selection cannot work on this image. Present means the tool is
+   * shown disabled with this as its explanation, rather than hidden: a control
+   * that is there but greyed says "not for this image", where absence says
+   * nothing at all.
+   *
+   * The wrapper carries the tooltip because a disabled button does not fire
+   * hover events in every browser. The same sentence is repeated in the panel,
+   * where there is room to read it without a pointer.
+   */
+  selectGarmentBlockedReason?: string;
+  /**
+   * Which tools this mode has any use for.
+   *
+   * Marking a zone for the model has no business with a flat fill or an
+   * eyedropper: those change pixels, and that mode does not. Passing the list
+   * rather than a mode name keeps the rail from having to know what the modes
+   * are called.
+   */
+  tools?: MaskTool[];
   /** Nothing painted yet: clearing would do nothing and says so. */
   isEmpty: boolean;
   disabled?: boolean;
@@ -48,6 +88,8 @@ export function MaskTools({
   onUndo,
   canUndo,
   onSelectGarment,
+  selectGarmentBlockedReason,
+  tools = ["brush", "eraser"],
   isEmpty,
   disabled = false,
 }: MaskToolsProps) {
@@ -57,30 +99,65 @@ export function MaskTools({
           down the whole garment and the brush and eraser correct it. Not
           aria-pressed like the two below it — this one acts and is done, it
           does not stay chosen. */}
-      <button
-        type="button"
-        className={styles.tool}
-        aria-label="Seleccionar toda la prenda"
-        title="Seleccionar toda la prenda"
-        disabled={disabled}
-        onClick={onSelectGarment}
-      >
-        <Icon name="autoSelect" size={22} />
-      </button>
+      {onSelectGarment && (
+        <>
+          <span title={selectGarmentBlockedReason ?? "Seleccionar toda la prenda"}>
+            <button
+              type="button"
+              className={styles.tool}
+              aria-label="Seleccionar toda la prenda"
+              disabled={disabled || Boolean(selectGarmentBlockedReason)}
+              onClick={onSelectGarment}
+            >
+              <Icon name="autoSelect" size={22} />
+            </button>
+          </span>
 
-      <div className={styles.divider} />
+          <div className={styles.divider} />
+        </>
+      )}
 
-      <button
-        type="button"
-        className={styles.tool}
-        aria-pressed={tool === "brush"}
-        aria-label="Pincel"
-        title="Pincel"
-        disabled={disabled}
-        onClick={() => onToolChange("brush")}
-      >
-        <Icon name="brush" size={22} />
-      </button>
+      {tools.includes("brush") && (
+        <button
+          type="button"
+          className={styles.tool}
+          aria-pressed={tool === "brush"}
+          aria-label="Pincel de tela"
+          title="Pincel de tela: cambia el color y conserva los pliegues"
+          disabled={disabled}
+          onClick={() => onToolChange("brush")}
+        >
+          <Icon name="brush" size={22} />
+        </button>
+      )}
+
+      {tools.includes("flat") && (
+        <button
+          type="button"
+          className={styles.tool}
+          aria-pressed={tool === "flat"}
+          aria-label="Pincel plano"
+          title="Pincel plano: tapa la zona con color liso, sin pliegues"
+          disabled={disabled}
+          onClick={() => onToolChange("flat")}
+        >
+          <Icon name="fill" size={22} />
+        </button>
+      )}
+
+      {tools.includes("picker") && (
+        <button
+          type="button"
+          className={styles.tool}
+          aria-pressed={tool === "picker"}
+          aria-label="Gotero"
+          title="Gotero: toma un color de la prenda"
+          disabled={disabled}
+          onClick={() => onToolChange("picker")}
+        >
+          <Icon name="eyedropper" size={22} />
+        </button>
+      )}
 
       <button
         type="button"

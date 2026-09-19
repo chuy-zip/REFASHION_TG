@@ -298,16 +298,21 @@ export function ColorPanel({
         color es exactamente el que pediste.
       </p>
 
+      {/* Visible, not a tooltip on the disabled button: a disabled control
+          does not reliably fire hover and never does on touch, so the only
+          explanation for a dead button was one most people could not reach.
+          Same fix as the generation panel. */}
+      {!hasMask && (
+        <p className={styles.blocked} role="status">
+          Pinta primero la zona de la prenda que quieres cambiar.
+        </p>
+      )}
+
       <div className={styles.actions}>
         <Button
           variant="primary"
           onClick={onApply}
           disabled={disabled || isApplying || !hasMask}
-          title={
-            hasMask
-              ? undefined
-              : "Pinta primero la zona de la prenda que quieres cambiar"
-          }
         >
           {isApplying ? "Guardando…" : "Aplicar"}
         </Button>

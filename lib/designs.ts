@@ -252,8 +252,16 @@ export async function assetIsUsableAsCurrent(
  *
  * Written here rather than as a filter at the call site because two screens ask
  * the same question and would otherwise answer it differently.
+ *
+ * **`edit` belongs here for the same reason `inpainting` does**, and leaving it
+ * out was an oversight with a confusing symptom: `WORKING_IMAGE_TYPES` already
+ * accepted it, so an instruction edit could become the image the design works
+ * on while never appearing in the strip that shows how it got there. The two
+ * lists answer different questions — "may this continue the design" and "is
+ * this a step someone should see" — but an image that continues the design is
+ * always a step, so nothing may be in one and not the other.
  */
-export const WORK_STEP_TYPES = ["inpainting"] as const;
+export const WORK_STEP_TYPES = ["inpainting", "edit"] as const;
 
 /**
  * Asset types that are a **state the design passed through**, and therefore

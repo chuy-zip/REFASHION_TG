@@ -395,3 +395,108 @@ export async function listR2KeysUnderClient(
 
   return [...catalogKeys, ...(await r2KeysOfDesigns(supabase, designIds))];
 }
+
+/** A finished image a design produced, with the design it belongs to. */
+export interface FinalProduct extends AssetWithUrl {
+  design_id_of: string;
+  design_name: string;
+  design_version: number;
+  project_name: string;
+}
+
+/**
+ * What a client's designs have actually produced, across every project.
+ *
+ * **The gap this fills.** Deliverables are stored on the design that made them,
+ * which is right — they belong to it, and the lineage stays intact. But it also
+ * means the only way to reach one is to remember which design it came out of,
+ * and after a few projects nobody does. The question "what have we finished for
+ * this client?" had no place that answered it.
+ *
+ * Deliberately NOT solved by copying them into the catalog. That would put the
+ * same file in two places and force a rule for what happens when one is
+ * deleted; the images are already stored once and this reads them where they
+ * are.
+ *
+ * `composition` counts because it is the deliverable that exists today: the
+ * garment with its logos, which is what the client is buying. The three
+ * `export_*` types are the three presentations of objetivo específico 3 and are
+ * listed here from the start, even though nothing produces them yet, so the
+ * screen does not need changing when Módulo 3 lands.
+ *
+ * RLS does the filtering, so this can only ever return what the caller may
+ * already see.
+ */
+const FINAL_PRODUCT_TYPES = [
+  "composition",
+  "export_flat",
+  "export_model",
+  "export_ai",
+] as const;
+
+export async function listClientFinalProducts(
+  supabase: SupabaseClient,
+  clientId: string
+): Promise<FinalProduct[]> {
+  const { data: projectData } = await supabase
+    .from("projects")
+    .select("id, name")
+    .eq("client_id", clientId);
+
+  const projects = (projectData ?? []) as { id: string; name: string }[];
+  if (projects.length === 0) return [];
+
+  const { data: designData } = await supabase
+    .from("designs")
+    .select("id, name, version, project_id")
+    .in(
+      "project_id",
+      projects.map((project) => project.id)
+    );
+
+  const designs = (designData ?? []) as {
+    id: string;
+    name: string;
+    version: number;
+    project_id: string;
+  }[];
+  if (designs.length === 0) return [];
+
+  const { data: assetData } = await supabase
+    .from("assets")
+    .select("*")
+    .in(
+      "design_id",
+      designs.map((design) => design.id)
+    )
+    .in("asset_type", FINAL_PRODUCT_TYPES as readonly string[])
+    // Newest first: the last thing finished is the one most likely being
+    // looked for, and it is the order the rest of the app uses for catalogs.
+    .order("created_at", { ascending: false });
+
+  const assets = (assetData ?? []) as Asset[];
+  if (assets.length === 0) return [];
+
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  const designById = new Map(designs.map((design) => [design.id, design]));
+
+  const withSignedUrls = await withUrls(assets);
+
+  return withSignedUrls.flatMap((asset) => {
+    const design = asset.design_id ? designById.get(asset.design_id) : undefined;
+    // An asset whose design vanished between the two queries is dropped rather
+    // than shown with blanks: this list is read, not edited, so a row nobody
+    // can explain is worse than one row fewer.
+    if (!design) return [];
+
+    return [
+      {
+        ...asset,
+        design_id_of: design.id,
+        design_name: design.name,
+        design_version: design.version,
+        project_name: projectById.get(design.project_id)?.name ?? "",
+      },
+    ];
+  });
+}

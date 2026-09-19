@@ -1,9 +1,10 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
-import { PROMPT_PLACEHOLDER } from "@/lib/generation/prompt";
+import { PromptSuggestions } from "@/components/designs/PromptSuggestions/PromptSuggestions";
+import { INTENT_COPY, PROMPT_PLACEHOLDER } from "@/lib/generation/prompt";
 import type { InpaintIntent } from "@/lib/generation/types";
 import styles from "./GenerationPanel.module.css";
 
@@ -59,6 +60,7 @@ export function GenerationPanel({
   disabled = false,
 }: GenerationPanelProps) {
   const promptId = useId();
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   const canGenerate =
     !disabled && !isGenerating && hasMask && description.trim().length >= 3;
@@ -69,17 +71,33 @@ export function GenerationPanel({
         label="Qué cambiar con IA"
         selected={intent}
         onSelect={(key) => onIntentChange(key as InpaintIntent)}
+        // "Limpiar" first because it is the one with evidence behind it, and
+        // "Color" is gone: the project measured that this model does not honour
+        // an exact colour, and the picker above does.
         options={[
+          { key: "clean", label: "Limpiar" },
           { key: "shape", label: "Forma" },
           { key: "texture", label: "Textura" },
-          { key: "color", label: "Color" },
         ]}
       />
 
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={promptId}>
-          Qué quieres en esa zona
-        </label>
+        <div className={styles.fieldHead}>
+          <label className={styles.label} htmlFor={promptId}>
+            Qué quieres en esa zona
+          </label>
+          {/* Beside the box and not hidden in a menu: the wording is the
+              single biggest lever on the result, and the examples are how
+              anyone learns how long and how specific a good one is. */}
+          <button
+            type="button"
+            className={styles.suggest}
+            onClick={() => setSuggestionsOpen(true)}
+            disabled={disabled || isGenerating}
+          >
+            Sugerencias
+          </button>
+        </div>
         <textarea
           id={promptId}
           className={styles.prompt}
@@ -91,24 +109,29 @@ export function GenerationPanel({
         />
       </div>
 
-      {/* Always present and always the same two lines, so switching intent
-          does not resize the panel. Only the words change. */}
-      <p className={styles.note}>
-        {intent === "color"
-          ? "Este camino le pide el color a un modelo, y los modelos no respetan un código de color con exactitud. Para cambiar el color de verdad, usa el selector de arriba: ese es exacto."
-          : "El color no se pide por aquí: el selector de arriba lo aplica exacto y sin costo."}
-      </p>
+      {/* What this intent is for, in the panel rather than only in the
+          suggestions dialog: it is the difference between three tabs and three
+          tabs someone can choose between. */}
+      <p className={styles.note}>{INTENT_COPY[intent].hint}</p>
 
-      <Button
-        variant="primary"
-        onClick={onGenerate}
-        disabled={!canGenerate}
-        title={
-          hasMask
-            ? undefined
-            : "Pinta primero la zona de la prenda que quieres cambiar"
-        }
-      >
+      <PromptSuggestions
+        intent={intent}
+        open={suggestionsOpen}
+        onClose={() => setSuggestionsOpen(false)}
+        onUse={onDescriptionChange}
+      />
+
+      {/* Visible, not a tooltip on the disabled button. That is what it was,
+          and a disabled control does not reliably fire hover in every browser
+          and never does on touch — so the only explanation for a dead button
+          was one most people could not reach. */}
+      {!hasMask && (
+        <p className={styles.blocked} role="status">
+          Pinta primero la zona de la prenda que quieres cambiar.
+        </p>
+      )}
+
+      <Button variant="primary" onClick={onGenerate} disabled={!canGenerate}>
         {isGenerating ? "Generando…" : "Generar"}
       </Button>
 

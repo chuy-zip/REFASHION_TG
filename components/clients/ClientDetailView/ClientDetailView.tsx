@@ -7,20 +7,26 @@ import { MembersSection } from "@/components/clients/MembersSection/MembersSecti
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog/ProjectFormDialog";
 import { ProjectsSection } from "@/components/projects/ProjectsSection/ProjectsSection";
 import { AssetsSection } from "@/components/assets/AssetsSection/AssetsSection";
+import { FinalProductsSection } from "@/components/clients/FinalProductsSection/FinalProductsSection";
 import type { AssetWithUrl } from "@/lib/assets";
+import type { FinalProduct } from "@/lib/assets-server";
 import type { ClientContents } from "@/lib/clients";
 import type { ProjectSamples } from "@/lib/designs";
 import type { ClientMemberView } from "@/lib/members";
 import type { Client, Project } from "@/lib/types";
 import styles from "./ClientDetailView.module.css";
 
-type Tab = "info" | "members" | "projects" | "assets";
+type Tab = "info" | "members" | "projects" | "assets" | "products";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "info", label: "Información" },
   { id: "members", label: "Miembros" },
   { id: "projects", label: "Proyectos" },
   { id: "assets", label: "Recursos" },
+  // Last, because it is where the work ends up. Recursos holds what goes IN;
+  // this holds what came OUT, and keeping them apart is what stops one screen
+  // from having to mean both.
+  { id: "products", label: "Productos" },
 ];
 
 /** The default tab, and therefore the one that needs no `?tab=` in the URL. */
@@ -45,6 +51,8 @@ interface ClientDetailViewProps {
   projectsQuery: string;
   samplesByProject: Map<string, ProjectSamples>;
   assets: AssetWithUrl[];
+  /** Everything this client's designs have finished, across every project. */
+  products: FinalProduct[];
   currentUserId: string;
 }
 
@@ -66,6 +74,7 @@ export function ClientDetailView({
   projectsQuery,
   samplesByProject,
   assets,
+  products,
   currentUserId,
 }: ClientDetailViewProps) {
   const pathname = usePathname();
@@ -197,6 +206,8 @@ export function ClientDetailView({
             canManage={canEdit}
           />
         )}
+
+        {tab === "products" && <FinalProductsSection products={products} />}
       </div>
     </div>
   );

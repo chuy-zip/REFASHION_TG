@@ -379,3 +379,107 @@ export function recolorRegion({
   ctx.putImageData(frame, 0, 0);
   return canvas;
 }
+
+/**
+ * Paints the masked region in one flat colour, shading and all gone.
+ *
+ * **The opposite trade to `recolorRegion`, and both are wanted.** That one
+ * keeps the folds because a garment that lost its shading reads as a sticker.
+ * This one throws them away on purpose, because its job is not to look like
+ * cloth: it is to **remove what was there** before the image is handed to a
+ * model.
+ *
+ * That need was measured. An inpainting whose masked region still carried the
+ * original structure came back with a ghost of it — the emblem's silhouette
+ * survived in relief even though every gold pixel was gone. Covering the region
+ * with flat colour first is what made the ghost disappear, and it is the same
+ * move that turned a failed "make this sleeve long" into a working one
+ * (`herramientas/docs/EXPERIMENTO_3_quitar_y_agregar.md`).
+ *
+ * So the two brushes are two intentions: **keep the garment, or hide something
+ * from the model.** Shading is what separates them.
+ *
+ * Shares `RecolorOptions` because the inputs are identical, and the mask means
+ * the same thing here: white changes, black keeps, grey blends. The blend is
+ * what keeps a feathered edge from leaving a hard seam.
+ */
+export function fillRegion({
+  image,
+  mask,
+  target,
+}: RecolorOptions): HTMLCanvasElement {
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return canvas;
+
+  ctx.drawImage(image, 0, 0);
+  const frame = ctx.getImageData(0, 0, width, height);
+  const pixels = frame.data;
+
+  // Same resampling route as `recolorRegion`: the mask is painted at canvas
+  // scale, and letting the 2D context redraw it at image scale is one call
+  // instead of a hand-written resample that could disagree with the other path.
+  const maskCanvas = document.createElement("canvas");
+  maskCanvas.width = width;
+  maskCanvas.height = height;
+  const maskCtx = maskCanvas.getContext("2d", { willReadFrequently: true });
+  if (!maskCtx) return canvas;
+  maskCtx.drawImage(mask, 0, 0, width, height);
+  const maskPixels = maskCtx.getImageData(0, 0, width, height).data;
+
+  for (let i = 0; i < pixels.length; i += 4) {
+    const weight = maskPixels[i] / 255;
+    if (weight === 0) continue;
+
+    pixels[i] = pixels[i] + (target.r - pixels[i]) * weight;
+    pixels[i + 1] = pixels[i + 1] + (target.g - pixels[i + 1]) * weight;
+    pixels[i + 2] = pixels[i + 2] + (target.b - pixels[i + 2]) * weight;
+  }
+
+  ctx.putImageData(frame, 0, 0);
+  return canvas;
+}
+
+/**
+ * The colour of one pixel of an image, as a hex string.
+ *
+ * For the eyedropper. Reading it from the **source image** rather than from the
+ * stage is deliberate: the stage may be showing a live recolour preview, and
+ * sampling that would feed the picker a colour it produced itself, which drifts
+ * a little further on every pick.
+ *
+ * Returns null on the same failure `recolorRegion` guards against: a tainted
+ * canvas throws on `getImageData`, and here that has to be a value rather than
+ * an exception because a click on a garment must never break the screen.
+ */
+export function samplePixel(
+  image: HTMLImageElement,
+  xRatio: number,
+  yRatio: number
+): string | null {
+  const x = Math.round(xRatio * image.naturalWidth);
+  const y = Math.round(yRatio * image.naturalHeight);
+  if (x < 0 || y < 0 || x >= image.naturalWidth || y >= image.naturalHeight) {
+    return null;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+
+  try {
+    ctx.drawImage(image, x, y, 1, 1, 0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return toHex({ r, g, b });
+  } catch {
+    return null;
+  }
+}

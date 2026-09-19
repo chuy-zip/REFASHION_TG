@@ -7,7 +7,10 @@ import {
 import { ClientDetailView } from "@/components/clients/ClientDetailView/ClientDetailView";
 import { Icon } from "@/components/ui/Icon/Icon";
 import { getClientAccess } from "@/lib/access";
-import { listClientAssets } from "@/lib/assets-server";
+import {
+  listClientAssets,
+  listClientFinalProducts,
+} from "@/lib/assets-server";
 import { getClientContents } from "@/lib/clients";
 import { listClientMembers } from "@/lib/members";
 import { listClientProjects, PROJECTS_PAGE_SIZE } from "@/lib/projects";
@@ -44,11 +47,17 @@ export default async function ClientDetailPage({
   const user = await getAuthenticatedUser();
   const userId = user?.id ?? "";
 
-  // Client row, the caller's access, members, projects and assets — in
-  // parallel. The access flags decide which actions the UI offers; RLS
-  // enforces them anyway.
-  const [clientResult, access, membersResult, projectsResult, assetsResult] =
-    await Promise.all([
+  // Client row, the caller's access, members, projects, catalog and finished
+  // products — in parallel. The access flags decide which actions the UI
+  // offers; RLS enforces them anyway.
+  const [
+    clientResult,
+    access,
+    membersResult,
+    projectsResult,
+    assetsResult,
+    products,
+  ] = await Promise.all([
       supabase.from("clients").select("*").eq("id", id).maybeSingle(),
       getClientAccess(supabase, id, userId),
       listClientMembers(supabase, id),
@@ -58,6 +67,7 @@ export default async function ClientDetailPage({
         pageSize: PROJECTS_PAGE_SIZE,
       }),
       listClientAssets(supabase, id),
+      listClientFinalProducts(supabase, id),
     ]);
 
   if (!clientResult.data) notFound();
@@ -96,6 +106,7 @@ export default async function ClientDetailPage({
         projectsQuery={query}
         samplesByProject={samplesByProject}
         assets={assetsResult.assets}
+        products={products}
         currentUserId={userId}
       />
     </main>

@@ -201,6 +201,10 @@ export default async function DesignEditPage({ params }: PageProps) {
         initialLayers={workspaceLayers}
         steps={steps}
         currentAssetId={design.current_asset_id}
+        // Del recurso de PARTIDA, no del de trabajo: una vez que el diseño
+        // arrancó de una foto de modelo, todo lo que derive sigue teniendo una
+        // persona adentro.
+        baseAssetType={baseAsset?.asset_type ?? null}
         // Read here and not in the canvas: the provider lives behind
         // `server-only`, so the browser is told the answer rather than asking.
         isSimulated={isSimulated()}

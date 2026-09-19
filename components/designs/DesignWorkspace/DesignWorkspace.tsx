@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Image as KonvaImage, Layer, Rect, Stage, Transformer } from "react-konva";
 import type Konva from "konva";
 import { Button } from "@/components/ui/Button/Button";
-import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { MaskTools, type MaskTool } from "@/components/designs/MaskTools/MaskTools";
 import { ColorPanel } from "@/components/designs/ColorPanel/ColorPanel";
 import { StepStrip, type WorkStep } from "@/components/designs/StepStrip/StepStrip";
@@ -13,6 +12,7 @@ import { LogoPicker } from "@/components/designs/LogoPicker/LogoPicker";
 import { LogoBackground } from "@/components/designs/LogoBackground/LogoBackground";
 import { LayerList } from "@/components/designs/LayerList/LayerList";
 import { GenerationPanel } from "@/components/designs/GenerationPanel/GenerationPanel";
+import { InstructionPanel } from "@/components/designs/InstructionPanel/InstructionPanel";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
 import {
@@ -42,7 +42,7 @@ import {
 } from "@/lib/mask";
 import { isUsefulSelection, selectGarment } from "@/lib/garment-select";
 import type { InpaintIntent } from "@/lib/generation/types";
-import { parseHex, recolorRegion } from "@/lib/recolor";
+import { fillRegion, parseHex, recolorRegion, samplePixel } from "@/lib/recolor";
 import type { DesignLayer } from "@/lib/types";
 import {
   useCrossOriginImage,
@@ -73,6 +73,13 @@ interface DesignWorkspaceProps {
   /** Where the working image has been, oldest first. */
   steps: WorkStep[];
   currentAssetId: string | null;
+  /**
+   * What the design STARTED from, which decides whether the automatic garment
+   * selection is offered at all. A design begun on a model photo keeps a person
+   * in every image derived from it, and that method cannot separate a shirt
+   * from the body wearing it.
+   */
+  baseAssetType: string | null;
   /** True while the generation provider is the simulator. */
   isSimulated: boolean;
   canEdit: boolean;
@@ -81,8 +88,25 @@ interface DesignWorkspaceProps {
 /** What a layer draws: the logo as it arrived, or a live cut-out preview. */
 type LayerImage = LoadedImage | HTMLCanvasElement;
 
-/** Which module currently owns the canvas. */
-type WorkspaceMode = "logos" | "mask";
+/**
+ * What the user is doing to the design right now.
+ *
+ * Four, and they are four because they are four different acts, not because a
+ * menu grew. The split that matters is between the middle two: **painting
+ * changes pixels and produces a new image; masking declares a region and
+ * produces a mask.** The same brush served both until now, which meant the same
+ * gesture meant two things depending on a mode nobody was looking at.
+ *
+ * The automatic selection lives in `paint` and not in `zones` on purpose. It
+ * returns the *silhouette of the garment*, which is exactly the question
+ * recolouring asks and almost never the one inpainting asks: a useful mask
+ * marks a collar, an emblem, a sleeve. The whole outline is the answer to a
+ * different question.
+ *
+ * `zones` and `instruction` are named after what they store
+ * (`ASSET_TYPE_COPY`), so the mode and the asset it produces share a word.
+ */
+type WorkspaceMode = "logos" | "paint" | "zones" | "instruction";
 
 /** Fraction of the garment width a freshly placed logo takes. */
 const DEFAULT_WIDTH_RATIO = 0.25;
@@ -157,6 +181,7 @@ export function DesignWorkspace({
   initialLayers,
   steps,
   currentAssetId,
+  baseAssetType,
   isSimulated,
   canEdit,
 }: DesignWorkspaceProps) {
@@ -242,12 +267,14 @@ export function DesignWorkspace({
     [workingImageUrl, maskBelongsHere]
   );
   const [tool, setTool] = useState<MaskTool>("brush");
+  const [instruction, setInstruction] = useState("");
+  const modeLabelId = useId();
   // The ref answers "is a drag in progress" synchronously, inside the pointer
   // handlers; the state is what the canvas renders from. Both, because a ref
   // does not re-render and the canvas has to change while the pointer is down.
   const [isDrawing, setIsDrawing] = useState(false);
   const [brush, setBrush] = useState<number>(DEFAULT_BRUSH);
-  const isPainting = useRef(false);
+  const strokeInFlight = useRef(false);
 
   // The colour starts on the accent rather than on a literal: any hex written
   // here would be a second palette living outside globals.css (§5.1). It is
@@ -267,6 +294,8 @@ export function DesignWorkspace({
   const [recolorPreview, setRecolorPreview] = useState<{
     mask: Mask;
     color: string;
+    /** Which brush produced it. A preview made by the other one is stale. */
+    style: "fabric" | "flat";
     canvas: HTMLCanvasElement;
   } | null>(null);
   const [isApplyingColor, setIsApplyingColor] = useState(false);
@@ -280,7 +309,9 @@ export function DesignWorkspace({
   // The generative half. Colour is offered here too, but as the measured arm of
   // the §2.3 comparison rather than as the way to change a colour — the panel
   // itself says which one is exact.
-  const [intent, setIntent] = useState<InpaintIntent>("shape");
+  // Opens on the one with evidence behind it rather than on the first tab:
+  // removing an element is the job this model was measured to do well.
+  const [intent, setIntent] = useState<InpaintIntent>("clean");
   const [description, setDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -434,7 +465,7 @@ export function DesignWorkspace({
   // costs nothing — and it never touches the stored image: dropping the colour
   // is forgetting this canvas.
   useEffect(() => {
-    if (mode !== "mask" || !workingImage || isMaskEmpty(mask)) return;
+    if (mode !== "paint" || !workingImage || isMaskEmpty(mask)) return;
 
     const target = parseHex(color);
     if (!target) return;
@@ -447,10 +478,16 @@ export function DesignWorkspace({
           height: workingImage.naturalHeight,
           mode: "mask",
         });
+        // Which brush is selected decides what the painted region becomes, and
+        // the preview has to answer the same way the apply will: fabric keeps
+        // the shading, flat throws it away. Seeing the difference immediately
+        // is the only way the two brushes explain themselves.
+        const render = tool === "flat" ? fillRegion : recolorRegion;
         setRecolorPreview({
           mask,
           color,
-          canvas: recolorRegion({
+          style: tool === "flat" ? "flat" : "fabric",
+          canvas: render({
             image: workingImage,
             mask: rasterized,
             target,
@@ -468,7 +505,7 @@ export function DesignWorkspace({
     }, PREVIEW_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [mode, workingImage, mask, color]);
+  }, [mode, workingImage, mask, color, tool]);
 
   const persistGeometry = useCallback(
     async (layerId: string, geometry: Partial<DesignLayer>) => {
@@ -892,10 +929,15 @@ export function DesignWorkspace({
   const canManipulate = canCompose && !isCutting;
 
   /** The recolour only counts while it matches the mask and colour on screen. */
+  const paintStyle = tool === "flat" ? "flat" : "fabric";
   const activeRecolor =
     recolorPreview &&
     recolorPreview.mask === mask &&
-    recolorPreview.color === color
+    recolorPreview.color === color &&
+    // Also the brush: switching between fabric and flat changes what the same
+    // region becomes, so a preview made by the other one is as stale as one
+    // made for another colour.
+    recolorPreview.style === paintStyle
       ? recolorPreview.canvas
       : null;
 
@@ -923,11 +965,40 @@ export function DesignWorkspace({
     workingImage ??
     undefined;
 
-  const isMasking = mode === "mask";
+  const isComposing = mode === "logos";
+  const isPainting = mode === "paint";
+  const isZones = mode === "zones";
+  const isInstructing = mode === "instruction";
+
+  /**
+   * The two modes that hand the user a brush.
+   *
+   * They share the buffer and the rail, and differ in what the painted region
+   * *means* — which is why switching between them clears it (see `changeMode`).
+   */
+  const hasBrush = isPainting || isZones;
+
   // Layers stop responding while painting: a drag meant for the brush must not
   // pick up a logo underneath it.
-  const canMoveLayers = canManipulate && !isMasking;
-  const canPaint = canCompose && isMasking;
+  const canMoveLayers = canManipulate && isComposing;
+  const canPaint = canCompose && hasBrush;
+
+  /**
+   * The automatic selection separates an object from a **flat background**, and
+   * on a photograph of someone wearing the garment the object is the person.
+   *
+   * Two different failures, and only one of them announces itself. A busy
+   * background makes the fill leak outside the shirt, and the contrast guard
+   * added on 17-sep catches that. A *white* background behind a person does not
+   * trip any guard: there is plenty of contrast and the coverage lands in the
+   * plausible range, so it quietly returns a person-shaped selection.
+   *
+   * There is no honest way to tell those apart from inside the method, so the
+   * tool is withdrawn where it cannot work and says why. The signal is what the
+   * design STARTED from, not what it is working on now: once the canvas came
+   * from a model photo, every image derived from it still has a person in it.
+   */
+  const garmentSelectFits = baseAssetType !== "model_photo";
 
   /**
    * Where the pointer is, as a ratio of the working image.
@@ -1025,10 +1096,21 @@ export function DesignWorkspace({
     const point = pointerRatio();
     if (!point) return;
 
+    // The eyedropper is in the rail but it is not a brush: it reads a colour
+    // out of the garment and changes nothing. Handled here rather than as a
+    // third stroke kind because there is no stroke — no undo entry either,
+    // since nothing was altered to step back from.
+    if (tool === "picker") {
+      if (!workingImage) return;
+      const picked = samplePixel(workingImage, point.x, point.y);
+      if (picked) setColor(picked);
+      return;
+    }
+
     // The whole drag is one step back, so this is the only place a stroke is
     // recorded — extendStroke appends to a stroke that already exists.
     pushUndo(mask);
-    isPainting.current = true;
+    strokeInFlight.current = true;
     setIsDrawing(true);
     setMask((current) => ({
       ...current,
@@ -1040,7 +1122,7 @@ export function DesignWorkspace({
   }
 
   function extendStroke() {
-    if (!isPainting.current) return;
+    if (!strokeInFlight.current) return;
     const point = pointerRatio();
     if (!point) return;
 
@@ -1060,7 +1142,7 @@ export function DesignWorkspace({
   }
 
   function endStroke() {
-    isPainting.current = false;
+    strokeInFlight.current = false;
     setIsDrawing(false);
   }
 
@@ -1072,6 +1154,27 @@ export function DesignWorkspace({
     // The preview needs no clearing: it is tagged with the mask that produced
     // it, and this is a different one.
     setMask(EMPTY_MASK);
+  }
+
+  /**
+   * Switching modes drops what was painted, on purpose.
+   *
+   * The buffer is shared but its MEANING is not: in `paint` a region is what
+   * gets recoloured, in `zones` it is what the model may rewrite. Carrying one
+   * into the other would hand the next step a region that answered a different
+   * question — and it would do it silently, which is the worst version.
+   *
+   * It goes through `clearMask`, so it lands on the undo stack: a mis-click on
+   * the mode switch costs one Ctrl+Z, not a minute of painting.
+   */
+  function changeMode(next: WorkspaceMode) {
+    if (next === mode) return;
+
+    // The transformer must not come back around a logo the user stopped
+    // thinking about the moment they left the composing mode.
+    setSelectedId(null);
+    if (!isMaskEmpty(mask)) clearMask();
+    setMode(next);
   }
 
   /**
@@ -1190,7 +1293,7 @@ export function DesignWorkspace({
 
   return (
     <div className={styles.workspace}>
-      {isMasking && (
+      {hasBrush && (
         <MaskTools
           tool={tool}
           onToolChange={setTool}
@@ -1199,7 +1302,22 @@ export function DesignWorkspace({
           onClear={clearMask}
           onUndo={handleUndo}
           canUndo={undoStack.length > 0}
-          onSelectGarment={handleSelectGarment}
+          // Offered only where it answers the right question, and only where it
+          // can work at all. Both reasons are in `garmentSelectFits`.
+          // Painting changes pixels, so it gets the tools that change
+          // pixels. Marking a zone for the model does not, so it keeps the two
+          // it actually uses.
+          tools={
+            isPainting
+              ? ["brush", "flat", "picker", "eraser"]
+              : ["brush", "eraser"]
+          }
+          onSelectGarment={isPainting ? handleSelectGarment : undefined}
+          selectGarmentBlockedReason={
+            garmentSelectFits
+              ? undefined
+              : "La selección automática separa la prenda de un fondo liso. Esta imagen es una foto de modelo, así que seleccionaría a la persona entera. Píntala con el pincel."
+          }
           isEmpty={isMaskEmpty(mask)}
           disabled={!canPaint}
         />
@@ -1207,6 +1325,17 @@ export function DesignWorkspace({
 
       <div className={styles.canvasColumn}>
         <div className={styles.stageBox} ref={containerRef}>
+          {/* Over the image, not just a disabled button.
+              A generation takes 5 to 20 seconds. The only signal used to be the
+              button going grey, which is the same thing a button does when a
+              field is empty — so a long wait looked like a refusal. The work
+              happens TO the garment, so that is where it has to be visible. */}
+          {isGenerating && (
+            <div className={styles.working} role="status">
+              <span className={styles.workingSweep} aria-hidden="true" />
+              <p className={styles.workingText}>Generando…</p>
+            </div>
+          )}
           {!workingImageUrl ? (
             <div className={styles.stageMessage}>
               <p className={styles.stageMessageTitle}>Sin prenda base todavía</p>
@@ -1288,7 +1417,7 @@ export function DesignWorkspace({
                   ref={transformerRef}
                   // Hidden while painting: the handles belong to a logo nobody
                   // is moving right now, and they sit on top of the brush.
-                  visible={!isMasking}
+                  visible={isComposing}
                   rotateEnabled
                   keepRatio
                   enabledAnchors={[
@@ -1316,7 +1445,7 @@ export function DesignWorkspace({
                   already-recoloured garment left no trace at all until the next
                   pass — which is exactly how a working brush comes to look
                   broken. */}
-              {isMasking && (isDrawing || !activeRecolor) && !isExporting && (
+              {hasBrush && (isDrawing || !activeRecolor) && !isExporting && (
                 <MaskLayer
                   mask={mask}
                   naturalWidth={naturalWidth}
@@ -1328,7 +1457,9 @@ export function DesignWorkspace({
               {/* Above the overlay, because it describes the next stroke and
                   not the ones already painted. Not while exporting: it is a
                   cursor, and a cursor baked into a PNG is a defect. */}
-              {isMasking && canPaint && !isExporting && (
+              {/* Not for the eyedropper: it has no width, so a circle showing
+                  one would describe a gesture it does not make. */}
+              {hasBrush && canPaint && tool !== "picker" && !isExporting && (
                 <BrushCursor
                   brush={brush}
                   naturalWidth={naturalWidth}
@@ -1361,26 +1492,31 @@ export function DesignWorkspace({
           </p>
         )}
 
-        {/* The two modules, as a mode switch and not as two screens. They are
-            toggle buttons and not tabs on purpose: nothing is being swapped
-            underneath — the canvas, the garment and the logo preview stay put,
-            only the tools change (STYLE_GUIDE §7.2). */}
+        {/* A select and not a row of buttons, which is what this was while
+            there were two modes. At four they stopped fitting the rail without
+            wrapping, and more importantly a row of pills reads as "four things
+            you can do at once" when only one is ever active. A select shows the
+            current mode in words and hides the rest until asked.
+
+            Not PillTabs, not Menu: PillTabs is the row this replaces, and Menu
+            is for actions — it never shows which one is in effect, which is the
+            only thing a mode control has to say. */}
         {canEdit && (
           <div className={styles.group}>
-            <PillTabs
-              label="Qué estoy editando"
-              selected={mode}
-              onSelect={(key) => {
-                setMode(key as WorkspaceMode);
-                // Leaving mask mode drops the selection so the transformer does
-                // not come back around a logo the user stopped thinking about.
-                if (key === "mask") setSelectedId(null);
-              }}
-              options={[
-                { key: "logos", label: "Componer logos" },
-                { key: "mask", label: "Editar prenda" },
-              ]}
-            />
+            <span className={styles.groupLabel} id={modeLabelId}>
+              Qué estoy editando
+            </span>
+            <select
+              className={styles.modeSelect}
+              aria-labelledby={modeLabelId}
+              value={mode}
+              onChange={(event) => changeMode(event.target.value as WorkspaceMode)}
+            >
+              <option value="logos">Componer logos</option>
+              <option value="paint">Pintar prenda</option>
+              <option value="zones">Editar por zonas</option>
+              <option value="instruction">Editar por instrucción</option>
+            </select>
           </div>
         )}
 
@@ -1391,9 +1527,19 @@ export function DesignWorkspace({
             lands. Appearing on the first drag resized the panel — and therefore
             the canvas — in the middle of the gesture that created it, which
             moved the garment out from under the brush. */}
-        {isMasking && (
+        {isPainting && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Color de la prenda</span>
+            {/* Repetida aqui a proposito: el riel mide 56px y el tooltip de un
+                boton deshabilitado no existe en tactil. Este es el unico lugar
+                donde el motivo se puede leer sin un puntero. */}
+            {!garmentSelectFits && (
+              <p className={styles.hint}>
+                La selección automática está desactivada. Separa la prenda de un
+                fondo liso, y esta imagen es una foto de modelo: seleccionaría a
+                la persona entera. Pinta la prenda con el pincel.
+              </p>
+            )}
             <ColorPanel
               color={color}
               onColorChange={setColor}
@@ -1410,22 +1556,29 @@ export function DesignWorkspace({
             perceives is the one they already think in: change the COLOUR, or
             change the TELA. That one is exact and free and the other calls a
             model is an engineering decision they never have to hold. */}
-        {isMasking && (
+        {isInstructing && (
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>Cambiar con IA</span>
+            <InstructionPanel
+              instruction={instruction}
+              onInstructionChange={setInstruction}
+              disabled={!canCompose}
+            />
+          </div>
+        )}
+
+        {isZones && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Cambiar con IA</span>
             <GenerationPanel
               intent={intent}
-              onIntentChange={(next) => {
-                setIntent(next);
-                // Switching to colour proposes the hex already chosen in the
-                // picker, so both paths are asked for the SAME colour — which
-                // is the only way the ΔE₀₀ comparison means anything. Proposed
-                // and not imposed: it stays editable, because "#1E2A5A" against
-                // "azul marino" is itself worth measuring.
-                if (next === "color" && description.trim() === "") {
-                  setDescription(color);
-                }
-              }}
+              // Nothing is proposed on switching any more. It used to drop the
+              // picker's hex in when the colour intent was chosen, so both
+              // paths were asked for the same colour and the comparison meant
+              // something. That intent is gone: the comparison was run, the
+              // model does not honour an exact colour, and the answer is in
+              // `EXPERIMENTO_1_color_generativo.md` rather than in a control.
+              onIntentChange={setIntent}
               description={description}
               onDescriptionChange={setDescription}
               onGenerate={handleGenerate}
@@ -1437,6 +1590,10 @@ export function DesignWorkspace({
           </div>
         )}
 
+        {/* The logo panels used to be on screen in every mode, so "Editar
+            prenda" showed four groups belonging to the other module. A mode
+            that does not change what the rail offers is a label, not a mode. */}
+        {isComposing && (
         <div className={styles.group}>
           <span className={styles.groupLabel}>Logotipos</span>
           <LogoPicker
@@ -1449,8 +1606,9 @@ export function DesignWorkspace({
             canEdit={canEdit}
           />
         </div>
+        )}
 
-        {selectedLayer && (
+        {isComposing && selectedLayer && (
           <div className={styles.group}>
             <span className={styles.groupLabel}>Fondo del logotipo</span>
             <LogoBackground
@@ -1470,6 +1628,7 @@ export function DesignWorkspace({
           </div>
         )}
 
+        {isComposing && (
         <div className={styles.group}>
           <span className={styles.groupLabel}>Capas</span>
           <LayerList
@@ -1482,7 +1641,9 @@ export function DesignWorkspace({
             canEdit={canEdit}
           />
         </div>
+        )}
 
+        {isComposing && (
         <div className={styles.group}>
           <span className={styles.groupLabel}>Composición</span>
           {/*
@@ -1507,6 +1668,7 @@ export function DesignWorkspace({
             {isExporting ? "Creando…" : "Crear composición"}
           </Button>
         </div>
+        )}
       </div>
     </div>
   );

@@ -19,7 +19,26 @@ import type { Size } from "@/lib/generation/dimensions";
  */
 
 /** What kind of edit the user asked for. Decides the prompt, not the plumbing. */
-export type InpaintIntent = "color" | "shape" | "texture";
+/**
+ * What kind of edit the user asked for. Decides the suggestions, not the
+ * plumbing.
+ *
+ * **`color` was removed, and the reason is measured.** It existed as the
+ * generative arm of the `FASE_2_INPAINTING` §2.3 comparison, to test whether a
+ * model honours an exact colour code. It does not: the best of five paid
+ * attempts reached 38% of the requested change, and the manufacturer's own
+ * showcase example for that model fails the same way. Keeping a path the
+ * project has measured to not work would be offering a user a worse version of
+ * the exact recolour sitting one panel above it.
+ *
+ * `shape` and `texture` stay. Neither has been measured — but neither has been
+ * disproven, and they ask for the kind of edit this model class is built for.
+ *
+ * `clean` is new and is the one with evidence behind it: removing an element
+ * and leaving continuous fabric came back with zero artefacts and a texture
+ * matching the surrounding cloth to within 2%.
+ */
+export type InpaintIntent = "clean" | "shape" | "texture";
 
 export interface InpaintRequest {
   /** Public URL of the clean garment. Presigned R2 URLs qualify. */

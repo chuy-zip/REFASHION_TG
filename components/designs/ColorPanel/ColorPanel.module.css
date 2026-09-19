@@ -254,3 +254,10 @@
     height: var(--touch-target);
   }
 }
+
+/* Says why the button is dead, in the flow rather than in a tooltip. */
+.blocked {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}

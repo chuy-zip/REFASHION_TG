@@ -305,8 +305,14 @@ export type ConfirmAssetInput = z.infer<typeof confirmAssetSchema>;
 /* Generación (Módulo 2)                                                       */
 /* -------------------------------------------------------------------------- */
 
-/** What kind of edit was asked for. Decides the prompt, not the plumbing. */
-export const inpaintIntent = z.enum(["color", "shape", "texture"], {
+/**
+ * What kind of edit was asked for. Decides the suggestions, not the plumbing.
+ *
+ * Kept in step with `InpaintIntent` by hand, and `color` is gone from both: the
+ * project measured that this model does not honour an exact colour, so an old
+ * client still sending it gets a clear rejection rather than a bad result.
+ */
+export const inpaintIntent = z.enum(["clean", "shape", "texture"], {
   message: "El tipo de edición no es válido.",
 });
 

@@ -21,6 +21,16 @@ const PATHS = {
     "M15.14 3c-.51 0-1.02.2-1.41.59L3.59 13.73a1.996 1.996 0 0 0 0 2.83L6.03 19H12l8.41-8.41a1.996 1.996 0 0 0 0-2.83l-3.86-3.17A1.99 1.99 0 0 0 15.14 3zM6.03 16.56L5 15.53l7.07-7.07 3.54 3.54-4.56 4.56H6.03zM14 19v2h8v-2h-8z",
   trash:
     "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
+  // The paint bucket, for the brush that covers a region in flat colour rather
+  // than recolouring it. A bucket is the conventional mark for "fill", which is
+  // exactly the difference from the brush beside it: one follows the cloth, the
+  // other hides it.
+  fill:
+    "M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z",
+  // The dropper, for taking a colour out of the garment instead of guessing it
+  // in the picker.
+  eyedropper:
+    "M20.71 5.63l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.12-3.12c.4-.4.4-1.03.01-1.42zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z",
   // The wand is the conventional mark for "work it out for me": it is the one
   // control in the rail that decides where the paint goes instead of following
   // the hand.

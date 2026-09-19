@@ -3,6 +3,7 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
+import { TryOnPanel } from "@/components/designs/TryOnPanel/TryOnPanel";
 import buttonStyles from "@/components/ui/Button/Button.module.css";
 import type { AssetWithUrl } from "@/lib/assets";
 import styles from "./PresentationTabs.module.css";
@@ -44,6 +45,14 @@ interface PresentationTabsProps {
   compositions: AssetWithUrl[];
   /** Fallback while the design has no composition yet: the clean garment. */
   workingImageUrl: string | null;
+  /**
+   * The client's model photos, for the try-on tabs.
+   *
+   * Read once by the page and handed down rather than fetched per tab: they do
+   * not change while this screen is open, and the two tabs that use them would
+   * otherwise ask the same question twice.
+   */
+  models: AssetWithUrl[];
 }
 
 /**
@@ -59,6 +68,7 @@ export function PresentationTabs({
   designName,
   compositions,
   workingImageUrl,
+  models,
 }: PresentationTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("plana");
 
@@ -198,14 +208,16 @@ export function PresentationTabs({
             hint="Elige una en la pantalla de edición para poder presentar el diseño."
           />
         ) : (
-          <EmptyState
-            size="sm"
-            title="Próximamente"
-            hint={
-              activeTab === "modelo_guardado"
-                ? "Elegir un modelo del catálogo del cliente y generar la composición."
-                : "Generar un modelo humano con IA a partir de un prompt."
-            }
+          /* Handed the SAME garment the "Plana" tab resolved, so the three
+             tabs can never disagree about which image this design is. When
+             there is no composition that is the clean garment, which is the
+             right answer rather than a fallback: a design with no logo layers
+             still has something to try on. */
+          <TryOnPanel
+            source={activeTab === "modelo_guardado" ? "saved" : "ai"}
+            models={models}
+            garmentUrl={flatUrl}
+            hasLogos={selected !== null}
           />
         )}
       </div>

@@ -1,0 +1,146 @@
+/* Sizes itself rather than inheriting whatever its container centres: this
+   lands inside the presentation stage, which is a flex box built to centre one
+   image, and a panel that shrink-wrapped there would read as a stray column. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  width: 100%;
+  max-width: 34rem;
+}
+
+/* The request, read left to right: garment plus person. Wraps on a narrow
+   screen rather than shrinking the thumbnails past the point of being useful,
+   since checking that the right garment is going in is the whole job here. */
+.inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-12);
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  width: 11rem;
+}
+
+.slotImage {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+/* Dashed, because it is a slot waiting to be filled and not a thing that
+   exists yet: the same provisional language as the rest of the app (§4). */
+.slotEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) dashed var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.slotEmptyText {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.slotCaption {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.plus {
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
+  color: var(--color-text-secondary);
+}
+
+.models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.model {
+  padding: 0;
+  background: transparent;
+  border: var(--border-hairline) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.model[aria-pressed="true"] {
+  border-color: var(--color-accent);
+}
+
+.modelThumb {
+  display: block;
+  width: 4rem;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.prompt {
+  padding: var(--space-8) var(--space-10);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.hint {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+/* Warning tone, not danger: the path works, it simply has a known cost the
+   user should hear before spending rather than discover in a result. */
+.caution {
+  padding: var(--space-10) var(--space-12);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+  border-left: 2px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+}
+
+.status {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.pending {
+  font-weight: 600;
+  color: var(--color-warning);
+}
