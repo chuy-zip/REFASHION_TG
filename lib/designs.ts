@@ -188,11 +188,17 @@ export async function assetBelongsToProjectClient(
  * Pointing `current_asset_id` at any of those would hand the next inpainting an
  * image it must never see (FASE_1_5 §7.7).
  *
- * Only `inpainting` for now. `vton` is deliberately absent: it is a person
- * wearing the garment, so it closes the pipeline rather than continuing it.
- * Módulo 3 revisits this if that turns out to be wrong.
+ * `inpainting` and `edit` both qualify, and for the same reason: each returns
+ * the same garment with one thing changed, which is exactly what the next step
+ * should receive. They are separate types because they are separate techniques
+ * — one paints on a region, the other is asked in words — but downstream they
+ * are interchangeable.
+ *
+ * `vton` is deliberately absent: it is a person wearing the garment, so it
+ * closes the pipeline rather than continuing it. Módulo 3 revisits this if that
+ * turns out to be wrong.
  */
-const WORKING_IMAGE_TYPES: DesignAssetType[] = ["inpainting"];
+const WORKING_IMAGE_TYPES: DesignAssetType[] = ["inpainting", "edit"];
 
 /**
  * Whether an asset may become a design's working image.

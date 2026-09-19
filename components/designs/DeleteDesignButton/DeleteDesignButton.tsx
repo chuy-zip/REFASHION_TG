@@ -1,12 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
+import {
+  ConfirmByName,
+  confirmationMatches,
+} from "@/components/ui/ConfirmByName/ConfirmByName";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
-import { apiDelete } from "@/lib/api-client";
+import { apiDelete, apiGet } from "@/lib/api-client";
+import type { DesignDependent } from "@/lib/assets-server";
 import styles from "./DeleteDesignButton.module.css";
+
+/**
+ * Three outcomes, not two — the same shape `DeleteAssetButton` settled on, and
+ * for the same reason: turning a failed request into `[]` renders exactly like
+ * "nothing depends on it", which is the one thing this dialog must never say by
+ * mistake.
+ *
+ * The answer carries the design it is about, so a stale one reads as "still
+ * checking" instead of being cleared from an effect.
+ */
+type DependentsAnswer =
+  | { designId: string; status: "ready"; designs: DesignDependent[] }
+  | { designId: string; status: "failed" };
+
+function dependentLabel(dependent: DesignDependent): string {
+  if (dependent.loses_image && dependent.loses_lineage) {
+    return "parte de este diseño";
+  }
+  return dependent.loses_image ? "usa una de sus imágenes" : "es una iteración suya";
+}
 
 interface DeleteDesignButtonProps {
   designId: string;
@@ -43,6 +68,30 @@ export function DeleteDesignButton({
   const isOpen = isControlled ? controlledOpen : internalOpen;
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+  const [answer, setAnswer] = useState<DependentsAnswer | null>(null);
+
+  // Asked when the dialog opens, not listed with the designs: it is one query
+  // for one design, and only when someone is about to destroy it.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    apiGet<DesignDependent[]>(`/api/designs/${designId}/dependents`).then(
+      (result) => {
+        if (cancelled) return;
+        setAnswer(
+          result.ok
+            ? { designId, status: "ready", designs: result.data }
+            : { designId, status: "failed" }
+        );
+      }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, designId]);
 
   function close() {
     if (isControlled) onClose?.();
@@ -69,6 +118,28 @@ export function DeleteDesignButton({
     else router.refresh();
   }
 
+  const dependents: DependentsAnswer | { status: "checking" } =
+    answer && answer.designId === designId ? answer : { status: "checking" };
+
+  /**
+   * The friction follows the blast radius, not the kind of thing.
+   *
+   * Deleting a design nobody built on is ordinary tidying, and gating that
+   * behind typing is how the gesture becomes a reflex. Deleting one that
+   * another design starts from is a different act: it empties a canvas the user
+   * is not looking at, in a design they may have forgotten exists.
+   *
+   * Only `loses_image` escalates. Losing the lineage note is a real loss but a
+   * recoverable one — nothing stops working.
+   */
+  const breaksAnother =
+    dependents.status === "ready" &&
+    dependents.designs.some((item) => item.loses_image);
+
+  const canDelete =
+    dependents.status !== "checking" &&
+    (!breaksAnother || confirmationMatches(confirmation, designName));
+
   const titleId = `delete-design-${designId}`;
 
   return (
@@ -92,9 +163,6 @@ export function DeleteDesignButton({
           <h2 className={styles.title} id={titleId}>
             Eliminar {designName}
           </h2>
-          {/* No typed confirmation here on purpose: the cascade stops at this
-              design, and spending that friction everywhere is what turns it
-              into a reflex. The number is the part that informs. */}
           <p className={styles.warning}>
             {assetCount === 0
               ? "Este diseño todavía no tiene imágenes. Esta acción no se puede deshacer."
@@ -102,6 +170,56 @@ export function DeleteDesignButton({
                   assetCount === 1 ? "imagen" : "imágenes"
                 }. Esta acción no se puede deshacer.`}
           </p>
+
+          {dependents.status === "checking" && (
+            <p className={styles.checking} role="status">
+              Revisando qué diseños dependen de este…
+            </p>
+          )}
+
+          {dependents.status === "failed" && (
+            <p className={styles.usageHint} role="status">
+              No se pudo comprobar qué diseños dependen de este. Puedes
+              eliminarlo de todas formas, pero sin saber a quién afecta.
+            </p>
+          )}
+
+          {/* This dialog used to promise that the cascade stopped here. It does
+              not: a design created from this one copied one of its images as
+              its starting point, and `assets.design_id` cascades. So deleting
+              this one empties that canvas. Warning and not blocking, the same
+              call §7.3 already made for images. */}
+          {dependents.status === "ready" && dependents.designs.length > 0 && (
+            <div className={styles.usage}>
+              <p className={styles.usageTitle}>
+                {dependents.designs.length === 1
+                  ? "1 diseño depende de este:"
+                  : `${dependents.designs.length} diseños dependen de este:`}
+              </p>
+              <ul className={styles.usageList}>
+                {dependents.designs.map((item) => (
+                  <li key={item.design_id} className={styles.usageItem}>
+                    {item.design_name} · v{item.design_version} ·{" "}
+                    {dependentLabel(item)}
+                  </li>
+                ))}
+              </ul>
+              <p className={styles.usageHint}>
+                {breaksAnother
+                  ? "Si lo eliminas, esos diseños se quedan sin su imagen de partida."
+                  : "Si lo eliminas, esos diseños dejan de indicar de dónde salieron."}
+              </p>
+            </div>
+          )}
+
+          {breaksAnother && (
+            <ConfirmByName
+              expected={designName}
+              value={confirmation}
+              onChange={setConfirmation}
+              disabled={isDeleting}
+            />
+          )}
 
           {error && (
             <p className={styles.error} role="alert">
@@ -117,7 +235,19 @@ export function DeleteDesignButton({
             >
               Cancelar
             </Button>
-            <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
+            {/* Held until the lookup answers. The warning IS the feature
+                here, so letting someone confirm before it arrives quietly
+                removes the only thing this dialog adds. */}
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+              disabled={isDeleting || !canDelete}
+              title={
+                dependents.status === "checking"
+                  ? "Revisando qué diseños dependen de este"
+                  : undefined
+              }
+            >
               {isDeleting ? "Eliminando…" : "Eliminar"}
             </Button>
           </div>

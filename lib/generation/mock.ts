@@ -41,6 +41,20 @@ const COST_PER_MEGAPIXEL_USD = 0.011;
 /** One in twelve. Often enough to meet it while building, rare enough to work. */
 const FAILURE_RATE = 1 / 12;
 
+/**
+ * What the simulator claims it ran with.
+ *
+ * Named after the real thing rather than left blank: everything downstream —
+ * the strip, the lineage, the columns added in migration 018 — has to behave
+ * exactly as it will with a real provider, and a null model id would exercise a
+ * path that the real one never takes. `mock:` makes it unmistakable in the
+ * database that no model was involved.
+ */
+const MOCK_MODEL = "mock:flux-fill";
+
+/** The value every measured run used. See `EXPERIMENTO_3_*` in herramientas. */
+const STEPS = 28;
+
 function between(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
@@ -83,6 +97,11 @@ export const mockProvider: GenerationProvider = {
         costUsd:
           Math.round(megapixels * COST_PER_MEGAPIXEL_USD * 1_000_000) / 1_000_000,
         taskId: crypto.randomUUID(),
+        // Echoed unchanged. A real provider may substitute one; this one never
+        // does, and saying so here is cheaper than a caller guessing.
+        seed: request.seed,
+        model: MOCK_MODEL,
+        steps: STEPS,
         latencyMs: Date.now() - started,
       },
     };

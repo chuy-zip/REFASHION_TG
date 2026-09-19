@@ -259,6 +259,99 @@ export async function listR2KeysUnderDesign(
   return r2KeysOfDesigns(supabase, [designId]);
 }
 
+/** A design that would be damaged by deleting another one. */
+export interface DesignDependent {
+  design_id: string;
+  design_name: string;
+  design_version: number;
+  /**
+   * Its starting image is one of the doomed design's images, so deleting it
+   * leaves this design with an empty canvas. This is the damaging half.
+   */
+  loses_image: boolean;
+  /** It records the doomed design as the one it came from. */
+  loses_lineage: boolean;
+}
+
+/**
+ * Which designs a deletion would reach, beyond the one being deleted.
+ *
+ * **The delete dialog used to say the cascade stopped at the design. It does
+ * not.** Creating design B from design A copies A's *current image id* into
+ * B.base_asset_id — a snapshot, which is why A moving its cursor afterwards
+ * never disturbs B (`app/api/designs/route.ts`). But that image is a row with
+ * `design_id = A`, and `assets.design_id` cascades. So deleting A destroys the
+ * image B starts from, and B is left with an empty canvas and, because
+ * `parent_design_id` is `on delete set null`, no record of where it came from.
+ *
+ * Same criterion as `listAssetUsage`, and §7.3 decided it once: **warn, do not
+ * block**. Someone tidying a project should not be stopped by an iteration made
+ * months ago — but they should not find out afterwards either.
+ *
+ * The two halves are reported apart because they are not equally bad. Losing
+ * the image empties a canvas; losing the lineage only loses a note about where
+ * it came from. Collapsing them would make the warning sound the same in both
+ * cases.
+ */
+export async function listDesignDependents(
+  supabase: SupabaseClient,
+  designId: string
+): Promise<DesignDependent[]> {
+  const { data: assetData } = await supabase
+    .from("assets")
+    .select("id")
+    .eq("design_id", designId);
+
+  const assetIds = ((assetData ?? []) as { id: string }[]).map((row) => row.id);
+
+  // Two queries, not one `or`: PostgREST's `in.()` needs a non-empty list, and
+  // a design with no images yet can still have children pointing at it.
+  const [imageResult, lineageResult] = await Promise.all([
+    assetIds.length === 0
+      ? Promise.resolve({ data: [] })
+      : supabase
+          .from("designs")
+          .select("id, name, version")
+          .neq("id", designId)
+          .or(
+            `base_asset_id.in.(${assetIds.join(",")}),` +
+              `current_asset_id.in.(${assetIds.join(",")})`
+          ),
+    supabase
+      .from("designs")
+      .select("id, name, version")
+      .eq("parent_design_id", designId),
+  ]);
+
+  const byDesign = new Map<string, DesignDependent>();
+
+  const remember = (
+    design: { id: string; name: string; version: number },
+    how: "image" | "lineage"
+  ) => {
+    const existing = byDesign.get(design.id) ?? {
+      design_id: design.id,
+      design_name: design.name,
+      design_version: design.version,
+      loses_image: false,
+      loses_lineage: false,
+    };
+
+    if (how === "image") existing.loses_image = true;
+    else existing.loses_lineage = true;
+
+    byDesign.set(design.id, existing);
+  };
+
+  type Row = { id: string; name: string; version: number };
+  for (const row of (imageResult.data ?? []) as Row[]) remember(row, "image");
+  for (const row of (lineageResult.data ?? []) as Row[]) remember(row, "lineage");
+
+  return [...byDesign.values()].sort((a, b) =>
+    a.design_name.localeCompare(b.design_name, "es")
+  );
+}
+
 export async function listR2KeysUnderProject(
   supabase: SupabaseClient,
   projectId: string

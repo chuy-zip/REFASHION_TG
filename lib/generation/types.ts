@@ -31,13 +31,31 @@ export interface InpaintRequest {
   prompt: string;
   intent: InpaintIntent;
   /**
-   * 0..1. Low values nudge, high values replace. It is the parameter that
-   * separates "adjust this tone" from "put a collar here", and the reason
-   * FLUX Fill [dev] was chosen over [pro] — [pro] does not expose it.
+   * There is deliberately no `strength` here, and the note is worth keeping
+   * because the field existed and was wrong.
+   *
+   * It was documented as the knob that separates "adjust this tone" from "put a
+   * collar here", and as the reason FLUX Fill [dev] was picked over [pro]. Both
+   * claims turned out to be false. The model's own documentation says Fill
+   * *"does not use the strength parameter"*, and this project's billing data
+   * agrees in a more telling way: a request at 0.45 cost 46% of one at 0.85,
+   * which is what happens when the value is quietly multiplied into the step
+   * count. So it changed the compute, not the edit.
+   *
+   * Steps stay at the value every measured run used. If a reason to expose them
+   * ever appears, the field to add is `steps`, named after what it does.
    */
-  strength: number;
-  /** Repeats a previous result exactly. Absent means a new one each time. */
-  seed?: number;
+  /**
+   * Which noise the diffusion starts from, and therefore whether this request
+   * can ever be run again with the same answer.
+   *
+   * **Required, not optional.** It used to be optional and nothing ever set it,
+   * which meant every generation was unrepeatable — a client who approves a
+   * design and comes back later would get a near miss, and no experiment could
+   * attribute a difference to the thing it changed. The server now always picks
+   * one (`lib/generation/seed.ts`) and hands it back in the result.
+   */
+  seed: number;
 }
 
 export interface InpaintResult {
@@ -51,6 +69,34 @@ export interface InpaintResult {
   costUsd: number;
   /** The provider's own id for the task, stored in `assets.runware_task_id`. */
   taskId: string;
+  /**
+   * The model that produced this, as its provider spells it (`runware:102@1`).
+   *
+   * Reported by the provider rather than assumed by the caller, for the same
+   * reason `costUsd` is: the caller knows what it asked for, not what answered.
+   * There is more than one model in play now — FLUX Fill on a mask and FLUX
+   * Kontext by instruction — so a row that does not say which one made it
+   * cannot be compared against another or defended in the report.
+   */
+  model: string;
+  /**
+   * Denoising iterations actually run.
+   *
+   * A constant inside each provider today. Stored anyway, because a constant
+   * that changes leaves every earlier row without an explanation.
+   */
+  steps: number;
+  /**
+   * The seed this result actually came from.
+   *
+   * Echoed back rather than assumed from the request, because a provider is
+   * free to substitute one, and a seed nobody can verify is worth nothing.
+   *
+   * **Nothing persists it yet**: `assets` has no column for it, so repeating a
+   * generation is not possible from the database until a migration adds one.
+   * Returning it here is the half that belongs to this layer.
+   */
+  seed: number;
   /** Wall clock, for deciding whether this can stay synchronous. */
   latencyMs: number;
 }

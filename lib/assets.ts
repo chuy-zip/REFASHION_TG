@@ -26,6 +26,7 @@ export const DESIGN_ASSET_TYPES = [
   "composition",
   "mask",
   "inpainting",
+  "edit",
   "vton",
   "ai_model",
   "export_flat",
@@ -60,7 +61,7 @@ export const ASSET_TYPE_COPY: Record<
 };
 
 /**
- * Spanish copy for the eight design-level types. They had none until now
+ * Spanish copy for the nine design-level types. They had none until now
  * because nothing produced them; `assetTypeLabel` fell through to printing the
  * raw English column value.
  *
@@ -75,6 +76,10 @@ export const DESIGN_ASSET_TYPE_COPY: Record<
   composition: { label: "Composición", labelPlural: "Composiciones" },
   mask: { label: "Máscara", labelPlural: "Máscaras" },
   inpainting: { label: "Edición por zonas", labelPlural: "Ediciones por zonas" },
+  // Paired against "por zonas" on purpose: the two labels say the difference
+  // the user actually experiences. One is painted on a region, the other is
+  // asked for in words and the model chooses the region.
+  edit: { label: "Edición por instrucción", labelPlural: "Ediciones por instrucción" },
   vton: { label: "Prueba virtual", labelPlural: "Pruebas virtuales" },
   ai_model: { label: "Modelo IA", labelPlural: "Modelos IA" },
   export_flat: { label: "Export · prenda plana", labelPlural: "Exports · prenda plana" },

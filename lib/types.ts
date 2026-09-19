@@ -51,6 +51,11 @@ export type DesignAssetType =
   | "mask"
   | "composition"
   | "inpainting"
+  // An edit made by instruction, with no mask: the model decides which pixels
+  // to touch. Kept apart from `inpainting` because the two are different
+  // techniques with different limits, and the report groups results by this
+  // column — calling one the other would be storing something false in it.
+  | "edit"
   | "vton"
   | "ai_model"
   | "export_flat"

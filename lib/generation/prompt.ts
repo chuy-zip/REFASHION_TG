@@ -15,43 +15,70 @@ import type { InpaintIntent } from "@/lib/generation/types";
  * result only if this is written down somewhere legible.
  *
  * **The user's words are never rewritten.** They are placed inside a frame that
- * says what must not change. That distinction matters: a system that silently
- * edits what someone asked for makes a bad result impossible to diagnose —
- * neither the user nor the developer knows whether the model or the rewrite is
- * at fault.
+ * says what the finished zone is made of. That distinction matters: a system
+ * that silently edits what someone asked for makes a bad result impossible to
+ * diagnose — neither the user nor the developer knows whether the model or the
+ * rewrite is at fault.
  */
 
 /**
- * The instruction every edit carries, whatever it is about.
+ * Two rules, both measured, that every frame below obeys.
  *
- * Inpainting models fill the masked region with what the prompt describes, and
- * a bare description ("cuello tipo polo") invites a *generic* collar in a
- * *generic* fabric. Naming the constraints is what keeps the result attached to
- * the garment already on screen — which is the whole point of editing by zones
- * rather than generating a new image.
+ * **1. Never enumerate what you do not want.** The frames used to end in "No
+ * cambies el resto de la prenda ni el fondo", a pattern copied from Runware's
+ * own documented example. It backfires: FLUX Fill has **no negative channel**
+ * (sending `negativePrompt` produced a byte-for-byte identical image, so it is
+ * ignored), which means those words land in the *positive* conditioning and
+ * work as magnets. An ablation with a fixed seed measured it — the same edit
+ * with the list of negatives left **542 stray pixels, and without it left zero**
+ * — and the artefact it left was a small embroidered badge, after a prompt that
+ * had asked for no badge.
+ *
+ * **2. Describe the masked zone, not the picture.** The model already sees what
+ * surrounds the hole. Mentioning the background or the rest of the garment
+ * describes something it must not paint, and the instruction competes with what
+ * its own eyes tell it.
+ *
+ * Both in `herramientas/docs/EXPERIMENTO_3_quitar_y_agregar.md`.
  */
-const KEEP = "manteniendo el mismo tejido, color e iluminación de la prenda";
+const TEJIDO =
+  "en el mismo tejido, color e iluminación que el resto de la prenda, con los pliegues y las sombras propios de esa tela";
 
 /**
  * Prompts are in Spanish because the interface is, and the user's words go in
- * verbatim. FLUX handles Spanish, and translating would be exactly the silent
- * rewrite this file exists to avoid. **Worth measuring** during the first
- * experiment: if Spanish underperforms noticeably, the honest fix is to ask in
- * English and say so in the interface, not to translate behind the user's back.
+ * verbatim.
+ *
+ * **This is now a known-suboptimal choice and the decision is open.** The first
+ * experiment compared the same request in both languages with one variable
+ * changed, and English won: Spanish scored −0.8 and English +7.0 on the metric
+ * of the day. What that experiment measured was the *colour* task, which was
+ * later abandoned for other reasons, so the result does not transfer to shape
+ * and texture without measuring again.
+ *
+ * Translating behind the user's back is exactly the silent rewrite this file
+ * exists to avoid, so the honest options are to leave it, or to ask in English
+ * in the interface and say so. Not decided yet, deliberately.
+ *
+ * It does not block the first job either way: removing an element from the
+ * garment carries **no user text at all**, so that prompt is system-written and
+ * can be in English without anyone reading Spanish seeing a difference.
  */
 const FRAME: Record<InpaintIntent, (description: string) => string> = {
   // Offered alongside the deterministic recolour (`lib/recolor.ts`), not
   // instead of it: this is the arm of the `FASE_2_INPAINTING` §2.3 comparison
   // that a model answers. The description reaching here is usually a hex,
   // because measuring whether the model honours the exact code is the point.
+  //
+  // Measured outcome, so nobody re-runs it hoping: the model does not honour it.
+  // The best of five paid attempts reached 38% of the requested colour change,
+  // and the manufacturer's own showcase example fails the same way.
   color: (description) =>
-    `Cambia únicamente el color de esta zona de la prenda a ${description}, conservando los pliegues, las sombras y la textura del tejido.`,
+    `Esta zona de la prenda en ${description}, conservando los pliegues, las sombras y la textura del tejido.`,
 
-  shape: (description) =>
-    `Modifica esta zona de la prenda para que sea ${description}, ${KEEP}. No cambies el resto de la prenda ni el fondo.`,
+  shape: (description) => `Esta zona de la prenda como ${description}, ${TEJIDO}.`,
 
   texture: (description) =>
-    `Cambia el tejido de esta zona de la prenda a ${description}, conservando la forma, los pliegues y la iluminación. No cambies el corte de la prenda ni el fondo.`,
+    `Esta zona de la prenda en ${description}, conservando la forma, los pliegues y la iluminación que ya tiene.`,
 };
 
 /** The text the model receives, from what the user asked for. */

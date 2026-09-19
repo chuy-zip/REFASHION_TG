@@ -322,15 +322,11 @@ export const inpaintSchema = z.object({
     .trim()
     .min(3, "Describe qué quieres cambiar.")
     .max(3000, "La descripción es demasiado larga."),
-  /**
-   * 0..1. The parameter that separates adjusting a tone from replacing a
-   * collar, and the reason FLUX Fill [dev] was chosen over [pro] — [pro] does
-   * not expose it.
-   */
-  strength: z.coerce
-    .number()
-    .min(0, "La intensidad no es válida.")
-    .max(1, "La intensidad no es válida."),
+  // `strength` used to be accepted here. It is gone on purpose: FLUX Fill does
+  // not use it, and Runware turns it into a step count instead, so the value
+  // changed the compute without changing what the caller asked for. Dropping it
+  // from the schema means an old client sending it gets a clear rejection
+  // rather than a silent no-op.
 });
 
 export type InpaintRequestInput = z.infer<typeof inpaintSchema>;

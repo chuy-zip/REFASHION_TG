@@ -282,7 +282,6 @@ export function DesignWorkspace({
   // itself says which one is exact.
   const [intent, setIntent] = useState<InpaintIntent>("shape");
   const [description, setDescription] = useState("");
-  const [strength, setStrength] = useState(0.85);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -796,7 +795,6 @@ export function DesignWorkspace({
       mask_asset_id: stored.data.id,
       intent,
       prompt: description,
-      strength,
     });
 
     setIsGenerating(false);
@@ -1430,8 +1428,6 @@ export function DesignWorkspace({
               }}
               description={description}
               onDescriptionChange={setDescription}
-              strength={strength}
-              onStrengthChange={setStrength}
               onGenerate={handleGenerate}
               hasMask={!isMaskEmpty(mask)}
               isGenerating={isGenerating}

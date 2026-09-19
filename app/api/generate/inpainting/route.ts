@@ -9,6 +9,7 @@ import { assetDisplayName } from "@/lib/assets";
 import { getGenerationProvider } from "@/lib/generation";
 import { resolveGenerationInputs } from "@/lib/generation/inputs";
 import { composePrompt } from "@/lib/generation/prompt";
+import { newSeed } from "@/lib/generation/seed";
 import { readPngSize } from "@/lib/png-size";
 import { inpaintSchema } from "@/lib/validation";
 import {
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { design_id, image_asset_id, mask_asset_id, intent, prompt, strength } =
+  const { design_id, image_asset_id, mask_asset_id, intent, prompt } =
     parsed.data;
 
   const supabase = await createSupabaseClient();
@@ -91,6 +92,12 @@ export async function POST(request: Request) {
   // without shipping a new client (`lib/generation/prompt.ts`).
   const composed = composePrompt(intent, prompt);
 
+  // Chosen here and not in the browser, for the same reason the prompt is: one
+  // answer to "what was actually asked for". A seed the client could pick would
+  // also be a seed the client could omit, which is how generations became
+  // unrepeatable in the first place (`lib/generation/seed.ts`).
+  const seed = newSeed();
+
   const provider = getGenerationProvider();
   const outcome = await provider.inpaint({
     imageUrl,
@@ -98,7 +105,7 @@ export async function POST(request: Request) {
     size,
     prompt: composed,
     intent,
-    strength,
+    seed,
   });
 
   // A failed generation is not charged and nothing is written: the design is
@@ -153,6 +160,12 @@ export async function POST(request: Request) {
       origin: "generated",
       runware_task_id: result.taskId,
       cost_usd: result.costUsd,
+      // Lo que hace falta para volver a producir ESTA imagen (migración 018).
+      // Las tres las reporta el proveedor, no las supone la ruta: la ruta sabe
+      // qué pidió, no qué respondió.
+      generation_seed: result.seed,
+      generation_model: result.model,
+      generation_steps: result.steps,
       // The COMPOSED text, not the user's fragment: this column is the record
       // of what the model was actually asked, and it is what makes a result
       // reproducible months later. The user's own words are the tail of it.

@@ -28,36 +28,6 @@
   resize: vertical;
 }
 
-.strengthHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-/* Mono and tabular: the value is read while dragging, and a proportional font
-   makes it jitter as the digits change width. */
-.strengthValue {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-secondary);
-}
-
-.strength {
-  width: 100%;
-  accent-color: var(--color-accent);
-}
-
-/* The ends of the range say which way is which: "0.2 to 1" describes the
-   control, not what it does to the garment. */
-.strengthEnds {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--text-xs);
-  font-stretch: var(--font-stretch-condensed);
-  color: var(--color-text-disabled);
-}
-
 /* A caveat, not an error: the path works, it is simply the imprecise one. */
 .note {
   font-size: var(--text-xs);
@@ -76,12 +46,4 @@
 .simulated {
   font-weight: 600;
   color: var(--color-warning);
-}
-
-@media (pointer: coarse) {
-  .strength {
-    /* A 4px track is a mouse target. Under a finger the whole control needs
-       room, and the thumb is the part being aimed at. */
-    min-height: var(--touch-target);
-  }
 }

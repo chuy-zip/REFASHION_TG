@@ -12,8 +12,6 @@ interface GenerationPanelProps {
   onIntentChange: (intent: InpaintIntent) => void;
   description: string;
   onDescriptionChange: (description: string) => void;
-  strength: number;
-  onStrengthChange: (strength: number) => void;
   onGenerate: () => void;
   hasMask: boolean;
   isGenerating: boolean;
@@ -34,6 +32,14 @@ interface GenerationPanelProps {
  * panel says outright that the other path is exact, so nobody reaches for this
  * one by accident.
  *
+ * **There used to be an "Intensidad" slider here, and removing it was the
+ * point.** It set `strength`, which this project measured that FLUX Fill does
+ * not use: the model's own documentation says so, and Runware translates the
+ * value into a step count instead. So the control silently cut the compute
+ * while its label promised something else, and a knob that lies is worse than
+ * no knob. Step count is fixed at what every measured run used.
+ * See `herramientas/docs/EXPERIMENTO_1_color_generativo.md`.
+ *
  * **The cost is shown before spending, not after.** During a call a seller
  * tries five things while quoting a client, and a price that only appears in
  * the history is a price they find out about too late. Until a real provider is
@@ -46,8 +52,6 @@ export function GenerationPanel({
   onIntentChange,
   description,
   onDescriptionChange,
-  strength,
-  onStrengthChange,
   onGenerate,
   hasMask,
   isGenerating,
@@ -55,7 +59,6 @@ export function GenerationPanel({
   disabled = false,
 }: GenerationPanelProps) {
   const promptId = useId();
-  const strengthId = useId();
 
   const canGenerate =
     !disabled && !isGenerating && hasMask && description.trim().length >= 3;
@@ -88,34 +91,6 @@ export function GenerationPanel({
         />
       </div>
 
-      <div className={styles.field}>
-        <div className={styles.strengthHead}>
-          <label className={styles.label} htmlFor={strengthId}>
-            Intensidad
-          </label>
-          <span className={styles.strengthValue}>{strength.toFixed(2)}</span>
-        </div>
-        {/* The one parameter that separates adjusting from replacing, and the
-            reason FLUX Fill [dev] was chosen over [pro] — [pro] does not expose
-            it. The ends are labelled because a bare number from 0 to 1 says
-            nothing about which way is which. */}
-        <input
-          id={strengthId}
-          className={styles.strength}
-          type="range"
-          min={0.2}
-          max={1}
-          step={0.05}
-          value={strength}
-          onChange={(event) => onStrengthChange(Number(event.target.value))}
-          disabled={disabled || isGenerating}
-        />
-        <div className={styles.strengthEnds}>
-          <span>Ajustar</span>
-          <span>Reemplazar</span>
-        </div>
-      </div>
-
       {/* Always present and always the same two lines, so switching intent
           does not resize the panel. Only the words change. */}
       <p className={styles.note}>
@@ -140,7 +115,7 @@ export function GenerationPanel({
       <p className={styles.cost}>
         {isSimulated ? (
           <>
-            <span className={styles.simulated}>Simulado</span> — no se llama a
+            <span className={styles.simulated}>Simulado</span>. No se llama a
             ningún servicio y no se cobra nada.
           </>
         ) : (

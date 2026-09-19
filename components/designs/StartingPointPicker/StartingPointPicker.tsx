@@ -6,7 +6,12 @@ import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
 import { ThumbnailGrid } from "@/components/ui/ThumbnailGrid/ThumbnailGrid";
 import { UPLOAD_ACCEPT, uploadClientAsset } from "@/lib/asset-upload";
-import { assetDisplayName, stripExtension, type AssetWithUrl } from "@/lib/assets";
+import {
+  ASSET_TYPE_COPY,
+  assetDisplayName,
+  stripExtension,
+  type AssetWithUrl,
+} from "@/lib/assets";
 import { garmentTypeLabel, type DesignWithPreview } from "@/lib/designs";
 import styles from "./StartingPointPicker.module.css";
 
@@ -18,12 +23,40 @@ export type StartingPoint =
   | { kind: "asset"; id: string }
   | { kind: "design"; id: string };
 
-type Source = "base_garment" | "tech_drawing" | "design" | "upload";
+/**
+ * What an uploaded file gets filed as.
+ *
+ * The same three catalog types this panel can start a design from, which is the
+ * point: the question is only asked because the answer is now ambiguous. While
+ * the only starting point was a flat garment there was nothing to ask.
+ */
+type UploadType = "base_garment" | "model_photo" | "tech_drawing";
+
+const UPLOAD_TYPES: UploadType[] = ["base_garment", "model_photo", "tech_drawing"];
+
+type Source =
+  | "base_garment"
+  | "model_photo"
+  | "tech_drawing"
+  | "design"
+  | "upload";
 
 const SOURCE_COPY: Record<Source, { label: string; empty?: string }> = {
   base_garment: {
     label: "Prendas base",
     empty: "Este cliente no tiene prendas base.",
+  },
+  // A model photo starts a design the same way a flat garment does: it is an
+  // image with a garment in it. The catalog type existed since migration 001
+  // and objetivo específico 1 names it, but this list never offered it, so the
+  // only thing stopping it was these four strings.
+  //
+  // It is also the better surface for the generative step. Editing measured far
+  // better on natural photographs than on product cut-outs over flat white,
+  // which is what the experiments in `herramientas/` kept running into.
+  model_photo: {
+    label: "Fotos de modelo",
+    empty: "Este cliente no tiene fotos de modelo.",
   },
   tech_drawing: {
     label: "Dibujos técnicos",
@@ -64,9 +97,16 @@ interface StartingPointPickerProps {
  * nobody remembers their catalog by filename, so the choice has to be made on
  * the images themselves.
  *
- * Logos and model photos are deliberately absent — a logo is composited *onto*
- * a garment (Módulo 1) and a model photo is the VTON target (Módulo 3);
- * neither is a canvas to start from.
+ * Logos are deliberately absent: a logo is composited *onto* a garment
+ * (Módulo 1), never a canvas to start from.
+ *
+ * **Model photos used to be absent too, on the grounds that one is the VTON
+ * target (Módulo 3) rather than a canvas. That reasoning no longer holds.** The
+ * generative experiments in `herramientas/` measured editing to work markedly
+ * better on natural photographs of someone wearing the garment than on product
+ * cut-outs over flat white — which is the opposite of what the exclusion
+ * assumed. A model photo is now both: a canvas to edit and, later, a VTON
+ * target. Objetivo específico 1 already listed it as a catalog type.
  *
  * "Subir nueva" is a source like the others rather than a button beside them:
  * an empty catalog used to be a dead end that forced a trip to the Recursos
@@ -85,18 +125,20 @@ export function StartingPointPicker({
   const fieldId = useId();
   const [source, setSource] = useState<Source>("base_garment");
 
+  const [uploadType, setUploadType] = useState<UploadType>("base_garment");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const sources: Source[] = includeDesigns
-    ? ["base_garment", "tech_drawing", "design", "upload"]
-    : ["base_garment", "tech_drawing", "upload"];
+    ? ["base_garment", "model_photo", "tech_drawing", "design", "upload"]
+    : ["base_garment", "model_photo", "tech_drawing", "upload"];
 
   const assetsOfSource = (type: Source) =>
     assets.filter((asset) => asset.asset_type === type);
 
   const counts: Partial<Record<Source, number>> = {
     base_garment: assetsOfSource("base_garment").length,
+    model_photo: assetsOfSource("model_photo").length,
     tech_drawing: assetsOfSource("tech_drawing").length,
     design: designs.length,
   };
@@ -137,11 +179,17 @@ export function StartingPointPicker({
     setUploadError(null);
     setIsUploading(true);
 
-    // Always filed as a base garment: this panel exists to supply the canvas
-    // an image to start from, whatever the file happens to depict.
+    // Filed as whatever the tabs above say, not guessed from the file. It used
+    // to be hard-coded to `base_garment`, which was right while that was the
+    // only thing a design could start from — and became wrong the moment model
+    // photos became one, because a photo of a person would land under
+    // "Prendas base" and the catalog would slowly fill with mislabelled images.
+    //
+    // The choice sits next to the file input and defaults to the common case,
+    // so the flow keeps its one gesture for anyone who does not care.
     const result = await uploadClientAsset({
       clientId,
-      assetType: "base_garment",
+      assetType: uploadType,
       file,
       baseName: stripExtension(file.name),
     });
@@ -154,9 +202,9 @@ export function StartingPointPicker({
     }
 
     onAssetUploaded(result.data);
-    // Land on the tab where it now lives. The selection bar below then names
-    // it, which is the confirmation that the upload worked.
-    setSource("base_garment");
+    // Land on the tab where it now lives, whichever that is. The selection bar
+    // below then names it, which is the confirmation that the upload worked.
+    setSource(uploadType);
   }
 
   return (
@@ -181,6 +229,19 @@ export function StartingPointPicker({
           )}
 
           <div className={styles.uploadField}>
+            <span className={styles.uploadLabel}>Qué es</span>
+            <PillTabs
+              label="Tipo de imagen"
+              selected={uploadType}
+              onSelect={(key) => setUploadType(key as UploadType)}
+              options={UPLOAD_TYPES.map((key) => ({
+                key,
+                label: ASSET_TYPE_COPY[key].label,
+              }))}
+            />
+          </div>
+
+          <div className={styles.uploadField}>
             <label className={styles.uploadLabel} htmlFor={`${fieldId}-file`}>
               Archivo
             </label>
@@ -196,7 +257,8 @@ export function StartingPointPicker({
             />
             <p className={styles.uploadHint}>
               PNG, JPEG o WEBP. Máximo 10 MB. Se sube al elegirla y queda en el
-              catálogo del cliente como prenda base.
+              catálogo del cliente como{" "}
+              {ASSET_TYPE_COPY[uploadType].label.toLowerCase()}.
             </p>
           </div>
 

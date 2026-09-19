@@ -31,3 +31,46 @@
   border: var(--border-hairline) solid var(--color-danger);
   border-radius: var(--radius-sm);
 }
+
+.checking {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Warning tone, not danger: the deletion is allowed, this only says what it
+   costs. Danger colouring here would read as "blocked" (§7.3). Same treatment
+   as the image dialog, so the two read as one pattern. */
+.usage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-12);
+  background: var(--color-surface-sunken);
+  border-left: 2px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+}
+
+.usageTitle {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.usageList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 9rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.usageItem {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.usageHint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
