@@ -8,7 +8,7 @@ export type {
   GenerationProvider,
   InpaintIntent,
   InpaintRequest,
-  InpaintResult,
+  GenerationResult,
 } from "@/lib/generation/types";
 
 /**

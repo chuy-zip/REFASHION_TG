@@ -97,6 +97,58 @@ export const PROMPT_SUGGESTIONS: Record<
 };
 
 /**
+ * The instruction path's own suggestions, and they are a different craft.
+ *
+ * **An instruction is an order, not a description.** The mask suggestions above
+ * describe what should exist inside a hole; these tell the model what to change
+ * in a picture it can see in full. Mixing the two produces the classic failure
+ * of this model: a beautiful rendering of something nobody asked to touch.
+ *
+ * **None of them lists what to preserve, and getting there took two steps.**
+ *
+ * They began as the measured text from `probar_kontext.py`, which named "the
+ * collar, the buttons and the gold embroidered emblems on the chest" among the
+ * things to keep. On that photograph those existed and it kept them. Reused on
+ * a garment whose emblem had just been removed by inpainting, **the same clause
+ * put a gold embroidered emblem back**: the model cannot tell "keep the emblem"
+ * from "there is an emblem", both being the word `emblem` in the conditioning,
+ * exactly as `no logo` was the word `logo`.
+ *
+ * The clause was then narrowed to things no edit could remove — the person, the
+ * pose, the background, the light — and **run against a version without it. The
+ * two came back materially the same**: the short order preserved the face, the
+ * pose and the background on its own. So the clause is gone, because a sentence
+ * that changes nothing still has to be read, and a user copying these examples
+ * would learn a ritual instead of a rule.
+ *
+ * Which leaves one rule for both models, and it is the same one: **do not
+ * enumerate.** Fill's winning prompt described only the masked zone and listed
+ * nothing, neither to avoid nor to keep. This one is a plain order. Anything a
+ * prompt names, a diffusion model hears as something that should be there.
+ *
+ * > The comparison was two calls in the app, with no fixed seed, so it is weaker
+ * > than the ladder that measured Fill. It is enough to drop a clause that was
+ * > never measured to help in the first place; it would not be enough to claim
+ * > the clause is harmful.
+ */
+export const INSTRUCTION_SUGGESTIONS: Record<PromptLanguage, string[]> = {
+  es: [
+    "Convierte la camisa de manga corta en una de manga larga, con la misma tela continuando por los dos brazos hasta las muñecas y terminando en puño acanalado.",
+    "Cambia el cuello redondo de la camiseta por un cuello tipo polo con cartera de tres botones, en la misma tela y del mismo color.",
+    "Agrega un bolsillo de parche en el pecho izquierdo, de la misma tela y con costura al tono.",
+  ],
+  en: [
+    "Change the short-sleeve shirt into a long-sleeve one, with the same fabric continuing down both arms to the wrists and ending in a ribbed cuff.",
+    "Change the t-shirt's crew neck into a polo collar with a three-button placket, in the same fabric and the same colour.",
+    "Add a patch pocket on the left chest, in the same fabric with tonal stitching.",
+  ],
+};
+
+/** What the user is invited to type on the instruction path. */
+export const INSTRUCTION_PLACEHOLDER =
+  "haz las mangas largas, con puño de punto…";
+
+/**
  * What the model receives.
  *
  * Deliberately the user's own text, untouched beyond trimming. It stays a

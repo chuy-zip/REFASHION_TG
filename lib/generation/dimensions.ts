@@ -135,3 +135,62 @@ export function isInferenceSize(size: Size): boolean {
 
   return ok(size.width) && ok(size.height);
 }
+
+/**
+ * The only sizes FLUX.1 Kontext accepts, and it is a closed list.
+ *
+ * **This is not "multiples of 64" like Fill.** The first call ever made to that
+ * model was rejected with `unsupportedDimensions`, and the rejection itself
+ * returned the permitted list, which is what is written here. The call cost
+ * nothing, because a rejected task is not charged, but it cost a round trip,
+ * and this list is what stops the next one from paying it again
+ * (`herramientas/probar_kontext.py`).
+ *
+ * Every entry is about 1 MP, which is where the model is trained.
+ */
+export const KONTEXT_SIZES: Size[] = [
+  { width: 1568, height: 672 },
+  { width: 1504, height: 688 },
+  { width: 1456, height: 720 },
+  { width: 1392, height: 752 },
+  { width: 1328, height: 800 },
+  { width: 1248, height: 832 },
+  { width: 1184, height: 880 },
+  { width: 1104, height: 944 },
+  { width: 1024, height: 1024 },
+  { width: 944, height: 1104 },
+  { width: 880, height: 1184 },
+  { width: 832, height: 1248 },
+  { width: 800, height: 1328 },
+  { width: 752, height: 1392 },
+  { width: 720, height: 1456 },
+  { width: 688, height: 1504 },
+  { width: 672, height: 1568 },
+];
+
+/**
+ * The allowed size that distorts the source proportion least.
+ *
+ * Only the ratio is chosen here, never the pixel count: every entry is around
+ * 1 MP, so there is no budget to trade off the way `snapToInferenceSize` does.
+ * That makes this the simpler of the two, and the one place where a caller
+ * could get it wrong is by assuming the two functions are interchangeable.
+ *
+ * Distortion is not always avoidable. A 2:3 photograph lands on 832×1248, which
+ * is exactly 1.5 and therefore free; a squarer one does not, and the drift is
+ * real and has to be accepted rather than hidden.
+ */
+export function snapToKontextSize(source: Size): Size {
+  let best = KONTEXT_SIZES[0];
+  let bestDrift = Infinity;
+
+  for (const candidate of KONTEXT_SIZES) {
+    const drift = aspectDrift(source, candidate);
+    if (drift < bestDrift) {
+      best = candidate;
+      bestDrift = drift;
+    }
+  }
+
+  return best;
+}

@@ -337,6 +337,28 @@ export const inpaintSchema = z.object({
 
 export type InpaintRequestInput = z.infer<typeof inpaintSchema>;
 
+/**
+ * Editing by instruction. No mask, and that absence is the whole schema.
+ *
+ * There is no `intent` either: intents pick which suggestions to show for a
+ * masked fill, and this path has one job. What it does have is a longer floor
+ * on the text, because an instruction of two words is the failure mode of this
+ * model: it re-renders the whole frame, so an order that does not say what to
+ * preserve invites it to change everything.
+ */
+export const editSchema = z.object({
+  design_id: z.uuid("El diseño no es válido."),
+  /** The image to edit. Becomes `parent_asset_id`. */
+  image_asset_id: z.uuid("La imagen de trabajo no es válida."),
+  instruction: z
+    .string()
+    .trim()
+    .min(10, "Describe el cambio con un poco más de detalle.")
+    .max(3000, "La instrucción es demasiado larga."),
+});
+
+export type EditRequestInput = z.infer<typeof editSchema>;
+
 /* -------------------------------------------------------------------------- */
 /* Design layers (Módulo 1)                                                    */
 /* -------------------------------------------------------------------------- */

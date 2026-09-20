@@ -1,12 +1,17 @@
 import "server-only";
 import type {
+  EditRequest,
   GenerationOutcome,
   GenerationProvider,
   InpaintRequest,
 } from "@/lib/generation/types";
 
 /**
- * The provider that costs money: FLUX.1 Fill [dev] on Runware.
+ * The provider that costs money: Runware, with two models behind one object.
+ *
+ * FLUX.1 Fill [dev] answers `inpaint`, FLUX.1 Kontext [dev] answers `edit`.
+ * They share an endpoint, a key and a response shape, and nothing else: the
+ * notes below about what is deliberately not sent are about Fill.
  *
  * **The payload is not designed here. It is copied from the run that was
  * measured.** Every field below is one that a paid experiment either needed or
@@ -51,18 +56,42 @@ const API_URL = "https://api.runware.ai/v1";
 /** FLUX.1 Fill [dev]. The AIR id, as the provider spells it and as it is stored. */
 const MODEL = "runware:102@1";
 
+/**
+ * FLUX.1 Kontext [dev], for editing by instruction.
+ *
+ * A different model, not a different setting, and the difference shows up in
+ * the request: no `maskImage`, no `seedImage`, the image goes in
+ * `inputs.referenceImages`, and the prompt is an order rather than a
+ * description of what belongs in a hole.
+ *
+ * Measured at **$0.0130** against $0.0038 for Fill, about 3.4 times. It earns
+ * that: it produced both sleeves where Fill produced a bare arm, and it kept
+ * the person's identity while doing it.
+ */
+const EDIT_MODEL = "runware:106@1";
+
 /** The value every measured run used. See `EXPERIMENTO_3_*` in herramientas. */
 const STEPS = 28;
 
 /**
- * Budgets, sized against the route's own ceiling rather than against hope.
+ * Budgets, and they add up to just under the route's own ceiling on purpose.
  *
- * The route allows 60 s (`maxDuration`) and the measured generations took 10 s
- * to 20 s, so these two leave roughly a 2.5x margin and still return an error
- * the user can read instead of a platform timeout they cannot.
+ * The route allows 60 s (`maxDuration`), so 48 plus 10 leaves two seconds of
+ * slack and still fails with a message the user can read instead of a platform
+ * timeout they cannot.
+ *
+ * **They started at 40 and 15, and Kontext hit the 40.** Fill had measured
+ * 10 s to 20 s, and the instruction model is slower: it re-renders the whole
+ * frame rather than a masked patch. The same request succeeded on the retry, so
+ * the ceiling was the problem and not the request.
+ *
+ * Raising them further means raising `maxDuration` past 60 first, because the
+ * platform kills the function regardless of what this file hopes for. That is a
+ * deployment decision (300 s needs fluid compute enabled, and fails the build
+ * otherwise), so it waits for evidence that real calls need it.
  */
-const INFERENCE_TIMEOUT_MS = 40_000;
-const DOWNLOAD_TIMEOUT_MS = 15_000;
+const INFERENCE_TIMEOUT_MS = 48_000;
+const DOWNLOAD_TIMEOUT_MS = 10_000;
 
 interface RunwareImage {
   taskUUID?: string;
@@ -100,139 +129,219 @@ function logIssue(detail: string): void {
   }
 }
 
+/**
+ * Everything that is the same whichever model answers.
+ *
+ * Extracted rather than duplicated because the two paths differ only in the
+ * task they send: the authentication, the rejection handling, the "was it
+ * charged" wording and the download are one behaviour, and two copies of it
+ * would drift the first time one of them was fixed.
+ */
+async function run(
+  apiKey: string,
+  task: Record<string, unknown>,
+  model: string,
+  steps: number,
+  requestedSeed: number
+): Promise<GenerationOutcome> {
+  const started = Date.now();
+
+  let response: Response;
+  try {
+    response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify([task]),
+      signal: AbortSignal.timeout(INFERENCE_TIMEOUT_MS),
+    });
+  } catch (error) {
+    logIssue(`fetch failed: ${String(error)}`);
+
+    // **A timeout is not a rejection, and saying it was would be a lie.** When
+    // Runware refuses a task there is no charge and that is knowable. When this
+    // side stops waiting, the task was already accepted: it may well finish and
+    // bill a second later, into a connection nobody is listening to. The image
+    // is lost either way, but the money is not necessarily.
+    const expiro = error instanceof Error && error.name === "TimeoutError";
+
+    return fail(
+      expiro
+        ? "El servicio de generación tardó demasiado y se canceló la espera. La imagen se perdió, pero es posible que la llamada sí se haya cobrado."
+        : "No se pudo contactar al servicio de generación. No se te cobró; puedes intentar de nuevo."
+    );
+  }
+
+  let body: RunwareResponse;
+  try {
+    body = (await response.json()) as RunwareResponse;
+  } catch {
+    logIssue(`unparseable body, HTTP ${response.status}`);
+    return fail(
+      "El servicio de generación devolvió una respuesta que no se pudo leer. No se te cobró."
+    );
+  }
+
+  // Errors are scoped to the task, so a non-2xx status and a populated
+  // `errors` array are the same event seen from two sides. The provider's own
+  // message is passed through on purpose: during validation the difference
+  // between "dimensiones no soportadas" and "sin saldo" is the whole message,
+  // and hiding it would mean reading server logs to learn it.
+  const problem = body.errors?.[0];
+  if (problem || !response.ok) {
+    const detail = problem?.message ?? `HTTP ${response.status}`;
+    logIssue(`task rejected: ${problem?.code ?? response.status} ${detail}`);
+    return fail(
+      `El servicio de generación rechazó la petición. No se te cobró. Detalle: ${detail}`
+    );
+  }
+
+  const result = body.data?.[0];
+  if (!result?.imageURL) {
+    logIssue("response carried no imageURL");
+    return fail(
+      "El servicio de generación no devolvió ninguna imagen. No se te cobró."
+    );
+  }
+
+  // From here on the task succeeded and was charged, so every failure below
+  // has to say so: the money is gone whether or not the bytes arrive, and a
+  // message claiming otherwise would be false.
+  let image: Blob;
+  try {
+    const download = await fetch(result.imageURL, {
+      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+    });
+    if (!download.ok) throw new Error(`HTTP ${download.status}`);
+    image = await download.blob();
+  } catch (error) {
+    logIssue(`download failed: ${String(error)}`);
+    return fail(
+      "La imagen se generó pero no se pudo descargar. Esta generación sí se cobró. Vuelve a intentar."
+    );
+  }
+
+  return {
+    ok: true,
+    data: {
+      image,
+      // Null rather than zero when the provider stays quiet. A zero would add
+      // itself to the running total of the design as if the generation had
+      // been free, and a total that is quietly wrong is worse than one that
+      // shows a gap.
+      costUsd: typeof result.cost === "number" ? result.cost : null,
+      // The provider's own id for the task, which is what makes a row in
+      // `assets` traceable back to a line on the Runware invoice.
+      taskId: result.taskUUID ?? String(task.taskUUID),
+      model,
+      steps,
+      // Echoed, not assumed. The provider is free to substitute a seed, and a
+      // seed nobody verified cannot reproduce anything.
+      seed: typeof result.seed === "number" ? result.seed : requestedSeed,
+      latencyMs: Date.now() - started,
+    },
+  };
+}
+
+/**
+ * The app's own key, deliberately not the one the Python tools in
+ * `herramientas/` read. See `index.ts` for why they are two names.
+ */
+function readKey(): string | undefined {
+  return process.env.API_KEY_RUNWARE_PROD;
+}
+
+/**
+ * Reachable only by misconfiguration: `getGenerationProvider` refuses to return
+ * this provider without a key. Checked again anyway, because a provider that
+ * assumes its own preconditions is a provider that sends an unauthenticated
+ * request to a paid API.
+ */
+const SIN_LLAVE =
+  "La generación con IA no está configurada en este entorno. No se te cobró.";
+
 export const runwareProvider: GenerationProvider = {
   name: "runware",
   billable: true,
 
   async inpaint(request: InpaintRequest): Promise<GenerationOutcome> {
-    // The app's own key, deliberately not the one the Python tools in
-    // `herramientas/` read. See `index.ts` for why they are two names.
-    const apiKey = process.env.API_KEY_RUNWARE_PROD;
-    if (!apiKey) {
-      // Reachable only by misconfiguration: `getGenerationProvider` refuses to
-      // return this provider without a key. Checked again because a provider
-      // that assumes its own preconditions is a provider that sends an
-      // unauthenticated request to a paid API.
-      return fail(
-        "La generación con IA no está configurada en este entorno. No se te cobró."
-      );
-    }
-
-    const started = Date.now();
+    const apiKey = readKey();
+    if (!apiKey) return fail(SIN_LLAVE);
 
     // One task per request. `numberResults` stays at 1 because the cost is per
     // image and the strip advances one step at a time: two results would mean
     // paying twice to throw one away.
-    const task = {
-      taskType: "imageInference",
-      taskUUID: crypto.randomUUID(),
-      model: MODEL,
-      positivePrompt: request.prompt,
-      seed: request.seed,
-      width: request.size.width,
-      height: request.size.height,
-      steps: STEPS,
-      numberResults: 1,
-      outputFormat: "PNG",
-      includeCost: true,
-      // Nested, as the current schema declares them. The first experiments sent
-      // these at the root and Runware accepted it, which is precisely why it is
-      // worth pinning down: an accepted-but-undeclared shape is one nobody can
-      // promise will keep behaving the same way.
-      inputs: {
-        // Presigned R2 URLs. Runware fetches them itself, so nothing is
-        // uploaded twice and no image bytes pass through this function.
-        seedImage: request.imageUrl,
-        maskImage: request.maskUrl,
-      },
-    };
-
-    let response: Response;
-    try {
-      response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify([task]),
-        signal: AbortSignal.timeout(INFERENCE_TIMEOUT_MS),
-      });
-    } catch (error) {
-      logIssue(`fetch failed: ${String(error)}`);
-      return fail(
-        "El servicio de generación no respondió a tiempo. No se te cobró; puedes intentar de nuevo."
-      );
-    }
-
-    let body: RunwareResponse;
-    try {
-      body = (await response.json()) as RunwareResponse;
-    } catch {
-      logIssue(`unparseable body, HTTP ${response.status}`);
-      return fail(
-        "El servicio de generación devolvió una respuesta que no se pudo leer. No se te cobró."
-      );
-    }
-
-    // Errors are scoped to the task, so a non-2xx status and a populated
-    // `errors` array are the same event seen from two sides. The provider's own
-    // message is passed through on purpose: during validation the difference
-    // between "dimensiones no soportadas" and "sin saldo" is the whole message,
-    // and hiding it would mean reading server logs to learn it.
-    const problem = body.errors?.[0];
-    if (problem || !response.ok) {
-      const detail = problem?.message ?? `HTTP ${response.status}`;
-      logIssue(`task rejected: ${problem?.code ?? response.status} ${detail}`);
-      return fail(
-        `El servicio de generación rechazó la petición. No se te cobró. Detalle: ${detail}`
-      );
-    }
-
-    const result = body.data?.[0];
-    if (!result?.imageURL) {
-      logIssue("response carried no imageURL");
-      return fail(
-        "El servicio de generación no devolvió ninguna imagen. No se te cobró."
-      );
-    }
-
-    // From here on the task succeeded and was charged, so every failure below
-    // has to say so: the money is gone whether or not the bytes arrive, and a
-    // message claiming otherwise would be false.
-    let image: Blob;
-    try {
-      const download = await fetch(result.imageURL, {
-        signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
-      });
-      if (!download.ok) throw new Error(`HTTP ${download.status}`);
-      image = await download.blob();
-    } catch (error) {
-      logIssue(`download failed: ${String(error)}`);
-      return fail(
-        "La imagen se generó pero no se pudo descargar. Esta generación sí se cobró. Vuelve a intentar."
-      );
-    }
-
-    return {
-      ok: true,
-      data: {
-        image,
-        // Null rather than zero when the provider stays quiet. A zero would add
-        // itself to the running total of the design as if the generation had
-        // been free, and a total that is quietly wrong is worse than one that
-        // shows a gap.
-        costUsd: typeof result.cost === "number" ? result.cost : null,
-        // The provider's own id for the task, which is what makes a row in
-        // `assets` traceable back to a line on the Runware invoice.
-        taskId: result.taskUUID ?? task.taskUUID,
+    return run(
+      apiKey,
+      {
+        taskType: "imageInference",
+        taskUUID: crypto.randomUUID(),
         model: MODEL,
+        positivePrompt: request.prompt,
+        seed: request.seed,
+        width: request.size.width,
+        height: request.size.height,
         steps: STEPS,
-        // Echoed, not assumed. The provider is free to substitute a seed, and
-        // a seed nobody verified cannot reproduce anything.
-        seed: typeof result.seed === "number" ? result.seed : request.seed,
-        latencyMs: Date.now() - started,
+        numberResults: 1,
+        outputFormat: "PNG",
+        includeCost: true,
+        // Nested, as the current schema declares them. The first experiments
+        // sent these at the root and Runware accepted it, which is precisely
+        // why it is worth pinning down: an accepted-but-undeclared shape is one
+        // nobody can promise will keep behaving the same way.
+        inputs: {
+          // Presigned R2 URLs. Runware fetches them itself, so nothing is
+          // uploaded twice and no image bytes pass through this function.
+          seedImage: request.imageUrl,
+          maskImage: request.maskUrl,
+        },
       },
-    };
+      MODEL,
+      STEPS,
+      request.seed
+    );
+  },
+
+  /**
+   * Editing by instruction. Same plumbing, a different request entirely.
+   *
+   * Three differences from `inpaint`, and each one belongs to the model rather
+   * than to a preference:
+   *
+   *   - **No `maskImage` and no `seedImage`.** The image goes in
+   *     `inputs.referenceImages`, as a list.
+   *   - **The size comes from a closed list** (`snapToKontextSize`), not from
+   *     every multiple of 64. The caller has already chosen it; anything else
+   *     is rejected without charge.
+   *   - **The prompt is an order**, not a description of what belongs in a
+   *     hole. That inversion is why this is a separate mode on screen rather
+   *     than a third intent inside the mask panel.
+   */
+  async edit(request: EditRequest): Promise<GenerationOutcome> {
+    const apiKey = readKey();
+    if (!apiKey) return fail(SIN_LLAVE);
+
+    return run(
+      apiKey,
+      {
+        taskType: "imageInference",
+        taskUUID: crypto.randomUUID(),
+        model: EDIT_MODEL,
+        positivePrompt: request.instruction,
+        seed: request.seed,
+        width: request.size.width,
+        height: request.size.height,
+        steps: STEPS,
+        numberResults: 1,
+        outputFormat: "PNG",
+        includeCost: true,
+        inputs: { referenceImages: [request.imageUrl] },
+      },
+      EDIT_MODEL,
+      STEPS,
+      request.seed
+    );
   },
 };

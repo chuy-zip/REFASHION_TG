@@ -1,12 +1,21 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button/Button";
+import { PromptSuggestions } from "@/components/designs/PromptSuggestions/PromptSuggestions";
+import {
+  INSTRUCTION_PLACEHOLDER,
+  INSTRUCTION_SUGGESTIONS,
+} from "@/lib/generation/prompt";
 import styles from "./InstructionPanel.module.css";
 
 interface InstructionPanelProps {
   instruction: string;
   onInstructionChange: (instruction: string) => void;
+  onGenerate: () => void;
+  isGenerating: boolean;
+  /** True while the provider is the simulator: no call leaves, nothing is charged. */
+  isSimulated: boolean;
   disabled?: boolean;
 }
 
@@ -20,10 +29,10 @@ interface InstructionPanelProps {
  * invites asking for a masked edit and getting a whole-image one.
  *
  * **Why it exists at all.** The measurements said the mask path cannot do
- * everything: turning a short sleeve into a long one failed with a mask and
- * succeeded by instruction, on the same photograph, because adding a garment
- * feature is a semantic edit rather than a fill
- * (`herramientas/docs/EXPERIMENTO_3_quitar_y_agregar.md`).
+ * everything: turning a short sleeve into a long one failed with a mask, on a
+ * mask that was verified correct, and succeeded by instruction on the same
+ * photograph, because adding a garment feature is a semantic edit rather than a
+ * fill (`herramientas/docs/EXPERIMENTO_3_quitar_y_agregar.md`).
  *
  * **What it costs, said out loud.** The instruction model re-renders the whole
  * frame. It keeps the person, but it reframes, redraws skin detail and distorts
@@ -31,37 +40,65 @@ interface InstructionPanelProps {
  * because logos are a separate layer composed afterwards, and the panel says so
  * rather than letting someone discover it in a result.
  *
- * Not connected yet: `getGenerationProvider()` still answers with the
- * simulator, and no provider implements a maskless edit. The panel exists so
- * the mode is real and the copy can be read before anything is spent.
+ * **The suggestions are short on purpose, and they used to be long.** They
+ * carried a clause listing what to preserve, which was dropped after running
+ * the same order with and without it and getting materially the same result.
+ * What stays is the warning the clause taught: anything a prompt names is
+ * something the model may draw, so naming a garment detail to keep it is how a
+ * removed emblem came back. The panel says that where it will be read.
  */
 export function InstructionPanel({
   instruction,
   onInstructionChange,
+  onGenerate,
+  isGenerating,
+  isSimulated,
   disabled = false,
 }: InstructionPanelProps) {
   const fieldId = useId();
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+
+  const canGenerate = !disabled && !isGenerating && instruction.trim().length >= 10;
 
   return (
     <div className={styles.panel}>
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={fieldId}>
-          Qué quieres cambiar
-        </label>
+        <div className={styles.fieldHead}>
+          <label className={styles.label} htmlFor={fieldId}>
+            Qué quieres cambiar
+          </label>
+          <button
+            type="button"
+            className={styles.suggest}
+            onClick={() => setSuggestionsOpen(true)}
+            disabled={disabled || isGenerating}
+          >
+            Sugerencias
+          </button>
+        </div>
         <textarea
           id={fieldId}
           className={styles.instruction}
           rows={3}
           value={instruction}
           onChange={(event) => onInstructionChange(event.target.value)}
-          placeholder="haz las mangas largas, con puño de punto…"
-          disabled={disabled}
+          placeholder={INSTRUCTION_PLACEHOLDER}
+          disabled={disabled || isGenerating}
         />
         <p className={styles.hint}>
           Aquí no pintas nada. Describes el cambio y el modelo decide qué parte
           de la imagen toca.
         </p>
       </div>
+
+      <PromptSuggestions
+        title="Sugerencias para editar por instrucción"
+        hint="Una instrucción es una orden, no una descripción. Di solo qué cambiar: no hace falta listar lo que debe quedarse igual, y nombrar un detalle de la prenda es pedirlo, aunque lo pidas para conservarlo."
+        examples={INSTRUCTION_SUGGESTIONS}
+        open={suggestionsOpen}
+        onClose={() => setSuggestionsOpen(false)}
+        onUse={onInstructionChange}
+      />
 
       <p className={styles.caution}>
         Este camino vuelve a dibujar la imagen completa. Conserva a la persona,
@@ -70,13 +107,34 @@ export function InstructionPanel({
         capa.
       </p>
 
-      <Button variant="primary" disabled>
-        Generar
+      <p className={styles.hint}>
+        Di solo qué quieres cambiar. No hace falta listar lo que debe quedarse
+        igual, y cuidado con nombrar un detalle de la prenda: nombrarlo es
+        pedirlo, así que te lo dibuja aunque ya lo hayas quitado.
+      </p>
+
+      <Button variant="primary" onClick={onGenerate} disabled={!canGenerate}>
+        {isGenerating ? "Generando…" : "Generar"}
       </Button>
 
+      {/* Visible and not a tooltip on the disabled button, same reason as in the
+          mask panel: a disabled control does not reliably fire hover and never
+          does on touch. */}
+      {!disabled && !isGenerating && instruction.trim().length < 10 && (
+        <p className={styles.blocked}>
+          Escribe qué quieres cambiar, con un poco de detalle.
+        </p>
+      )}
+
       <p className={styles.status}>
-        <span className={styles.pending}>Sin conectar</span>. Este modo todavía
-        no llama a ningún servicio.
+        {isSimulated ? (
+          <>
+            <span className={styles.pending}>Simulado</span>. No se llama a
+            ningún servicio y no se cobra nada.
+          </>
+        ) : (
+          "Este camino cuesta unas tres veces lo que una edición con máscara. El costo real se registra en el diseño."
+        )}
       </p>
     </div>
   );

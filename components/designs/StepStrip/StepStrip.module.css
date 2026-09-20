@@ -76,7 +76,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  width: 5.5rem;
+  /* Wider than before because the chip above the frame carries a word, and a
+     word that has to truncate to fit is a word nobody reads. */
+  width: 7rem;
   padding: 0;
   background: transparent;
   border: none;
@@ -92,12 +94,51 @@
   overflow: hidden;
 }
 
+/* Thicker than the hover ring by more than a hairline: at 2px against 2px the
+   two states differed only in hue, and hue alone is a weak signal on a strip of
+   small images. */
 .step[aria-pressed="true"] .frame {
-  box-shadow: 0 0 0 2px var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-accent);
 }
 
 .step:hover:not([aria-pressed="true"]) .frame {
   box-shadow: 0 0 0 2px var(--color-border-strong);
+}
+
+/* The kind, as a chip above the frame. Condensed and uppercase because it has
+   to fit the thumbnail's width without wrapping, and because it reads as a
+   label rather than as content. */
+.kind {
+  display: block;
+  padding: var(--space-2) var(--space-6);
+  font-size: var(--text-xs);
+  font-stretch: var(--font-stretch-condensed);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.origin {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+}
+
+.paint {
+  color: var(--color-step-paint);
+  background: var(--color-step-paint-subtle);
+}
+
+.inpaint {
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.instruction {
+  color: var(--color-step-instruction);
+  background: var(--color-step-instruction-subtle);
 }
 
 .meta {
@@ -133,6 +174,6 @@
 
 @media (pointer: coarse) {
   .step {
-    width: 6rem;
+    width: 7.5rem;
   }
 }

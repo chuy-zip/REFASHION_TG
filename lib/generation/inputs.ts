@@ -1,6 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { snapToInferenceSize, type Size } from "@/lib/generation/dimensions";
+import {
+  snapToInferenceSize,
+  snapToKontextSize,
+  type Size,
+} from "@/lib/generation/dimensions";
 import type { Asset } from "@/lib/types";
 
 /**
@@ -160,6 +164,103 @@ export async function resolveGenerationInputs(
       // lleva a este lienzo — a las dos por igual, que es lo que garantiza la
       // alineación.
       size: snapToInferenceSize({
+        width: image.width_px,
+        height: image.height_px,
+      }),
+    },
+  };
+}
+
+
+/**
+ * The image an instruction edit is allowed to read.
+ *
+ * **The same ownership rule as `resolveGenerationInputs`, minus the mask**, and
+ * it lives here for the reason that one does: a rule written inside a handler
+ * protects that handler only, and this is the second route that needs it. It is
+ * the eighth application of "foreign keys are verified below RLS"
+ * (`APRENDIZAJES` §2.5b).
+ *
+ * The image has the same two legal homes as before: a design-level asset of
+ * this design, or a catalogue asset of the client that owns it. A design that
+ * has not edited anything yet is working on the client's garment, whose
+ * `design_id` is null, and refusing that would refuse every new design.
+ *
+ * What differs is the size. This model takes **only the sizes on its own list**
+ * (`snapToKontextSize`), not every multiple of 64, so the two paths must not
+ * share a snapper even though they share everything else.
+ */
+export interface EditInput {
+  image: Asset;
+  /** One of `KONTEXT_SIZES`. */
+  size: Size;
+}
+
+export type EditInputResult =
+  | { ok: true; input: EditInput }
+  | { ok: false; error: string; status: number };
+
+export async function resolveEditInput(
+  supabase: SupabaseClient,
+  designId: string,
+  clientId: string,
+  imageAssetId: string
+): Promise<EditInputResult> {
+  const { data, error } = await supabase
+    .from("assets")
+    .select("*")
+    .eq("id", imageAssetId)
+    .maybeSingle();
+
+  if (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[generation] resolveEditInput:", error.message);
+    }
+    return {
+      ok: false,
+      error: "No se pudo leer la imagen de la generación.",
+      status: 500,
+    };
+  }
+
+  const image = data as Asset | null;
+
+  // RLS already hid anything the caller cannot see, so "not found" and "not
+  // yours" arrive identically here, which is also the right answer to give
+  // back: telling them apart would confirm that an id exists.
+  if (!image) {
+    return { ok: false, error: "La imagen no existe.", status: 404 };
+  }
+
+  const esDelDiseno = image.design_id === designId;
+  const esDelCatalogo = image.design_id === null && image.client_id === clientId;
+
+  if (!esDelDiseno && !esDelCatalogo) {
+    return {
+      ok: false,
+      error: "La imagen no pertenece a este diseño.",
+      status: 403,
+    };
+  }
+
+  // Migration 016 made these columns exist and left older rows null. Without
+  // them there is no ratio to match against the model's list, and measuring the
+  // object here would mean downloading it on the hot path of a paid call, which
+  // is the thing that migration exists to avoid.
+  if (!image.width_px || !image.height_px) {
+    return {
+      ok: false,
+      error:
+        "No se conocen las dimensiones de esta imagen. Vuelve a subirla para poder editarla con IA.",
+      status: 409,
+    };
+  }
+
+  return {
+    ok: true,
+    input: {
+      image,
+      size: snapToKontextSize({
         width: image.width_px,
         height: image.height_px,
       }),

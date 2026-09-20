@@ -780,6 +780,42 @@ export function DesignWorkspace({
    * cursor onto it. A failure writes nothing and charges nothing: the design is
    * left exactly as it was, which is what makes pressing again safe.
    */
+  /**
+   * Editing by instruction: one request, and no mask anywhere.
+   *
+   * **Shorter than `handleGenerate` by exactly the part that goes wrong.** That
+   * one has to rasterize a mask, upload it as an asset, and clean it up when the
+   * route says no, because the upload happens before the call. Here there is
+   * nothing to upload, so a rejection leaves nothing behind.
+   *
+   * The canvas is the server's business again: this model takes only the sizes
+   * on its own list, and the route snaps to them from the dimensions it has on
+   * record (`snapToKontextSize`). The browser does not need to know the list.
+   */
+  async function handleInstructionGenerate() {
+    if (!workingAssetId || instruction.trim().length < 10) return;
+
+    setIsGenerating(true);
+    setError(null);
+
+    const result = await apiPost("/api/generate/edit", {
+      design_id: designId,
+      image_asset_id: workingAssetId,
+      instruction,
+    });
+
+    setIsGenerating(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setInstruction("");
+    notify({ type: "success", message: "Listo, se generó un paso nuevo." });
+    router.refresh();
+  }
+
   async function handleGenerate() {
     if (!workingImage || !workingAssetId || isMaskEmpty(mask)) return;
 
@@ -1312,6 +1348,9 @@ export function DesignWorkspace({
               ? ["brush", "flat", "picker", "eraser"]
               : ["brush", "eraser"]
           }
+          // The same stroke, two meanings: cloth recoloured, or a region
+          // declared. The rail says which one out loud.
+          brushAction={isPainting ? "recolor" : "mask"}
           onSelectGarment={isPainting ? handleSelectGarment : undefined}
           selectGarmentBlockedReason={
             garmentSelectFits
@@ -1562,6 +1601,9 @@ export function DesignWorkspace({
             <InstructionPanel
               instruction={instruction}
               onInstructionChange={setInstruction}
+              onGenerate={handleInstructionGenerate}
+              isGenerating={isGenerating}
+              isSimulated={isSimulated}
               disabled={!canCompose}
             />
           </div>

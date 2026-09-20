@@ -15,6 +15,7 @@ import {
   garmentTypeLabel,
   resolveDesignImageAssetId,
   WORK_STEP_TYPES,
+  workStepKind,
 } from "@/lib/designs";
 import { BaseGarmentPicker } from "@/components/designs/BaseGarmentPicker/BaseGarmentPicker";
 import { DesignWorkspaceLoader } from "@/components/designs/DesignWorkspace/DesignWorkspaceLoader";
@@ -122,7 +123,9 @@ export default async function DesignEditPage({ params }: PageProps) {
             url: baseAsset.url,
             createdAt: baseAsset.created_at,
             costUsd: null,
-            isOrigin: true,
+            kind: "origin" as const,
+            width: baseAsset.width_px,
+            height: baseAsset.height_px,
           },
         ]
       : []),
@@ -135,7 +138,11 @@ export default async function DesignEditPage({ params }: PageProps) {
         url: asset.url,
         createdAt: asset.created_at,
         costUsd: asset.cost_usd,
-        isOrigin: false,
+        // Both axes, because the type alone cannot tell a free brush stroke
+        // from a paid generation: both are stored as `inpainting`.
+        kind: workStepKind(asset.asset_type, asset.origin),
+        width: asset.width_px,
+        height: asset.height_px,
       })),
   ];
 

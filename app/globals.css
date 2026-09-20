@@ -46,6 +46,22 @@
   --color-danger: #c0392b;
   --color-danger-subtle: #fdecea;
 
+  /* Categorical — the one place colour encodes data instead of state.
+
+     The strip has to tell four kinds of step apart at a glance, and they are
+     not a scale: a hand-painted step is not "worse" than a generated one, it is
+     a different act with a different cost. So they get hues rather than
+     intensities, and they are chips, not solid fills, so the one-accent rule
+     holds: the accent is still the only loud thing on screen.
+
+     `inpaint` reuses the accent on purpose. It is the path the whole module was
+     built for, so it wears the project's own colour, and that leaves only two
+     new hues to learn. */
+  --color-step-paint: #0f766e;
+  --color-step-paint-subtle: #e6f4f1;
+  --color-step-instruction: #6b21a8;
+  --color-step-instruction-subtle: #f3e8fd;
+
   /* Dimmer behind modals */
   --color-backdrop: rgba(22, 24, 29, 0.45);
 

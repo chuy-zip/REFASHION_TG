@@ -1,6 +1,7 @@
 import "server-only";
 import { renderMockResult } from "@/lib/generation/mock-image";
 import type {
+  EditRequest,
   GenerationOutcome,
   GenerationProvider,
   InpaintRequest,
@@ -38,6 +39,14 @@ const LATENCY_MS = { min: 2200, max: 5200 } as const;
  */
 const COST_PER_MEGAPIXEL_USD = 0.011;
 
+/**
+ * How much dearer the instruction path is than the mask path.
+ *
+ * Measured: $0.0130 against $0.0038 on the same image. Kept here so the
+ * running total of a simulated design has the same shape as a real one.
+ */
+const EDIT_COST_FACTOR = 3.4;
+
 /** One in twelve. Often enough to meet it while building, rare enough to work. */
 const FAILURE_RATE = 1 / 12;
 
@@ -51,6 +60,16 @@ const FAILURE_RATE = 1 / 12;
  * database that no model was involved.
  */
 const MOCK_MODEL = "mock:flux-fill";
+
+/**
+ * What the simulator claims answered an instruction edit.
+ *
+ * A second name and not the same one, because the strip and the report both
+ * group by `generation_model`: if both paths claimed the same id, a simulated
+ * session would be indistinguishable in the database from one where every
+ * edit went through the mask.
+ */
+const MOCK_EDIT_MODEL = "mock:flux-kontext";
 
 /** The value every measured run used. See `EXPERIMENTO_3_*` in herramientas. */
 const STEPS = 28;
@@ -101,6 +120,52 @@ export const mockProvider: GenerationProvider = {
         // does, and saying so here is cheaper than a caller guessing.
         seed: request.seed,
         model: MOCK_MODEL,
+        steps: STEPS,
+        latencyMs: Date.now() - started,
+      },
+    };
+  },
+
+  /**
+   * The maskless path, simulated with the same three hazards.
+   *
+   * It costs more than the mask path here because it costs more in reality:
+   * Kontext was measured at about 3.4 times FLUX Fill. A simulator that made
+   * the expensive path look cheap would teach the wrong habit during exactly
+   * the sessions where the habit forms.
+   */
+  async edit(request: EditRequest): Promise<GenerationOutcome> {
+    const started = Date.now();
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, between(LATENCY_MS.min, LATENCY_MS.max))
+    );
+
+    if (Math.random() < FAILURE_RATE) {
+      return {
+        ok: false,
+        error:
+          "El servicio de generación no respondió. No se te cobró; puedes intentar de nuevo.",
+      };
+    }
+
+    const megapixels = (request.size.width * request.size.height) / 1_000_000;
+
+    return {
+      ok: true,
+      data: {
+        image: renderMockResult(
+          request.size.width,
+          request.size.height,
+          request.instruction
+        ),
+        costUsd:
+          Math.round(
+            megapixels * COST_PER_MEGAPIXEL_USD * EDIT_COST_FACTOR * 1_000_000
+          ) / 1_000_000,
+        taskId: crypto.randomUUID(),
+        seed: request.seed,
+        model: MOCK_EDIT_MODEL,
         steps: STEPS,
         latencyMs: Date.now() - started,
       },

@@ -4,7 +4,11 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { PromptSuggestions } from "@/components/designs/PromptSuggestions/PromptSuggestions";
-import { INTENT_COPY, PROMPT_PLACEHOLDER } from "@/lib/generation/prompt";
+import {
+  INTENT_COPY,
+  PROMPT_PLACEHOLDER,
+  PROMPT_SUGGESTIONS,
+} from "@/lib/generation/prompt";
 import type { InpaintIntent } from "@/lib/generation/types";
 import styles from "./GenerationPanel.module.css";
 
@@ -115,7 +119,9 @@ export function GenerationPanel({
       <p className={styles.note}>{INTENT_COPY[intent].hint}</p>
 
       <PromptSuggestions
-        intent={intent}
+        title={`Sugerencias para ${INTENT_COPY[intent].label.toLowerCase()}`}
+        hint={INTENT_COPY[intent].hint}
+        examples={PROMPT_SUGGESTIONS[intent]}
         open={suggestionsOpen}
         onClose={() => setSuggestionsOpen(false)}
         onUse={onDescriptionChange}

@@ -5,16 +5,24 @@ import { Button } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import {
-  INTENT_COPY,
   PROMPT_LANGUAGE_COPY,
-  PROMPT_SUGGESTIONS,
   type PromptLanguage,
 } from "@/lib/generation/prompt";
-import type { InpaintIntent } from "@/lib/generation/types";
 import styles from "./PromptSuggestions.module.css";
 
 interface PromptSuggestionsProps {
-  intent: InpaintIntent;
+  /** What this set of examples is for. */
+  title: string;
+  hint: string;
+  /**
+   * The examples themselves, by language.
+   *
+   * Passed in rather than looked up from an intent, because the component now
+   * serves two paths that do not share a vocabulary: a masked fill has intents
+   * and an instruction edit does not. Taking the list keeps the modal from
+   * having to know which path opened it.
+   */
+  examples: Record<PromptLanguage, string[]>;
   open: boolean;
   onClose: () => void;
   /** Puts the chosen text in the box, where it can still be edited. */
@@ -42,23 +50,25 @@ interface PromptSuggestionsProps {
  * want — this model has no negative channel, so a "no logo" is read as "logo".
  */
 export function PromptSuggestions({
-  intent,
+  title,
+  hint,
+  examples,
   open,
   onClose,
   onUse,
 }: PromptSuggestionsProps) {
   const [language, setLanguage] = useState<PromptLanguage>("es");
 
-  const examples = PROMPT_SUGGESTIONS[intent][language];
+  const shown = examples[language];
 
   return (
     <Dialog open={open} onClose={onClose} labelledBy="prompt-suggestions-title">
       <div className={styles.content}>
         <div>
           <h2 className={styles.title} id="prompt-suggestions-title">
-            Sugerencias para {INTENT_COPY[intent].label.toLowerCase()}
+            {title}
           </h2>
-          <p className={styles.hint}>{INTENT_COPY[intent].hint}</p>
+          <p className={styles.hint}>{hint}</p>
         </div>
 
         <PillTabs
@@ -77,7 +87,7 @@ export function PromptSuggestions({
         </p>
 
         <ul className={styles.list}>
-          {examples.map((example) => (
+          {shown.map((example) => (
             <li key={example} className={styles.item}>
               <p className={styles.example}>{example}</p>
               <Button

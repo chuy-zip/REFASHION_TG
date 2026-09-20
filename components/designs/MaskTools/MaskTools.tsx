@@ -59,6 +59,20 @@ interface MaskToolsProps {
    * are called.
    */
   tools?: MaskTool[];
+  /**
+   * What the brush means here, because the same stroke does two different
+   * things and only the label can say which.
+   *
+   * The rail is shared: while painting, a stroke recolours cloth and keeps its
+   * shading; while marking a zone, the identical stroke changes no pixel at all
+   * and only tells the model where it may work. The tooltip used to describe
+   * the first one in both places, so in the second it described something that
+   * was not happening.
+   *
+   * It is not the mode name: the rail still does not know what the modes are
+   * called, only what its own brush does.
+   */
+  brushAction?: "recolor" | "mask";
   /** Nothing painted yet: clearing would do nothing and says so. */
   isEmpty: boolean;
   disabled?: boolean;
@@ -90,9 +104,21 @@ export function MaskTools({
   onSelectGarment,
   selectGarmentBlockedReason,
   tools = ["brush", "eraser"],
+  brushAction = "mask",
   isEmpty,
   disabled = false,
 }: MaskToolsProps) {
+  const brushCopy =
+    brushAction === "recolor"
+      ? {
+          label: "Pincel de tela",
+          title: "Pincel de tela: cambia el color y conserva los pliegues",
+        }
+      : {
+          label: "Pincel",
+          title: "Pincel: marca la zona donde la IA puede trabajar",
+        };
+
   return (
     <div className={styles.rail} role="group" aria-label="Herramientas de máscara">
       {/* First, and set apart, because it is where painting starts: it lays
@@ -122,8 +148,8 @@ export function MaskTools({
           type="button"
           className={styles.tool}
           aria-pressed={tool === "brush"}
-          aria-label="Pincel de tela"
-          title="Pincel de tela: cambia el color y conserva los pliegues"
+          aria-label={brushCopy.label}
+          title={brushCopy.title}
           disabled={disabled}
           onClick={() => onToolChange("brush")}
         >

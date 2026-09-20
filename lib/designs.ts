@@ -360,3 +360,67 @@ export async function listProjectDesigns(
     error: null,
   };
 }
+
+/**
+ * What kind of step an image in the strip is, told by both axes at once.
+ *
+ * **`asset_type` alone would lie here**, and that is the whole reason this
+ * function exists. A recolour done with the brush and a generation done by the
+ * model are both stored as `inpainting`, because the column records *what the
+ * image is*, not how it was obtained. The second axis, `origin`, records that:
+ * `derived` for something computed on this machine for free, `generated` for
+ * something a paid model produced. Colouring the strip by type alone would put
+ * the same mark on a free brush stroke and on a paid generation.
+ *
+ * So the four kinds are the four things a user actually did:
+ *
+ *   - **origin**: the garment or photo the design started from. Not a step this
+ *     design produced; it belongs to the client's catalogue.
+ *   - **paint**: deterministic and free. Recolour, flat fill, eyedropper.
+ *   - **inpaint**: a paid model working inside a painted region.
+ *   - **instruction**: a paid model working with no region at all (Kontext).
+ *
+ * The last two are the distinction `edit` was added for in migration 018, and
+ * it is *with a mask against without one*, not deterministic against
+ * generative. Both questions now have an answer and neither is guessed.
+ */
+export type WorkStepKind = "origin" | "paint" | "inpaint" | "instruction";
+
+export function workStepKind(
+  assetType: string,
+  origin: string | null
+): WorkStepKind {
+  if (assetType === "edit") return "instruction";
+  if (origin === "derived") return "paint";
+  return "inpaint";
+}
+
+/**
+ * What each kind is called on screen, and what it is.
+ *
+ * In `lib/` and not in the component because the strip is not the only place
+ * that will ever have to name these: the hub, the report and any future filter
+ * all need the same four words, and four screens inventing their own synonyms
+ * is how a vocabulary stops being one.
+ */
+export const WORK_STEP_COPY: Record<
+  WorkStepKind,
+  { label: string; title: string }
+> = {
+  origin: {
+    label: "Partida",
+    title: "Punto de partida, del catálogo del cliente",
+  },
+  paint: {
+    label: "Pintado",
+    title: "Pintado a mano, sin IA. No cuesta nada",
+  },
+  inpaint: {
+    label: "IA por zona",
+    title: "Generado por IA dentro de la zona que pintaste",
+  },
+  instruction: {
+    label: "IA por instrucción",
+    title: "Generado por IA a partir de una instrucción, sin zona",
+  },
+};

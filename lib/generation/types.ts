@@ -77,7 +77,7 @@ export interface InpaintRequest {
   seed: number;
 }
 
-export interface InpaintResult {
+export interface GenerationResult {
   /** The generated image, ready to be stored like any other design asset. */
   image: Blob;
   /**
@@ -117,9 +117,8 @@ export interface InpaintResult {
    * Echoed back rather than assumed from the request, because a provider is
    * free to substitute one, and a seed nobody can verify is worth nothing.
    *
-   * **Nothing persists it yet**: `assets` has no column for it, so repeating a
-   * generation is not possible from the database until a migration adds one.
-   * Returning it here is the half that belongs to this layer.
+   * Persisted since migration 018 in `assets.generation_seed`, which is what
+   * makes a result reproducible months later.
    */
   seed: number;
   /** Wall clock, for deciding whether this can stay synchronous. */
@@ -131,13 +130,46 @@ export interface InpaintResult {
  * `lib/api-client.ts`, so callers branch instead of catching.
  */
 export type GenerationOutcome =
-  | { ok: true; data: InpaintResult }
+  | { ok: true; data: GenerationResult }
   | { ok: false; error: string };
+
+/**
+ * An edit asked for in words, with no mask at all.
+ *
+ * **The absence of `maskUrl` is the whole difference**, and it is not a
+ * convenience: the two paths answer different questions. An inpainting is told
+ * *where* and asked *what goes there*; this one is told *what to change* and
+ * decides where by itself. That is why the text reads as an order ("make the
+ * sleeves long") and not as a description of a region.
+ *
+ * It exists because the measurements said the mask path cannot do everything.
+ * Turning a short sleeve into a long one failed with a mask, on a mask that was
+ * verified correct, and succeeded by instruction on the same photograph
+ * (`herramientas/docs/EXPERIMENTO_3_quitar_y_agregar.md`).
+ */
+export interface EditRequest {
+  /** Public URL of the image to edit. Presigned R2 URLs qualify. */
+  imageUrl: string;
+  /**
+   * Already snapped, and **not with `snapToInferenceSize`**. This model accepts
+   * only a fixed list of sizes, not every multiple of 64, so the caller uses
+   * `snapToKontextSize`. Sending anything else is rejected before any work
+   * happens, which costs a round trip but no money.
+   */
+  size: Size;
+  /** What to change, in the user's own words. */
+  instruction: string;
+  /** Same contract as `InpaintRequest.seed`: always set, never optional. */
+  seed: number;
+}
 
 export interface GenerationProvider {
   /** Shown in logs and in dev, so it is obvious which one answered. */
   readonly name: string;
   /** True when calls cost real money. The UI warns differently. */
   readonly billable: boolean;
+  /** Edit inside a painted region. */
   inpaint(request: InpaintRequest): Promise<GenerationOutcome>;
+  /** Edit by instruction, no region. */
+  edit(request: EditRequest): Promise<GenerationOutcome>;
 }

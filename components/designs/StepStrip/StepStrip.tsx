@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/Button/Button";
 import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
+import { WORK_STEP_COPY, type WorkStepKind } from "@/lib/designs";
 import styles from "./StepStrip.module.css";
 
 const stepTime = new Intl.DateTimeFormat("es-GT", {
@@ -25,8 +26,15 @@ export interface WorkStep {
   createdAt: string;
   /** Null for anything that did not go through a paid model. */
   costUsd: number | null;
-  /** The garment it started from, which belongs to the client's catalogue. */
-  isOrigin: boolean;
+  /**
+   * Which of the four things this was, decided in `lib/designs.ts` from both
+   * `asset_type` and `origin`. Not computed here: the type alone cannot tell a
+   * free brush stroke from a paid generation, because both are `inpainting`.
+   */
+  kind: WorkStepKind;
+  /** Null on rows created before migration 016 added the columns. */
+  width: number | null;
+  height: number | null;
 }
 
 interface StepStripProps {
@@ -80,6 +88,12 @@ export function StepStrip({
   const selected = steps.find((step) => step.id === selectedId) ?? null;
   const canResume = canEdit && selected !== null && selected.id !== currentId;
 
+  // What is on the canvas: the step being previewed, or the one the design is
+  // standing on when nothing is. Falling back rather than blanking, because an
+  // empty slot invites reading it as "this image has no size".
+  const shown =
+    selected ?? steps.find((step) => step.id === currentId) ?? null;
+
   return (
     <section className={styles.strip} aria-label="Pasos del diseño">
       <div className={styles.head}>
@@ -87,6 +101,20 @@ export function StepStrip({
         <span className={styles.count}>{steps.length}</span>
 
         <div className={styles.spacer} />
+
+        {/* The size of the image being looked at, in the strip rather than on
+            the canvas: every model in this project takes the source dimensions
+            as an input, and two steps of a design do not always share them —
+            the instruction model reframes. Someone comparing two steps needs to
+            see that without opening a file. */}
+        {shown?.width && shown.height && (
+          <>
+            <span className={styles.spentLabel}>Tamaño</span>
+            <span className={styles.count}>
+              {shown.width} × {shown.height}
+            </span>
+          </>
+        )}
 
         {/* The running cost of the design, where it is looked at anyway. It is
             the protocol's argument for small businesses, visible without
@@ -104,7 +132,9 @@ export function StepStrip({
           {steps.map((step, index) => {
             const isCurrent = step.id === currentId;
             const isSelected = step.id === selectedId;
-            const when = step.isOrigin
+            const isOrigin = step.kind === "origin";
+            const copy = WORK_STEP_COPY[step.kind];
+            const when = isOrigin
               ? "Prenda base"
               : stepTime.format(new Date(step.createdAt));
 
@@ -120,16 +150,26 @@ export function StepStrip({
                   // thumbnail cannot help — it is decorative here, because the
                   // garment it shows is exactly what a screen reader cannot
                   // convey.
-                  aria-label={`Paso ${index + 1} de ${steps.length}, ${when}`}
+                  aria-label={`Paso ${index + 1} de ${steps.length}, ${copy.label}, ${when}`}
                   onClick={() => onSelect(isSelected ? null : step.id)}
                 >
-                  <span className={styles.frame}>
+                  {/* Above the frame and not on top of it: an overlay would
+                      cover the one thing the thumbnail is there to show, and
+                      these steps differ from each other by details as small as
+                      an emblem. The word carries the meaning and the colour
+                      only makes it findable, so it still works for someone who
+                      cannot tell the two hues apart. */}
+                  <span className={`${styles.kind} ${styles[step.kind]}`}>
+                    {copy.label}
+                  </span>
+
+                  <span className={styles.frame} title={copy.title}>
                     <Thumbnail
                       src={step.url}
                       alt=""
                       // The starting point belongs to the client's catalogue,
                       // not to this design: el hilván says so without a label.
-                      provisional={step.isOrigin}
+                      provisional={isOrigin}
                     />
                   </span>
 
