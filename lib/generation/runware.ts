@@ -4,6 +4,7 @@ import type {
   GenerationOutcome,
   GenerationProvider,
   InpaintRequest,
+  TryOnRequest,
 } from "@/lib/generation/types";
 
 /**
@@ -69,6 +70,22 @@ const MODEL = "runware:102@1";
  * the person's identity while doing it.
  */
 const EDIT_MODEL = "runware:106@1";
+
+/**
+ * P-Image-Try-On, for putting a garment on a person.
+ *
+ * **Chosen by measurement, not by price.** Four garments with four different
+ * kinds of mark went through this model and through `bfl:flux@vto` with the
+ * same person, the same seed and identically prepared images. It matched or
+ * beat the other one on every logo criterion, barely touched the head (a mean
+ * change of 0.3 against 3.2 to 4.4), returned exactly the input resolution,
+ * took a third of the time, and cost **$0.0045 against $0.0575**
+ * (`herramientas/docs/EXPERIMENTO_4_vton.md`).
+ *
+ * It also stayed at $0.0045 with a person photo three times larger, where the
+ * other model's price climbed: this one does not bill by megapixel.
+ */
+const TRY_ON_MODEL = "prunaai:p-image@try-on";
 
 /** The value every measured run used. See `EXPERIMENTO_3_*` in herramientas. */
 const STEPS = 28;
@@ -141,7 +158,7 @@ async function run(
   apiKey: string,
   task: Record<string, unknown>,
   model: string,
-  steps: number,
+  steps: number | null,
   requestedSeed: number
 ): Promise<GenerationOutcome> {
   const started = Date.now();
@@ -341,6 +358,46 @@ export const runwareProvider: GenerationProvider = {
       },
       EDIT_MODEL,
       STEPS,
+      request.seed
+    );
+  },
+
+  /**
+   * The try-on. Two reference images with a role each, and almost no knobs.
+   *
+   * `settings.preserveInputSize` is sent explicitly although `true` is its
+   * default, because it decides the output resolution and a default that
+   * changes upstream would silently change what this app delivers.
+   *
+   * `steps` is not sent and **null is what gets stored**: this model has no
+   * step count. A borrowed constant would be a number the report could quote,
+   * and a zero would claim it ran no iterations, which is a different and false
+   * statement.
+   */
+  async tryOn(request: TryOnRequest): Promise<GenerationOutcome> {
+    const apiKey = readKey();
+    if (!apiKey) return fail(SIN_LLAVE);
+
+    return run(
+      apiKey,
+      {
+        taskType: "imageInference",
+        taskUUID: crypto.randomUUID(),
+        model: TRY_ON_MODEL,
+        seed: request.seed,
+        numberResults: 1,
+        outputFormat: "PNG",
+        includeCost: true,
+        inputs: {
+          referenceImages: [
+            { image: request.personUrl, role: "person" },
+            { image: request.garmentUrl, role: "garment" },
+          ],
+        },
+        settings: { preserveInputSize: true },
+      },
+      TRY_ON_MODEL,
+      null,
       request.seed
     );
   },

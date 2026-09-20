@@ -202,6 +202,20 @@ export interface Asset {
    * generation claims is orphaned by definition rather than by guesswork.
    */
   mask_asset_id: string | null;
+  /**
+   * The person photo a virtual try-on consumed (migración 019).
+   *
+   * **A try-on has two inputs and the schema could only record one.** The
+   * garment goes in `parent_asset_id`, because the result descends from it;
+   * this is the other half, and without it a try-on is an image nobody can
+   * trace back to what produced it.
+   *
+   * Unlike `mask_asset_id` it carries no `unique`, and the difference says
+   * something real about each: a mask belongs to one generation, while a model
+   * photo is reused across designs on purpose. That reuse is the whole reason
+   * model photos live in the client's catalogue rather than in a design.
+   */
+  person_asset_id: string | null;
   created_at: string;
 }
 

@@ -105,12 +105,20 @@ export interface GenerationResult {
    */
   model: string;
   /**
-   * Denoising iterations actually run.
+   * Denoising iterations actually run, or **null when the model does not have
+   * the concept**.
    *
-   * A constant inside each provider today. Stored anyway, because a constant
-   * that changes leaves every earlier row without an explanation.
+   * A constant inside each provider for the two diffusion paths. Stored anyway,
+   * because a constant that changes leaves every earlier row without an
+   * explanation.
+   *
+   * **Null and never zero.** The try-on model declares no step count, and zero
+   * would be a different claim: "it ran no iterations" instead of "it does not
+   * work that way". The database agrees and says so out loud —
+   * `assets_generation_steps_positive` from migration 018 accepts null or a
+   * positive number, and rejected the zero this field used to carry.
    */
-  steps: number;
+  steps: number | null;
   /**
    * The seed this result actually came from.
    *
@@ -163,6 +171,31 @@ export interface EditRequest {
   seed: number;
 }
 
+/**
+ * A virtual try-on: a person, a garment, and nothing else.
+ *
+ * **There is no `size` here, and that absence is the model's.** Fill takes a
+ * canvas of multiples of 64, Kontext takes one of a closed list, and this one
+ * takes none at all: the output follows the person photo, because
+ * `preserveInputSize` is on by default and that is the behaviour the product
+ * wants. Inventing a size to send would be inventing a parameter.
+ *
+ * **And there is no prompt.** The chosen model's schema describes
+ * `positivePrompt` as *"experimental guidance for non-flatlay garment images"*,
+ * so it exists to disambiguate a reference showing several garments. Ours are
+ * single flat-lays, so sending one would be adding an untested variable to the
+ * one path that was measured without it
+ * (`herramientas/docs/EXPERIMENTO_4_vton.md`).
+ */
+export interface TryOnRequest {
+  /** Public URL of the person. The output follows this image's size. */
+  personUrl: string;
+  /** Public URL of the garment: the composition, or the clean garment. */
+  garmentUrl: string;
+  /** Same contract as everywhere else: always set, never optional. */
+  seed: number;
+}
+
 export interface GenerationProvider {
   /** Shown in logs and in dev, so it is obvious which one answered. */
   readonly name: string;
@@ -172,4 +205,6 @@ export interface GenerationProvider {
   inpaint(request: InpaintRequest): Promise<GenerationOutcome>;
   /** Edit by instruction, no region. */
   edit(request: EditRequest): Promise<GenerationOutcome>;
+  /** Put the garment on a person. */
+  tryOn(request: TryOnRequest): Promise<GenerationOutcome>;
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import { getReadUrl } from "@/lib/r2";
+import { isSimulated } from "@/lib/generation";
 import { resolveDesignImageAssetId } from "@/lib/designs";
 import { listClientAssets, listDesignAssets } from "@/lib/assets-server";
 import { Icon } from "@/components/ui/Icon/Icon";
@@ -58,6 +59,28 @@ export default async function DesignPresentPage({ params }: PageProps) {
 
   const imageAssetId = resolveDesignImageAssetId(design);
 
+  /**
+   * Why the try-on tabs may be closed, decided here and once.
+   *
+   * **The signal is what the design STARTED from, not what it is working on**,
+   * which is the same rule the automatic selection follows in the workspace: a
+   * canvas that came out of a photograph of a person keeps having a person in
+   * it, however many edits later. A try-on needs a flat garment to put on
+   * somebody; there is nothing flat here to put anywhere.
+   *
+   * The screen explains it rather than hiding the tabs. A control that is there
+   * and says why is a control someone can reason about; a missing one teaches
+   * nothing.
+   */
+  const baseAsset = design.base_asset_id
+    ? catalog.find((asset) => asset.id === design.base_asset_id) ?? null
+    : null;
+
+  const tryOnBlockedReason =
+    baseAsset?.asset_type === "model_photo"
+      ? "Este diseño partió de una foto de modelo, así que la prenda ya está puesta sobre una persona y no hay prenda plana que probar. Puedes presentarlo en la pestaña Plana y guardarlo como producto final."
+      : null;
+
   let workingImageUrl: string | null = null;
   if (imageAssetId) {
     const { data: assetData } = await supabase
@@ -96,8 +119,12 @@ export default async function DesignPresentPage({ params }: PageProps) {
 
       <PresentationTabs
         designName={design.name}
+        designId={design.id}
         compositions={compositions}
         workingImageUrl={workingImageUrl}
+        workingImageAssetId={imageAssetId}
+        tryOnBlockedReason={tryOnBlockedReason}
+        isSimulated={isSimulated()}
         models={models}
       />
     </main>

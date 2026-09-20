@@ -6,26 +6,51 @@
   flex-direction: column;
   gap: var(--space-16);
   width: 100%;
-  max-width: 34rem;
+  max-width: 44rem;
 }
 
-/* The request, read left to right: garment plus person. Wraps on a narrow
-   screen rather than shrinking the thumbnails past the point of being useful,
-   since checking that the right garment is going in is the whole job here. */
-.inputs {
+/* The two halves of the request, side by side: what goes in, and who wears it.
+   They used to be stacked, which put the chosen model a scroll away from the
+   garment it was being matched against — and choosing between models IS a
+   comparison, so the two have to be on screen at once.
+
+   The garment column is fixed and the model column takes the rest: the garment
+   is one image of a known shape, while the models are a grid that grows with
+   the client's catalogue. */
+.columns {
+  display: grid;
+  grid-template-columns: 15rem 1fr;
+  gap: var(--space-32);
+  align-items: start;
+}
+
+.column {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-12);
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+/* One column at phone width. The garment first, because it is the thing being
+   checked before anything is chosen. */
+@media (max-width: 40rem) {
+  .columns {
+    grid-template-columns: 1fr;
+    gap: var(--space-16);
+  }
+}
+
+.columnHint {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
 }
 
 .slot {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: var(--space-6);
-  width: 11rem;
+  margin: 0;
 }
 
 .slotImage {
@@ -37,33 +62,19 @@
   border-radius: var(--radius-sm);
 }
 
-/* Dashed, because it is a slot waiting to be filled and not a thing that
-   exists yet: the same provisional language as the rest of the app (§4). */
-.slotEmpty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  background: var(--color-surface-sunken);
-  border: var(--border-hairline) dashed var(--color-border-strong);
-  border-radius: var(--radius-sm);
-}
-
-.slotEmptyText {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-
 .slotCaption {
   font-size: var(--text-xs);
+  line-height: 1.4;
   color: var(--color-text-secondary);
-  text-align: center;
 }
 
-.plus {
-  font-size: var(--text-lg);
-  color: var(--color-text-secondary);
+/* The name of the chosen model, under its grid. The thumbnails are square-ish
+   crops where two people can look alike; the name is what confirms the choice
+   before money is spent. */
+.chosen {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-primary);
 }
 
 .field {
@@ -78,10 +89,39 @@
   color: var(--color-text-secondary);
 }
 
-.models {
+/* Label and count on one line: the count is about the grid below it. */
+.labelRow {
   display: flex;
-  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-8);
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+/* A grid and not a wrapping row: with a column of its own the thumbnails line
+   up in both directions, which is what makes a catalogue of faces scannable
+   instead of a ribbon.
+
+   **It scrolls instead of paginating**, and that is a choice with a stated
+   limit. A scroller keeps every face one gesture away and needs no state,
+   which is right for the handful of model photos a client has; the count
+   beside the label is what stops the fold from hiding how many there are. If a
+   client ever arrives with dozens, this becomes a list with paging, and the
+   signal that the day came is that count, not a complaint. */
+.models {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: var(--space-10);
+  max-height: 22rem;
+  padding-right: var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .model {
@@ -94,11 +134,17 @@
 
 .model[aria-pressed="true"] {
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.model:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .modelThumb {
   display: block;
-  width: 4rem;
+  width: 100%;
   aspect-ratio: 3 / 4;
   object-fit: cover;
   border-radius: var(--radius-sm);
@@ -143,4 +189,21 @@
 .pending {
   font-weight: 600;
   color: var(--color-warning);
+}
+
+/* Says why the button is dead, in the flow rather than in a tooltip: a disabled
+   control does not reliably fire hover and never does on touch. */
+.blocked {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.error {
+  padding: var(--space-10) var(--space-12);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  border-radius: var(--radius-sm);
 }

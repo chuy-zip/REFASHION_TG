@@ -429,6 +429,11 @@ export interface FinalProduct extends AssetWithUrl {
  */
 const FINAL_PRODUCT_TYPES = [
   "composition",
+  // A try-on IS a final product, and leaving it out was a real gap: the screen
+  // built to show what came out of the process would have been the one place a
+  // virtual try-on never appeared. It belongs here for the same reason a
+  // composition does — it is something to show the client, not an input.
+  "vton",
   "export_flat",
   "export_model",
   "export_ai",

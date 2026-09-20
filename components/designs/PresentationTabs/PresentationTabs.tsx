@@ -45,6 +45,19 @@ interface PresentationTabsProps {
   compositions: AssetWithUrl[];
   /** Fallback while the design has no composition yet: the clean garment. */
   workingImageUrl: string | null;
+  /** The same fallback as an id, which is what a generation request carries. */
+  workingImageAssetId: string | null;
+  designId: string;
+  /**
+   * Why this design cannot be tried on, or null when it can.
+   *
+   * Resolved by the page from what the design STARTED from, not from what it is
+   * working on now: once the canvas came out of a model photo, everything
+   * derived from it still has a person in it.
+   */
+  tryOnBlockedReason: string | null;
+  /** True while the provider is the simulator. */
+  isSimulated: boolean;
   /**
    * The client's model photos, for the try-on tabs.
    *
@@ -68,6 +81,10 @@ export function PresentationTabs({
   designName,
   compositions,
   workingImageUrl,
+  workingImageAssetId,
+  designId,
+  tryOnBlockedReason,
+  isSimulated,
   models,
 }: PresentationTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("plana");
@@ -121,6 +138,9 @@ export function PresentationTabs({
     null;
 
   const flatUrl = selected?.url ?? workingImageUrl;
+  // The id of that same image. Resolved together with the URL and never apart,
+  // so the picture on screen and the picture in the request are the same one.
+  const flatAssetId = selected?.id ?? workingImageAssetId;
   const isShowingImage = activeTab === "plana" && flatUrl !== null;
 
   return (
@@ -215,9 +235,13 @@ export function PresentationTabs({
              still has something to try on. */
           <TryOnPanel
             source={activeTab === "modelo_guardado" ? "saved" : "ai"}
+            designId={designId}
             models={models}
             garmentUrl={flatUrl}
+            garmentAssetId={flatAssetId}
             hasLogos={selected !== null}
+            blockedReason={tryOnBlockedReason}
+            isSimulated={isSimulated}
           />
         )}
       </div>

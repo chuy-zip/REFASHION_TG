@@ -1,10 +1,12 @@
 import "server-only";
 import { renderMockResult } from "@/lib/generation/mock-image";
+import { TRY_ON_COST_USD } from "@/lib/generation/pricing";
 import type {
   EditRequest,
   GenerationOutcome,
   GenerationProvider,
   InpaintRequest,
+  TryOnRequest,
 } from "@/lib/generation/types";
 
 /**
@@ -70,6 +72,12 @@ const MOCK_MODEL = "mock:flux-fill";
  * edit went through the mask.
  */
 const MOCK_EDIT_MODEL = "mock:flux-kontext";
+
+/** Same reasoning as the other two: the database has to say which path ran. */
+const MOCK_TRY_ON_MODEL = "mock:p-image-try-on";
+
+/** The canvas the simulator invents for a try-on, since none is requested. */
+const TRY_ON_SIZE = { width: 832, height: 1248 } as const;
 
 /** The value every measured run used. See `EXPERIMENTO_3_*` in herramientas. */
 const STEPS = 28;
@@ -167,6 +175,47 @@ export const mockProvider: GenerationProvider = {
         seed: request.seed,
         model: MOCK_EDIT_MODEL,
         steps: STEPS,
+        latencyMs: Date.now() - started,
+      },
+    };
+  },
+
+  /**
+   * The try-on, simulated at its real flat price.
+   *
+   * It invents a portrait canvas because the request carries no size: the real
+   * model follows the person photo, and this one has no photo to follow.
+   */
+  async tryOn(request: TryOnRequest): Promise<GenerationOutcome> {
+    const started = Date.now();
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, between(LATENCY_MS.min, LATENCY_MS.max))
+    );
+
+    if (Math.random() < FAILURE_RATE) {
+      return {
+        ok: false,
+        error:
+          "El servicio de generación no respondió. No se te cobró; puedes intentar de nuevo.",
+      };
+    }
+
+    return {
+      ok: true,
+      data: {
+        image: renderMockResult(
+          TRY_ON_SIZE.width,
+          TRY_ON_SIZE.height,
+          "prueba virtual"
+        ),
+        costUsd: TRY_ON_COST_USD,
+        taskId: crypto.randomUUID(),
+        seed: request.seed,
+        model: MOCK_TRY_ON_MODEL,
+        // Null, like the real one: this model declares no step count, and a
+        // borrowed constant here would be a number nobody could defend.
+        steps: null,
         latencyMs: Date.now() - started,
       },
     };

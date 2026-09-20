@@ -267,3 +267,117 @@ export async function resolveEditInput(
     },
   };
 }
+
+
+/**
+ * The two images a try-on consumes, and they live in different places.
+ *
+ * **The garment belongs to the design; the person belongs to the client.** That
+ * asymmetry is the whole rule, and it is not a technicality: a model photo is
+ * reused across designs on purpose, which is why it sits in the client's
+ * catalogue and why migration 019 gave `person_asset_id` no `unique`.
+ *
+ * Which garment is not decided here. The presentation screen already resolved
+ * it — the composition when there is one, the clean garment when there is not —
+ * and a server that recomputed it could disagree with the image the user is
+ * looking at while they press the button. What the server does not delegate is
+ * **ownership**, which is the ninth application of "foreign keys are verified
+ * below RLS" (`APRENDIZAJES` §2.5b).
+ *
+ * No size is resolved, unlike the other two paths, because this model takes
+ * none: the output follows the person photo.
+ */
+export interface TryOnInputs {
+  garment: Asset;
+  person: Asset;
+}
+
+export type TryOnInputsResult =
+  | { ok: true; inputs: TryOnInputs }
+  | { ok: false; error: string; status: number };
+
+export async function resolveTryOnInputs(
+  supabase: SupabaseClient,
+  designId: string,
+  clientId: string,
+  garmentAssetId: string,
+  personAssetId: string
+): Promise<TryOnInputsResult> {
+  const { data, error } = await supabase
+    .from("assets")
+    .select("*")
+    .in("id", [garmentAssetId, personAssetId]);
+
+  if (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[generation] resolveTryOnInputs:", error.message);
+    }
+    return {
+      ok: false,
+      error: "No se pudieron leer las imágenes de la prueba virtual.",
+      status: 500,
+    };
+  }
+
+  const assets = (data ?? []) as Asset[];
+  const garment = assets.find((asset) => asset.id === garmentAssetId);
+  const person = assets.find((asset) => asset.id === personAssetId);
+
+  if (!garment || !person) {
+    return { ok: false, error: "La prenda o el modelo no existen.", status: 404 };
+  }
+
+  // La prenda: de este diseño, o del catálogo del cliente dueño del diseño.
+  // Las dos son legales por la misma razón que en el inpainting: un diseño que
+  // todavía no editó nada trabaja sobre la prenda del catálogo.
+  const prendaEsDelDiseno = garment.design_id === designId;
+  const prendaEsDelCatalogo =
+    garment.design_id === null && garment.client_id === clientId;
+
+  if (!prendaEsDelDiseno && !prendaEsDelCatalogo) {
+    return {
+      ok: false,
+      error: "La prenda no pertenece a este diseño.",
+      status: 403,
+    };
+  }
+
+  // La persona: del catálogo del cliente, siempre. Una foto de modelo colgada
+  // de un diseño sería una foto que ningún otro diseño puede reutilizar, que es
+  // justo lo contrario de para qué existe.
+  if (person.client_id !== clientId || person.design_id !== null) {
+    return {
+      ok: false,
+      error: "La foto de modelo no pertenece a este cliente.",
+      status: 403,
+    };
+  }
+
+  if (person.asset_type !== "model_photo") {
+    return {
+      ok: false,
+      error: "Esa imagen no es una foto de modelo.",
+      status: 400,
+    };
+  }
+
+  // **Una prenda que ya está puesta sobre una persona no se prueba otra vez.**
+  // La pantalla lo impide y lo explica; esto es la regla, no su recordatorio:
+  // una regla que solo vive en el navegador es una regla que el servidor no
+  // tiene. El caso llega igual por una pestaña vieja o una petición a mano.
+  //
+  // `vton` entra en la lista aunque hoy sea inalcanzable: el cursor del diseño
+  // nunca se mueve a una prueba virtual, así que ninguna pantalla la ofrece
+  // como prenda. Pero eso es una decisión de otro archivo, y una guarda que
+  // depende de una decisión ajena para ser correcta no es una guarda.
+  if (garment.asset_type === "model_photo" || garment.asset_type === "vton") {
+    return {
+      ok: false,
+      error:
+        "Esta imagen ya tiene una persona puesta, así que no hay prenda plana que probar.",
+      status: 409,
+    };
+  }
+
+  return { ok: true, inputs: { garment, person } };
+}

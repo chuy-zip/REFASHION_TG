@@ -3,7 +3,12 @@ import {
   createClient as createSupabaseClient,
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
-import { getReadUrl, getUploadUrl, getDownloadUrl } from "@/lib/r2";
+import {
+  getReadUrl,
+  getUploadUrl,
+  getDownloadUrl,
+  discardObject,
+} from "@/lib/r2";
 import { resolveDesignPath } from "@/lib/designs";
 import { assetDisplayName } from "@/lib/assets";
 import { getGenerationProvider } from "@/lib/generation";
@@ -151,7 +156,20 @@ export async function POST(request: Request) {
     .select()
     .single();
 
-  if (error) return translateDbError(error);
+  if (error) {
+    // **El objeto ya está en R2 y ninguna fila lo reclama.** Se descarta acá,
+    // que es donde se sabe que quedó suelto: la clave la construyó esta misma
+    // petición con un UUID nuevo, así que nada más puede estar apuntándola y
+    // borrarla es seguro.
+    //
+    // Es la misma respuesta que ya daba el navegador cuando el servidor le
+    // rechazaba una máscara. Lo que falla no es el orden —subir antes de
+    // insertar es lo correcto, porque al revés un fallo dejaría una fila
+    // apuntando a un objeto inexistente, que sí se ve rota en pantalla— sino
+    // que faltaba limpiar el único caso que el orden deja abierto.
+    await discardObject(r2Key);
+    return translateDbError(error);
+  }
 
   const created = data as Asset;
 

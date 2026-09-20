@@ -359,6 +359,26 @@ export const editSchema = z.object({
 
 export type EditRequestInput = z.infer<typeof editSchema>;
 
+/**
+ * A virtual try-on: which garment, and which person.
+ *
+ * The garment id comes from the browser rather than being resolved server-side,
+ * and that is deliberate: the presentation screen already decided which image
+ * this design is — the composition when there is one, the clean garment when
+ * there is not — and a server that recomputed it could disagree with what the
+ * user is looking at. The server verifies **ownership**, which is the part the
+ * browser must not be trusted with.
+ */
+export const tryOnSchema = z.object({
+  design_id: z.uuid("El diseño no es válido."),
+  /** The composition or the clean garment. Becomes `parent_asset_id`. */
+  garment_asset_id: z.uuid("La prenda no es válida."),
+  /** A `model_photo` of the client. Becomes `person_asset_id` (migración 019). */
+  person_asset_id: z.uuid("La foto de modelo no es válida."),
+});
+
+export type TryOnRequestInput = z.infer<typeof tryOnSchema>;
+
 /* -------------------------------------------------------------------------- */
 /* Design layers (Módulo 1)                                                    */
 /* -------------------------------------------------------------------------- */

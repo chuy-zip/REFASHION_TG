@@ -90,3 +90,31 @@ export async function deleteObject(key: string): Promise<void> {
   const command = new DeleteObjectCommand({ Bucket: getBucket(), Key: key });
   await getClient().send(command);
 }
+
+/**
+ * Drops an object we just wrote and can no longer account for.
+ *
+ * **Best effort, and it never throws.** It is called on a path that is already
+ * failing, to clean up after that failure; letting it raise would replace a
+ * useful error with a confusing one and tell the user nothing about what
+ * actually went wrong.
+ *
+ * So the worst case is exactly today's behaviour: an object in R2 with no row
+ * pointing at it, which `herramientas/r2_vs_db.py` finds and
+ * `herramientas/limpiar_r2.py` removes. The point of this function is to make
+ * that the rare case rather than the normal one.
+ *
+ * **Only ever call it with a key this same request created.** A key that came
+ * from the client is a key that may belong to somebody else, and deleting one
+ * of those on a failed request would turn a storage leak into a way to destroy
+ * other people's images.
+ */
+export async function discardObject(key: string): Promise<void> {
+  try {
+    await deleteObject(key);
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[r2] could not discard orphaned object:", key, error);
+    }
+  }
+}
