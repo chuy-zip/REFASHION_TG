@@ -38,6 +38,22 @@ import type { Asset } from "@/lib/types";
  * problem that does not exist yet (`FASE_2_INPAINTING` §5.4). If real latencies
  * come close to the limit, that is when it changes.
  */
+
+/**
+ * The ceiling this route is allowed to take, stated rather than inherited.
+ *
+ * Without it the function keeps whatever default the platform has that month,
+ * and the platform's default has been as low as 10 s — which is under half of
+ * the slowest generation this project has measured. A real call would have
+ * failed on deploy and worked on localhost, which is the worst shape a bug can
+ * take.
+ *
+ * 60 and not 300 because 60 is valid on every Vercel configuration, while 300
+ * is only valid with fluid compute enabled and fails the build otherwise. The
+ * measured range is 10 s to 20 s, so this is roughly a 3x margin. Raise it the
+ * day a real latency gets close, not before.
+ */
+export const maxDuration = 60;
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
   if (!user) return unauthorized();

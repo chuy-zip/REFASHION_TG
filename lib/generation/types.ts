@@ -84,8 +84,14 @@ export interface InpaintResult {
    * USD actually spent, as the provider reported it — never estimated here.
    * Goes straight to `assets.cost_usd`, which is what makes H-18 and H-37
    * possible ("¿cuánto se gastó en este diseño?").
+   *
+   * **Null when the provider did not say**, which is not the same as free. A
+   * zero in that case would add itself to the running total of the design as if
+   * the generation had cost nothing, and a total that is quietly wrong is worse
+   * than one with a visible gap. The column has always been nullable; this type
+   * used to be the one place that pretended otherwise.
    */
-  costUsd: number;
+  costUsd: number | null;
   /** The provider's own id for the task, stored in `assets.runware_task_id`. */
   taskId: string;
   /**
