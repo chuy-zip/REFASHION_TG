@@ -129,3 +129,15 @@
   height: 100%;
   object-fit: contain;
 }
+
+/* Warning tone, not danger: what is on screen is real, it is simply older than
+   the garment it was flattened from. */
+.outdated {
+  padding: var(--space-10) var(--space-12);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+  border-left: 2px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+}

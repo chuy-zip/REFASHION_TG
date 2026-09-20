@@ -4,6 +4,7 @@ import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import { TryOnPanel } from "@/components/designs/TryOnPanel/TryOnPanel";
+import { GarmentChoice } from "@/components/designs/GarmentChoice/GarmentChoice";
 import buttonStyles from "@/components/ui/Button/Button.module.css";
 import type { AssetWithUrl } from "@/lib/assets";
 import styles from "./PresentationTabs.module.css";
@@ -43,8 +44,17 @@ interface PresentationTabsProps {
    * the garment **with its logos**, which is what the client is buying.
    */
   compositions: AssetWithUrl[];
-  /** Fallback while the design has no composition yet: the clean garment. */
+  /** The clean garment: the fallback, and also a deliberate choice. */
   workingImageUrl: string | null;
+  workingImageDownloadUrl: string | null;
+  /**
+   * When the clean garment last changed.
+   *
+   * Only used to tell whether a composition has fallen behind it. A
+   * composition is a flattened snapshot, so an edit made after it was created
+   * is not in it, and nothing said so.
+   */
+  workingImageCreatedAt: string | null;
   /** The same fallback as an id, which is what a generation request carries. */
   workingImageAssetId: string | null;
   designId: string;
@@ -83,6 +93,8 @@ export function PresentationTabs({
   designName,
   compositions,
   workingImageUrl,
+  workingImageDownloadUrl,
+  workingImageCreatedAt,
   workingImageAssetId,
   designId,
   clientId,
@@ -134,11 +146,44 @@ export function PresentationTabs({
     compositions.at(-1)?.id ?? null
   );
 
+  /**
+   * Si ya se contestó la pregunta de qué prenda se prueba.
+   *
+   * Se pregunta una vez por visita y no por pestaña: cambiar entre Modelo
+   * guardado y Modelo IA no es volver a decidir nada.
+   */
+  const [garmentConfirmed, setGarmentConfirmed] = useState(false);
+
   const current = TABS.find((tab) => tab.key === activeTab) ?? TABS[0];
+
+  /**
+   * **`null` significa la prenda limpia, elegida a propósito.**
+   *
+   * Antes caía a la composición más reciente cuando no encontraba la
+   * seleccionada, y eso convertía la regla en una condena: una vez que un
+   * diseño tenía una composición, no había forma de presentar la prenda sin
+   * logotipos salvo borrarla. Alguien que compone y después decide que el
+   * uniforme va liso no debería tener que destruir su trabajo para mostrarlo.
+   *
+   * El valor inicial sigue siendo la composición más reciente, porque es lo
+   * que el cliente está comprando casi siempre. Lo que cambia es que ahora hay
+   * a dónde volver.
+   */
   const selected =
-    compositions.find((asset) => asset.id === selectedId) ??
-    compositions.at(-1) ??
-    null;
+    compositions.find((asset) => asset.id === selectedId) ?? null;
+
+  /**
+   * Una composición es un aplanado, así que un cambio en la prenda hecho
+   * después no está adentro. Comparar las dos fechas es todo lo que hace falta
+   * para decirlo, y decirlo es la diferencia entre presentar algo viejo y
+   * saber que se está presentando algo viejo.
+   */
+  const latestComposition = compositions.at(-1) ?? null;
+
+  const outdated =
+    selected !== null &&
+    workingImageCreatedAt !== null &&
+    new Date(workingImageCreatedAt) > new Date(selected.created_at);
 
   const flatUrl = selected?.url ?? workingImageUrl;
   // The id of that same image. Resolved together with the URL and never apart,
@@ -179,23 +224,36 @@ export function PresentationTabs({
           ))}
         </div>
 
-        {selected ? (
-          <a
-            className={`${buttonStyles.base} ${buttonStyles.primary}`}
-            href={selected.downloadUrl}
-            download
-          >
-            Descargar
-          </a>
-        ) : (
-          <Button
-            variant="primary"
-            disabled
-            title="Crea una composición en la pantalla de edición para poder descargarla."
-          >
-            Descargar
-          </Button>
-        )}
+        {/* **Solo en Plana**, porque solo ahí descarga lo que estás viendo.
+            En las dos pestañas de modelo seguía ofreciendo la composición
+            plana, que no es lo que hay en pantalla: un botón que se lleva otra
+            cosa distinta de la que mira el usuario. El resultado de una prueba
+            virtual tiene su propia descarga donde queda archivado, en los
+            productos finales del cliente. */}
+        {activeTab === "plana" &&
+          (() => {
+            // Lo que se descarga es lo que se está viendo, composición o
+            // prenda limpia. Antes solo existía la primera, así que elegir
+            // "sin logotipos" habría dejado el botón muerto sin motivo.
+            const href = selected?.downloadUrl ?? workingImageDownloadUrl;
+            return href ? (
+              <a
+                className={`${buttonStyles.base} ${buttonStyles.primary}`}
+                href={href}
+                download
+              >
+                Descargar
+              </a>
+            ) : (
+              <Button
+                variant="primary"
+                disabled
+                title="Elige una prenda base en la pantalla de edición para poder descargarla."
+              >
+                Descargar
+              </Button>
+            );
+          })()}
       </div>
 
       {/* The panel the strip above points at. One node, relabelled per tab,
@@ -230,6 +288,21 @@ export function PresentationTabs({
             title="Sin prenda base todavía"
             hint="Elige una en la pantalla de edición para poder presentar el diseño."
           />
+        ) : compositions.length > 0 && !garmentConfirmed && flatUrl ? (
+          /* **El paso previo**, y solo cuando hay algo que decidir. Sin
+             composiciones la respuesta es única y preguntarla sería ceremonia.
+
+             La pregunta se hace acá y no repitiendo el selector en las tres
+             pestañas: el mismo control tres veces se lee como tres ajustes
+             distintos. */
+          <GarmentChoice
+            workingImageUrl={workingImageUrl ?? flatUrl}
+            composition={latestComposition}
+            outdated={outdated}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onContinue={() => setGarmentConfirmed(true)}
+          />
         ) : (
           /* Handed the SAME garment the "Plana" tab resolved, so the three
              tabs can never disagree about which image this design is. When
@@ -252,38 +325,75 @@ export function PresentationTabs({
 
       {/* Same chronological order as the history on the design's page, so the
           same three compositions read the same way in both screens. */}
-      {activeTab === "plana" && compositions.length > 1 && (
+      {activeTab === "plana" && compositions.length > 0 && (
         <div className={styles.picker}>
-          <span className={styles.pickerLabel}>Composición</span>
+          <span className={styles.pickerLabel}>Qué se presenta</span>
           <div className={styles.pickerRow}>
-            {compositions.map((asset) => (
+            {/* La prenda limpia, primera y siempre disponible. Es la salida que
+                no existía: sin esto, componer una vez era una decisión
+                irreversible salvo borrando. */}
+            {workingImageUrl && (
               <button
-                key={asset.id}
                 type="button"
                 className={styles.pickerItem}
-                aria-pressed={selected?.id === asset.id}
-                onClick={() => setSelectedId(asset.id)}
-                title={dateFormat.format(new Date(asset.created_at))}
+                aria-pressed={selected === null}
+                onClick={() => setSelectedId(null)}
+                title="La prenda sin logotipos"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL */}
+                <img
+                  className={styles.pickerThumb}
+                  src={workingImageUrl}
+                  crossOrigin="anonymous"
+                  alt="La prenda sin logotipos"
+                />
+              </button>
+            )}
+            {/* **Solo la última composición, no todas.**
+                Listarlas todas hacía crecer la tira sin techo: cada "Crear
+                composición" dejaba una miniatura para siempre, y las de hace
+                tres semanas no son candidatas a presentar hoy. El registro
+                completo vive en la tira de Resultados del hub; acá van las dos
+                candidatas reales, la prenda y lo último que se compuso. */}
+            {latestComposition && (
+              <button
+                type="button"
+                className={styles.pickerItem}
+                aria-pressed={selected?.id === latestComposition.id}
+                onClick={() => setSelectedId(latestComposition.id)}
+                title={dateFormat.format(
+                  new Date(latestComposition.created_at)
+                )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL: next/image's optimizer/caching does not apply */}
                 <img
                   className={styles.pickerThumb}
-                  src={asset.url}
+                  src={latestComposition.url}
                   crossOrigin="anonymous"
                   alt={`Composición del ${dateFormat.format(
-                    new Date(asset.created_at)
+                    new Date(latestComposition.created_at)
                   )}`}
                 />
               </button>
-            ))}
+            )}
           </div>
         </div>
+      )}
+
+      {outdated && (
+        <p className={styles.outdated}>
+          Esta composición es anterior a tu último cambio en la prenda, así que
+          no lo incluye. Vuelve a crearla en la pantalla de edición para
+          incorporarlo.
+        </p>
       )}
 
       <p className={styles.description}>
         {activeTab === "plana" && compositions.length === 0
           ? "Este diseño todavía no tiene composiciones. Se muestra la prenda sin logotipos."
-          : current.description}
+          : selected === null && activeTab === "plana"
+            ? "Se muestra la prenda sin logotipos. Elige una composición arriba para incluirlos."
+            : current.description}
       </p>
       </div>
     </>

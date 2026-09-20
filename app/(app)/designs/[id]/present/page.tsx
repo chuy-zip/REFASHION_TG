@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
-import { getReadUrl } from "@/lib/r2";
+import { getDownloadUrl, getReadUrl } from "@/lib/r2";
+import { assetDisplayName } from "@/lib/assets";
 import { isSimulated } from "@/lib/generation";
 import { resolveDesignImageAssetId } from "@/lib/designs";
 import { listClientAssets, listDesignAssets } from "@/lib/assets-server";
@@ -82,6 +83,8 @@ export default async function DesignPresentPage({ params }: PageProps) {
       : null;
 
   let workingImageUrl: string | null = null;
+  let workingImageDownloadUrl: string | null = null;
+  let workingImageCreatedAt: string | null = null;
   if (imageAssetId) {
     const { data: assetData } = await supabase
       .from("assets")
@@ -90,7 +93,13 @@ export default async function DesignPresentPage({ params }: PageProps) {
       .maybeSingle();
 
     if (assetData) {
-      workingImageUrl = await getReadUrl((assetData as Asset).r2_key);
+      const working = assetData as Asset;
+      workingImageUrl = await getReadUrl(working.r2_key);
+      workingImageDownloadUrl = await getDownloadUrl(
+        working.r2_key,
+        assetDisplayName(working)
+      );
+      workingImageCreatedAt = working.created_at;
     }
   }
 
@@ -123,6 +132,8 @@ export default async function DesignPresentPage({ params }: PageProps) {
         clientId={project.client_id}
         compositions={compositions}
         workingImageUrl={workingImageUrl}
+        workingImageDownloadUrl={workingImageDownloadUrl}
+        workingImageCreatedAt={workingImageCreatedAt}
         workingImageAssetId={imageAssetId}
         tryOnBlockedReason={tryOnBlockedReason}
         isSimulated={isSimulated()}

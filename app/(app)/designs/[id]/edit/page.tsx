@@ -19,6 +19,7 @@ import {
 } from "@/lib/designs";
 import { BaseGarmentPicker } from "@/components/designs/BaseGarmentPicker/BaseGarmentPicker";
 import { DesignWorkspaceLoader } from "@/components/designs/DesignWorkspace/DesignWorkspaceLoader";
+import { PresentLink } from "@/components/designs/PresentLink/PresentLink";
 import type { WorkspaceLayer } from "@/components/designs/DesignWorkspace/DesignWorkspace";
 import { Icon } from "@/components/ui/Icon/Icon";
 import type { Asset, Client, Design, Project } from "@/lib/types";
@@ -156,6 +157,32 @@ export default async function DesignEditPage({ params }: PageProps) {
     return [{ ...layer, url: logo.url, name: assetDisplayName(logo) }];
   });
 
+  /**
+   * Si hay logotipos colocados que todavía no están en ninguna composición al
+   * día.
+   *
+   * **Tres condiciones, y las tres importan.** Sin capas no hay nada que
+   * aplicar, así que un diseño sin logotipos nunca pregunta. Con capas y sin
+   * composición, falta aplicarlas. Y con capas y con composición, sigue
+   * faltando si la prenda cambió después: una composición es un aplanado, y lo
+   * que se editó luego no está adentro.
+   */
+  const composicionesDelDiseno = designAssets.filter(
+    (asset) => asset.asset_type === "composition"
+  );
+  const ultimaComposicion = composicionesDelDiseno.at(-1) ?? null;
+  const recursoDeTrabajo = designAssets.find(
+    (asset) => asset.id === workingAssetId
+  );
+
+  const logosPending =
+    workspaceLayers.length > 0 &&
+    (ultimaComposicion === null ||
+      (recursoDeTrabajo !== undefined &&
+        new Date(recursoDeTrabajo.created_at) >
+          new Date(ultimaComposicion.created_at)));
+
+
   return (
     <main className={styles.page}>
       <div className={styles.head}>
@@ -184,6 +211,20 @@ export default async function DesignEditPage({ params }: PageProps) {
               {design.version}
             </p>
           </div>
+          {/* **La salida hacia adelante, siempre disponible.**
+              Antes solo aparecía después de crear una composición, así que
+              quien pintaba la prenda y quería probarla sobre un modelo tenía
+              que volver al hub y desde ahí entrar a presentación. Dos pasos
+              hacia atrás para ir hacia adelante.
+
+              Solo con una prenda asignada: sin imagen de trabajo no hay nada
+              que presentar, y un enlace a una pantalla vacía no es un atajo. */}
+          {workingImageUrl && (
+            <PresentLink
+              href={`/designs/${design.id}/present`}
+              logosPending={logosPending}
+            />
+          )}
           <BaseGarmentPicker
             designId={design.id}
             clientId={project.client_id}

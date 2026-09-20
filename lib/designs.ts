@@ -264,23 +264,25 @@ export async function assetIsUsableAsCurrent(
 export const WORK_STEP_TYPES = ["inpainting", "edit"] as const;
 
 /**
- * Asset types that are a **state the design passed through**, and therefore
- * belong in a history someone reads.
+ * **Una máscara nunca cuenta como resultado ni como paso**, y conviene que la
+ * razón no se pierda con la función que la decía: es un *insumo* de un paso, no
+ * un paso. Describe dónde se pidió una edición, no se puede reabrir ni
+ * reutilizar, y nadie querría volver a ella. Listarla junto a las prendas
+ * convierte una cronología en una bitácora, y un rectángulo negro en medio de
+ * una fila de camisas es ruido que hay que explicar cada vez.
  *
- * A mask is deliberately not one. It is an *input* to a step, not a step: it
- * describes where an edit was asked for, it cannot be reopened, edited or
- * reused, and it is not something anyone would want to go back to. Listing it
- * beside the garments turns a chronology into a log, and a black rectangle in
- * the middle of a row of shirts is noise that has to be explained every time.
- *
- * It is still stored, and on purpose: together with `generation_prompt` it is
- * what makes a generation reproducible — the prompt says what was asked, the
- * mask says where. That is a record worth keeping for the report, and it is a
- * black-and-white PNG that compresses to a few tens of kilobytes. Kept, not
- * shown.
+ * Se guarda igual, y a propósito: junto con `generation_prompt` es lo que hace
+ * reproducible una generación — el prompt dice qué se pidió y la máscara dónde.
  */
-export function isHistoryStep(assetType: string): boolean {
-  return assetType !== "mask";
+
+export function isDeliverable(assetType: string): boolean {
+  return (
+    assetType === "composition" ||
+    assetType === "vton" ||
+    assetType === "export_flat" ||
+    assetType === "export_model" ||
+    assetType === "export_ai"
+  );
 }
 
 export const DESIGNS_PAGE_SIZE = 12;

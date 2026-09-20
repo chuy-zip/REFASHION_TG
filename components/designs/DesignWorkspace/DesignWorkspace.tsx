@@ -217,7 +217,15 @@ export function DesignWorkspace({
   // the stage, the R2 loading, the zoom and the export are built once and
   // shared (FASE_1_5 §7.5). The logo layer draws in BOTH modes, because
   // deciding a colour without seeing the logo on it is deciding blind.
-  const [mode, setMode] = useState<WorkspaceMode>("logos");
+  /**
+   * Abre en el primer paso del flujo, no en el último.
+   *
+   * Arrancaba en `logos` de cuando ese modo encabezaba la lista. Al
+   * moverlo al final —porque componer va después de lo generativo— el
+   * valor inicial quedó señalando la cuarta opción, así que la pantalla
+   * abría en el paso que el orden acababa de declarar último.
+   */
+  const [mode, setMode] = useState<WorkspaceMode>("zones");
 
   // The mask: the garment picked in one gesture plus the brush and eraser
   // passes over it, kept as gestures rather than as pixels so it survives the
@@ -952,8 +960,12 @@ export function DesignWorkspace({
     }
 
     notify({ type: "success", message: "Composición creada." });
-    // The composition is a render, not a step: it deliberately does NOT become
-    // the working image (§7.7). Refresh only so the history picks it up.
+    // Una composición es un render, no un paso: deliberadamente NO se vuelve la
+    // imagen de trabajo (§7.7). El refresco es para que el hub la recoja.
+    //
+    // No se muestra acá una vista previa ni un botón hacia la presentación: el
+    // enlace a presentación vive arriba y está siempre disponible, así que un
+    // segundo camino al mismo lugar solo competiría con él.
     router.refresh();
   }
 
@@ -1442,6 +1454,19 @@ export function DesignWorkspace({
                     }
                     naturalWidth={naturalWidth}
                     naturalHeight={naturalHeight}
+                    // **Fantasma fuera del modo de logotipos**, y la razón
+                    // no es estética. La IA recibe la imagen de trabajo, y los
+                    // logotipos NO son parte de ella: son capas que se aplican
+                    // encima al componer. Dibujarlos opacos mientras alguien
+                    // pinta o enmascara le muestra una prenda que el modelo
+                    // nunca va a ver, y lo invita a pintar "alrededor" de algo
+                    // que para el modelo no existe.
+                    //
+                    // Se atenúan en vez de ocultarse porque saber dónde va a
+                    // caer el logotipo sí es útil mientras se decide qué
+                    // limpiar. El panel dice en palabras lo que la opacidad
+                    // insinúa.
+                    opacity={isComposing ? 1 : 0.35}
                     draggable={canMoveLayers}
                     onSelect={() => canMoveLayers && setSelectedId(layer.id)}
                     onDragEnd={handleDragEnd}
@@ -1551,10 +1576,19 @@ export function DesignWorkspace({
               value={mode}
               onChange={(event) => changeMode(event.target.value as WorkspaceMode)}
             >
-              <option value="logos">Componer logos</option>
-              <option value="paint">Pintar prenda</option>
+              {/* **El orden es el del flujo, y los logotipos van últimos.**
+                  Lo generativo deforma lo que esté estampado en la prenda, así
+                  que componer el logotipo es el último paso antes de presentar
+                  (`FASE_2_INPAINTING` §5, el flujo decidido). Ponerlo primero
+                  invitaba a colocarlo y después editar la prenda debajo.
+
+                  Las capas sobreviven a ese error, porque sus coordenadas son
+                  proporciones y no píxeles (migración 013), pero una
+                  composición ya creada no: es un aplanado, y queda vieja. */}
               <option value="zones">Editar por zonas</option>
               <option value="instruction">Editar por instrucción</option>
+              <option value="paint">Pintar prenda</option>
+              <option value="logos">Componer logos</option>
             </select>
           </div>
         )}
@@ -1685,6 +1719,17 @@ export function DesignWorkspace({
         </div>
         )}
 
+        {/* Dicho en palabras, no solo insinuado con la opacidad: lo que se
+            ve atenuado sobre la prenda no está en la imagen, y el modelo no lo
+            recibe. Sin esta línea, un logotipo a medio tono se lee como "ahí
+            está, más clarito". */}
+        {!isComposing && layers.length > 0 && (
+          <p className={styles.ghostNote}>
+            Los logotipos se ven de referencia. Todavía no son parte de la
+            imagen, así que la IA no los recibe y se aplican al componer.
+          </p>
+        )}
+
         {isComposing && (
         <div className={styles.group}>
           <span className={styles.groupLabel}>Composición</span>
@@ -1709,6 +1754,15 @@ export function DesignWorkspace({
           >
             {isExporting ? "Creando…" : "Crear composición"}
           </Button>
+
+          {/* Visible y no un tooltip sobre el botón muerto: un control
+              deshabilitado no dispara hover de forma confiable y nunca lo hace
+              en táctil. Tercera vez que se aplica la misma corrección. */}
+          {canManipulate && layers.length === 0 && !isExporting && (
+            <p className={styles.hint}>
+              Coloca al menos un logotipo para poder crear la composición.
+            </p>
+          )}
         </div>
         )}
       </div>
@@ -1744,6 +1798,8 @@ interface LayerNodeProps {
   onDragEnd: (layer: WorkspaceLayer, node: Konva.Image) => void;
   onTransformEnd: (layer: WorkspaceLayer, node: Konva.Image) => void;
   registerNode: (node: Konva.Image | null) => void;
+  /** Atenuada fuera del modo de logotipos: ver el uso en el lienzo. */
+  opacity: number;
 }
 
 /**
@@ -1768,6 +1824,7 @@ function LayerNode({
   onDragEnd,
   onTransformEnd,
   registerNode,
+  opacity,
 }: LayerNodeProps) {
   const width = layer.width_ratio * naturalWidth;
   const x = layer.x_ratio * naturalWidth;
@@ -1813,6 +1870,7 @@ function LayerNode({
       offsetX={width / 2}
       offsetY={height / 2}
       rotation={layer.rotation_deg}
+      opacity={opacity}
       draggable={draggable}
       onMouseDown={onSelect}
       onTap={onSelect}

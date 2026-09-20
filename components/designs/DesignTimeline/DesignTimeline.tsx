@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { AssetPreviewDialog } from "@/components/assets/AssetPreviewDialog/AssetPreviewDialog";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import { Thumbnail } from "@/components/ui/Thumbnail/Thumbnail";
@@ -13,8 +14,20 @@ interface DesignTimelineProps {
    * It is not a step: it belongs to the client, not to the design.
    */
   originAsset: AssetWithUrl | null;
-  /** The design's own assets, oldest first (see listDesignAssets). */
+  /** The design's own deliverables, oldest first (see listDesignAssets). */
   assets: AssetWithUrl[];
+  /**
+   * How many working steps live on the editing screen, and where to see them.
+   *
+   * **The cost comes from the caller and not from `assets`**, and that is the
+   * whole reason this prop exists. The strip used to add up what it was given,
+   * which was every asset of the design; now it is given only the deliverables,
+   * and the expensive part of a design is the editing it took. Adding up what
+   * is on screen would quietly report a smaller number than what was spent.
+   */
+  workStepCount: number;
+  totalCostUsd: number;
+  editHref: string;
 }
 
 const dateFormat = new Intl.DateTimeFormat("es-GT", {
@@ -37,12 +50,23 @@ const dateFormat = new Intl.DateTimeFormat("es-GT", {
  * hub: clicking a step opens it full size to look at it or download it. The
  * **control** version, with the cursor and "Retomar desde aquí", belongs on the
  * working screen — see FASE_1_5 §7.4.
+ *
+ * **It lists deliverables, not every asset.** It used to show everything except
+ * masks, which meant it repeated the working steps that `/edit` already lets
+ * you navigate, and buried the compositions among them — on the very screen
+ * that exists to show what a design produced. The working steps are counted and
+ * linked instead of listed (`isDeliverable` in `lib/designs.ts`).
  */
-export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
+export function DesignTimeline({
+  originAsset,
+  assets,
+  workStepCount,
+  totalCostUsd,
+  editHref,
+}: DesignTimelineProps) {
   const stripRef = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<AssetWithUrl | null>(null);
 
-  const totalCost = assets.reduce((sum, asset) => sum + (asset.cost_usd ?? 0), 0);
   const stepCount = assets.length;
 
   // Chronological order is kept (left to right), but the strip opens showing
@@ -60,22 +84,32 @@ export function DesignTimeline({ originAsset, assets }: DesignTimelineProps) {
       {/* A group label, not a section heading: the strip below is a record the
           user consults, and it must not read as loud as the garment. */}
       <div className={styles.header}>
-        <h2 className={styles.title}>Historial</h2>
+        <h2 className={styles.title}>Resultados</h2>
         <span className={styles.count}>
-          {stepCount === 1 ? "1 paso" : `${stepCount} pasos`}
+          {stepCount === 1 ? "1 resultado" : `${stepCount} resultados`}
         </span>
-        {totalCost > 0 && (
+        {totalCostUsd > 0 && (
           <span className={styles.total}>
-            Costo acumulado ${totalCost.toFixed(4)}
+            Costo acumulado ${totalCostUsd.toFixed(4)}
           </span>
+        )}
+        {/* The editing steps are not gone, they are where they are used. A
+            design with five inpaintings and no composition would otherwise
+            read as a design where nothing had happened. */}
+        {workStepCount > 0 && (
+          <Link className={styles.editLink} href={editHref}>
+            {workStepCount === 1
+              ? "1 paso de edición"
+              : `${workStepCount} pasos de edición`}
+          </Link>
         )}
       </div>
 
       {!originAsset && assets.length === 0 ? (
         <EmptyState
           size="sm"
-          title="Todavía no hay historial"
-          hint="Asigna una prenda base para empezar. Cada cambio que hagas queda registrado acá y puedes volver a él sin generarlo de nuevo."
+          title="Todavía no hay resultados"
+          hint="Asigna una prenda base para empezar. Las composiciones y las pruebas virtuales que produzcas quedan acá."
         />
       ) : (
         <div className={styles.strip} ref={stripRef}>

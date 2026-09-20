@@ -222,3 +222,16 @@
     opacity: 1;
   }
 }
+
+/* Dice en palabras lo que la opacidad insinúa: el logotipo que se ve atenuado
+   no está en la imagen todavía. Sin esta línea, medio tono se lee como "ahí
+   está, más clarito". */
+.ghostNote {
+  padding: var(--space-10) var(--space-12);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+  border-left: 2px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+}

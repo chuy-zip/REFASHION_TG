@@ -91,3 +91,15 @@
 }
 
 /* The empty state comes from components/ui/EmptyState, in its `sm` size. */
+
+/* A link and not a button: it goes somewhere, and it must not compete with the
+   strip it sits above. */
+.editLink {
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.editLink:hover {
+  text-decoration: underline;
+}
