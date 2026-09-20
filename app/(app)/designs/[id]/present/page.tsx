@@ -120,6 +120,7 @@ export default async function DesignPresentPage({ params }: PageProps) {
       <PresentationTabs
         designName={design.name}
         designId={design.id}
+        clientId={project.client_id}
         compositions={compositions}
         workingImageUrl={workingImageUrl}
         workingImageAssetId={imageAssetId}

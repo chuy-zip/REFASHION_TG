@@ -6,7 +6,11 @@ import {
 import { getClientAccess } from "@/lib/access";
 import { extensionForMimeType } from "@/lib/assets";
 import { resolveDesignPath } from "@/lib/designs";
-import { getUploadUrl } from "@/lib/r2";
+import {
+  catalogAssetKey,
+  designAssetKey,
+  getUploadUrl,
+} from "@/lib/r2";
 import { presignUploadSchema } from "@/lib/validation";
 import { jsonError, readJsonBody, unauthorized } from "@/lib/api";
 
@@ -54,10 +58,16 @@ export async function POST(request: Request) {
     }
 
     ownerClientId = path.clientId;
-    r2_key = `clients/${path.clientId}/projects/${path.projectId}/designs/${design_id}/${asset_id}.${extension}`;
+    r2_key = designAssetKey(
+      path.clientId,
+      path.projectId,
+      design_id,
+      asset_id,
+      extension
+    );
   } else {
     ownerClientId = client_id as string;
-    r2_key = `clients/${ownerClientId}/catalog/${asset_id}.${extension}`;
+    r2_key = catalogAssetKey(ownerClientId, asset_id, extension);
   }
 
   const access = await getClientAccess(supabase, ownerClientId, user.id);

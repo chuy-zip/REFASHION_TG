@@ -48,6 +48,8 @@ interface PresentationTabsProps {
   /** The same fallback as an id, which is what a generation request carries. */
   workingImageAssetId: string | null;
   designId: string;
+  /** Where a try-on result gets filed, so the panel can link to it. */
+  clientId: string;
   /**
    * Why this design cannot be tried on, or null when it can.
    *
@@ -83,6 +85,7 @@ export function PresentationTabs({
   workingImageUrl,
   workingImageAssetId,
   designId,
+  clientId,
   tryOnBlockedReason,
   isSimulated,
   models,
@@ -236,6 +239,7 @@ export function PresentationTabs({
           <TryOnPanel
             source={activeTab === "modelo_guardado" ? "saved" : "ai"}
             designId={designId}
+            clientId={clientId}
             models={models}
             garmentUrl={flatUrl}
             garmentAssetId={flatAssetId}

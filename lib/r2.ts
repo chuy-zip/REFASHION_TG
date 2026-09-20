@@ -118,3 +118,85 @@ export async function discardObject(key: string): Promise<void> {
     }
   }
 }
+
+/**
+ * Where an object lives in the bucket, in one place.
+ *
+ * **The shape is a contract between two routes**, and it used to be written
+ * only in the one that hands keys out. `presign-upload` built the string and
+ * `confirm` accepted whatever came back, which meant the second route trusted
+ * the browser to return the first route's answer unchanged. It also meant the
+ * shape could drift: a change in one had nothing to compare itself against.
+ *
+ * The two builders below and the check that follows them are the same fact,
+ * written once.
+ */
+export function designAssetKey(
+  clientId: string,
+  projectId: string,
+  designId: string,
+  assetId: string,
+  extension: string
+): string {
+  return `clients/${clientId}/projects/${projectId}/designs/${designId}/${assetId}.${extension}`;
+}
+
+export function catalogAssetKey(
+  clientId: string,
+  assetId: string,
+  extension: string
+): string {
+  return `clients/${clientId}/catalog/${assetId}.${extension}`;
+}
+
+/**
+ * Whether a key is one this server could have handed out for this owner.
+ *
+ * **Why it has to be checked at all.** `confirm` takes `r2_key` from the
+ * browser. Without this, a caller could register a row pointing at *another
+ * client's* object and then read it through a signed URL, which is a
+ * disclosure and not merely untidy bookkeeping. It also made cleaning up after
+ * a failed confirm impossible to do safely: deleting a key the caller named
+ * would let anyone destroy someone else's image on demand.
+ *
+ * **It needs no extra query**, which is what makes it worth doing on the
+ * upload path. The design id is already in the request and RLS has already
+ * proven the caller may write to that design, so a key that sits inside that
+ * design's folder is a key they own. The same holds for a client's catalogue.
+ */
+export function isAssetKeyForOwner(
+  key: string,
+  assetId: string,
+  owner: { designId?: string; clientId?: string }
+): boolean {
+  const parts = key.split("/");
+  const file = parts.at(-1) ?? "";
+
+  const dot = file.lastIndexOf(".");
+  if (dot <= 0) return false;
+  if (file.slice(0, dot) !== assetId) return false;
+  if (!/^[a-z0-9]+$/i.test(file.slice(dot + 1))) return false;
+
+  // The design branch first, mirroring `presign-upload`: when both ids arrive,
+  // the design is the one that decides where the object goes.
+  if (owner.designId) {
+    return (
+      parts.length === 7 &&
+      parts[0] === "clients" &&
+      parts[2] === "projects" &&
+      parts[4] === "designs" &&
+      parts[5] === owner.designId
+    );
+  }
+
+  if (owner.clientId) {
+    return (
+      parts.length === 4 &&
+      parts[0] === "clients" &&
+      parts[1] === owner.clientId &&
+      parts[2] === "catalog"
+    );
+  }
+
+  return false;
+}

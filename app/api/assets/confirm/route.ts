@@ -3,7 +3,12 @@ import {
   createClient as createSupabaseClient,
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
-import { getDownloadUrl, getReadUrl } from "@/lib/r2";
+import {
+  discardObject,
+  getDownloadUrl,
+  getReadUrl,
+  isAssetKeyForOwner,
+} from "@/lib/r2";
 import { parentAssetBelongsToClient } from "@/lib/assets-server";
 import { resolveDesignPath } from "@/lib/designs";
 import { confirmAssetSchema } from "@/lib/validation";
@@ -53,6 +58,26 @@ export async function POST(request: Request) {
     origin,
     parent_asset_id,
   } = parsed.data;
+
+  /**
+   * **The key has to be one this server handed out.**
+   *
+   * It arrives from the browser, and until this check it was taken on faith.
+   * That allowed registering a row that points at another client's object and
+   * then reading it through a signed URL, which is a disclosure rather than
+   * untidiness — and it is also what made cleaning up after a failed confirm
+   * impossible to do safely, since deleting a key the caller named would let
+   * anyone destroy someone else's image.
+   *
+   * No round trip: the shape is decided by `presign-upload` from the same two
+   * ids that arrive here, and RLS has already established that the caller may
+   * write to this design or client (`lib/r2.ts`). The browser always sends back
+   * exactly what presign returned, so nothing legitimate can fail here.
+   */
+  if (!isAssetKeyForOwner(r2_key, asset_id, { designId: design_id, clientId: client_id })) {
+    return jsonError("La ubicación del archivo no es válida.", 400);
+  }
+
   const supabase = await createSupabaseClient();
 
   // Only paid for when a parent is actually claimed, which keeps the plain
@@ -73,6 +98,11 @@ export async function POST(request: Request) {
       ));
 
     if (!allowed) {
+      // El objeto ya está en R2 y esta petición es la única que sabe de él.
+      // Se descarta acá porque la clave ya quedó verificada como del propio
+      // dueño: sin esa verificación, esta línea sería un modo de borrarle
+      // imágenes a otro cliente.
+      await discardObject(r2_key);
       return jsonError(
         "El recurso de origen no pertenece a este cliente.",
         403
@@ -99,7 +129,15 @@ export async function POST(request: Request) {
     .select()
     .single();
 
-  if (error) return translateDbError(error);
+  if (error) {
+    // Lo mismo que en las rutas de generación, con una excepción que importa:
+    // **un 23505 no se limpia.** Ese código significa que ya existe una fila
+    // con este `asset_id`, o sea que esta subida ya se registró antes; el
+    // objeto que está en R2 es el de esa fila, y borrarlo dejaría rota a una
+    // fila que funcionaba.
+    if (error.code !== "23505") await discardObject(r2_key);
+    return translateDbError(error);
+  }
 
   const created = data as Asset;
 
