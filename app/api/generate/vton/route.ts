@@ -9,12 +9,12 @@ import {
   getDownloadUrl,
   discardObject,
 } from "@/lib/r2";
+import { storeGeneratedImage } from "@/lib/generation/store";
 import { resolveDesignPath } from "@/lib/designs";
 import { assetDisplayName } from "@/lib/assets";
 import { getGenerationProvider } from "@/lib/generation";
 import { resolveTryOnInputs } from "@/lib/generation/inputs";
 import { newSeed } from "@/lib/generation/seed";
-import { readPngSize } from "@/lib/png-size";
 import { tryOnSchema } from "@/lib/validation";
 import {
   jsonError,
@@ -93,31 +93,32 @@ export async function POST(request: Request) {
 
   const seed = newSeed();
 
+  // **La clave y su URL firmada se preparan ANTES de llamar**, porque el
+  // proveedor necesita saber dónde escribir. Es la inversión que hace que los
+  // bytes no vuelvan a pasar por acá: antes se pedía la imagen y después se
+  // decidía dónde iba; ahora el destino viaja con el pedido.
+  const assetId = crypto.randomUUID();
+  const r2Key = `clients/${path.clientId}/projects/${path.projectId}/designs/${design_id}/${assetId}.png`;
+  const uploadTo = await getUploadUrl(r2Key, "image/png");
+
   const provider = getGenerationProvider();
-  const outcome = await provider.tryOn({ personUrl, garmentUrl, seed });
+  const outcome = await provider.tryOn({
+    personUrl,
+    garmentUrl,
+    seed,
+    uploadTo,
+  });
 
   if (!outcome.ok) return jsonError(outcome.error, 502);
 
   const result = outcome.data;
 
-  // Measured. This model returns the person photo's resolution, so the size is
-  // knowable in advance, and reading it anyway is what keeps that a fact rather
-  // than an assumption about someone else's default.
-  const entregado = readPngSize(await result.image.arrayBuffer());
-
-  const assetId = crypto.randomUUID();
-  const r2Key = `clients/${path.clientId}/projects/${path.projectId}/designs/${design_id}/${assetId}.png`;
-
-  const uploadUrl = await getUploadUrl(r2Key, "image/png");
-  const put = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "image/png" },
-    body: result.image,
-  });
-
-  if (!put.ok) {
-    return jsonError("No se pudo guardar la prueba virtual.", 502);
-  }
+  // **El objeto ya se está escribiendo solo.** Runware recibió el destino
+  // firmado y escribe ahí de forma asíncrona, así que acá solo se espera a que
+  // aparezca y se lo mide con 32 bytes. Si nunca aparece, `storeGeneratedImage`
+  // cae al camino de antes y baja la imagen de la URL del proveedor.
+  const stored = await storeGeneratedImage(r2Key, result.imageUrl);
+  if (!stored.ok) return jsonError(stored.error, 502);
 
   const { data, error } = await supabase
     .from("assets")
@@ -128,9 +129,13 @@ export async function POST(request: Request) {
       asset_type: "vton",
       original_filename: `prueba-virtual-${Date.now()}.png`,
       mime_type: "image/png",
-      file_size_bytes: result.image.size,
-      width_px: entregado?.width ?? person.width_px,
-      height_px: entregado?.height ?? person.height_px,
+      file_size_bytes: stored.measurement.bytes,
+      // Medido. Este modelo devuelve la resolución de la foto de persona,
+      // así que se sabría de antemano; leerlo igual es lo que lo mantiene
+      // como un hecho y no como una suposición sobre el valor por omisión
+      // de otro.
+      width_px: stored.measurement.width,
+      height_px: stored.measurement.height,
       origin: "generated",
       runware_task_id: result.taskId,
       cost_usd: result.costUsd,

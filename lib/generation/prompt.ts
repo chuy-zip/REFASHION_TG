@@ -144,6 +144,45 @@ export const INSTRUCTION_SUGGESTIONS: Record<PromptLanguage, string[]> = {
   ],
 };
 
+/**
+ * Descriptions that produce a model photo this pipeline can use.
+ *
+ * **The long half of each one is not decoration.** The try-on measured three
+ * conditions on its person photo: a plain uncluttered background, a full or
+ * three-quarter view without a tight crop, and close-fitting plain clothing.
+ * Every suggestion asks for exactly those, in the wording that produced them.
+ *
+ * **They stop at the ankles on purpose.** A frame that runs to the floor spends
+ * its detail on footwear, which the garment never touches and the client never
+ * looks at; cutting above it puts the same pixels into the face and the torso,
+ * which are the two things a try-on is judged on.
+ *
+ * **The English ones are the measured ones**, and the difference is not style.
+ * Paired generations, same people and same seeds, asked for a "plain light
+ * grey" backdrop in both languages: the English ones came back at a border luma
+ * of 172 to 193 and the Spanish ones at 76 to 104, roughly half the brightness
+ * asked for, in six of six. The Spanish versions are offered because a seller
+ * writing in Spanish should be able to start from something readable, and they
+ * are literal translations so the difference stays attributable to the language
+ * rather than to a better-written prompt (`herramientas/probar_modelos.py`).
+ */
+export const MODEL_SUGGESTIONS: Record<PromptLanguage, string[]> = {
+  en: [
+    "A man in his thirties with short dark hair and a trimmed beard. Studio photograph against a plain light grey seamless backdrop lit evenly from the front with no visible shadow behind the person. Standing upright in a frontal view, shoulders square to the camera, face fully visible and looking straight into the lens, arms relaxed at the sides. Wearing a plain close-fitting t-shirt and plain trousers in solid colours with no prints or patterns. Framed from the top of the head down to the ankles. Sharp focus, natural skin texture, photorealistic.",
+    "A woman in her thirties with shoulder-length dark hair. Studio photograph against a plain light grey seamless backdrop lit evenly from the front with no visible shadow behind the person. Standing upright in a frontal view, shoulders square to the camera, face fully visible and looking straight into the lens, arms relaxed at the sides. Wearing a plain close-fitting t-shirt and plain trousers in solid colours with no prints or patterns. Framed from the top of the head down to the ankles. Sharp focus, natural skin texture, photorealistic.",
+    "A man in his fifties with grey hair, glasses and a slim build. Studio photograph against a plain light grey seamless backdrop lit evenly from the front with no visible shadow behind the person. Standing upright in a frontal view, shoulders square to the camera, face fully visible and looking straight into the lens, arms relaxed at the sides. Wearing a plain close-fitting t-shirt and plain trousers in solid colours with no prints or patterns. Framed from the top of the head down to the ankles. Sharp focus, natural skin texture, photorealistic.",
+  ],
+  es: [
+    "Un hombre de unos treinta años, con el pelo oscuro y corto y la barba recortada. Fotografía de estudio sobre un fondo continuo gris claro y liso, iluminado de frente de manera pareja y sin sombra visible detrás de la persona. De pie y erguido, en vista frontal, con los hombros paralelos a la cámara, la cara completamente visible y mirando directamente al lente, los brazos relajados a los costados. Lleva una camiseta lisa y ajustada y pantalón liso, en colores planos y sin estampados ni patrones. Encuadrado desde la coronilla hasta los tobillos. Enfoque nítido, textura de piel natural, fotorrealista.",
+    "Una mujer de unos treinta años, con el pelo oscuro hasta los hombros. Fotografía de estudio sobre un fondo continuo gris claro y liso, iluminado de frente de manera pareja y sin sombra visible detrás de la persona. De pie y erguida, en vista frontal, con los hombros paralelos a la cámara, la cara completamente visible y mirando directamente al lente, los brazos relajados a los costados. Lleva una camiseta lisa y ajustada y pantalón liso, en colores planos y sin estampados ni patrones. Encuadrada desde la coronilla hasta los tobillos. Enfoque nítido, textura de piel natural, fotorrealista.",
+    "Una mujer joven de unos veinte años, con el pelo largo y rizado. Fotografía de estudio sobre un fondo continuo gris claro y liso, iluminado de frente de manera pareja y sin sombra visible detrás de la persona. De pie y erguida, en vista frontal, con los hombros paralelos a la cámara, la cara completamente visible y mirando directamente al lente, los brazos relajados a los costados. Lleva una camiseta lisa y ajustada y pantalón liso, en colores planos y sin estampados ni patrones. Encuadrada desde la coronilla hasta los tobillos. Enfoque nítido, textura de piel natural, fotorrealista.",
+  ],
+};
+
+/** What the user is invited to type when describing a model. */
+export const MODEL_PLACEHOLDER =
+  "mujer de unos treinta años, de pie, fondo gris claro…";
+
 /** What the user is invited to type on the instruction path. */
 export const INSTRUCTION_PLACEHOLDER =
   "haz las mangas largas, con puño de punto…";

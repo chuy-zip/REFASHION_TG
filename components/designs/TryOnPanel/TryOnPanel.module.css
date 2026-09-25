@@ -15,6 +15,9 @@
 
    Wraps on a narrow screen rather than shrinking the two past being useful. */
 .composition {
+  /* Posicionada porque el velo de trabajo la cubre entera: mientras corre la
+     prueba, lo que está trabajando son las dos mitades juntas. */
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -30,6 +33,15 @@
   width: 15rem;
   max-width: 100%;
   margin: 0;
+}
+
+/* El marco de cada mitad. Existe para que el velo cubra la imagen y no el pie
+   que la nombra: tapar el nombre mientras se dibuja esconde justo el dato que
+   dice a quién se está dibujando. */
+.slotFrame {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-sm);
 }
 
 .slotImage {
@@ -138,30 +150,6 @@ button.slotEmpty:disabled {
 
 .resultLink:hover {
   text-decoration: underline;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-}
-
-.label {
-  font-size: var(--text-sm);
-  font-stretch: var(--font-stretch-condensed);
-  color: var(--color-text-secondary);
-}
-
-.prompt {
-  padding: var(--space-8) var(--space-10);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  line-height: 1.45;
-  color: var(--color-text-primary);
-  background: var(--color-surface-sunken);
-  border: var(--border-hairline) solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  resize: vertical;
 }
 
 .hint {
@@ -285,4 +273,9 @@ button.slotEmpty:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pickerActions {
+  display: flex;
+  justify-content: flex-end;
 }

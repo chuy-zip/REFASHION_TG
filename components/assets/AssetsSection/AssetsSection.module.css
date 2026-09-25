@@ -20,3 +20,52 @@
    It sits next to the pills, in the row the "+ Subir" button used to share
    with them: the search filters whatever the selected pill is showing, and two
    controls that depend on each other do not go to opposite walls. */
+
+/* Beside the upload tile and shaped like it: the two are the two ways a model
+   photo gets into the catalogue, and a control that looked different would read
+   as a different kind of thing. Dashed for the same reason the upload tile is:
+   it is a slot for something that does not exist yet. */
+.generateTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  width: 100%;
+  aspect-ratio: 1;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.generateTile:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.generateLabel {
+  font-size: var(--text-sm);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  max-height: 85vh;
+  padding: var(--space-20);
+  overflow-y: auto;
+}
+
+.dialogTitle {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -1,11 +1,12 @@
 import "server-only";
 import { renderMockResult } from "@/lib/generation/mock-image";
-import { TRY_ON_COST_USD } from "@/lib/generation/pricing";
+import { MODEL_COST_USD, TRY_ON_COST_USD } from "@/lib/generation/pricing";
 import type {
   EditRequest,
   GenerationOutcome,
   GenerationProvider,
   InpaintRequest,
+  ModelRequest,
   TryOnRequest,
 } from "@/lib/generation/types";
 
@@ -79,8 +80,34 @@ const MOCK_TRY_ON_MODEL = "mock:p-image-try-on";
 /** The canvas the simulator invents for a try-on, since none is requested. */
 const TRY_ON_SIZE = { width: 832, height: 1248 } as const;
 
+/** What a generated model claims to be, and the canvas it uses. */
+const MOCK_MODEL_MODEL = "mock:flux-dev";
+const MODEL_SIZE = { width: 832, height: 1216 } as const;
+
 /** The value every measured run used. See `EXPERIMENTO_3_*` in herramientas. */
 const STEPS = 28;
+
+/**
+ * Lo que el simulador hace en lugar de devolver bytes: escribir en el destino.
+ *
+ * **Tiene que subir de verdad**, porque si no las rutas se comportarían distinto
+ * con y sin llave, y entonces probar con el simulador dejaría de probar nada.
+ * Sube de forma **síncrona**, a diferencia del proveedor real: el reintento de
+ * `store.ts` encuentra el objeto en el primer intento y sigue de largo.
+ *
+ * Devuelve la imagen como data URI para que el camino de respaldo también sea
+ * recorrible en desarrollo. `fetch` acepta `data:` desde Node 18.
+ */
+async function entregar(blob: Blob, uploadTo: string): Promise<string> {
+  await fetch(uploadTo, {
+    method: "PUT",
+    headers: { "Content-Type": "image/png" },
+    body: blob,
+  });
+
+  const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+  return `data:image/png;base64,${base64}`;
+}
 
 function between(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -113,10 +140,9 @@ export const mockProvider: GenerationProvider = {
     return {
       ok: true,
       data: {
-        image: renderMockResult(
-          request.size.width,
-          request.size.height,
-          request.prompt
+        imageUrl: await entregar(
+          renderMockResult(request.size.width, request.size.height, request.prompt),
+          request.uploadTo
         ),
         // Rounded to six decimals to match `assets.cost_usd`'s numeric(10,6):
         // a value the column cannot hold would round on the way in and stop
@@ -162,10 +188,13 @@ export const mockProvider: GenerationProvider = {
     return {
       ok: true,
       data: {
-        image: renderMockResult(
-          request.size.width,
-          request.size.height,
-          request.instruction
+        imageUrl: await entregar(
+          renderMockResult(
+            request.size.width,
+            request.size.height,
+            request.instruction
+          ),
+          request.uploadTo
         ),
         costUsd:
           Math.round(
@@ -204,10 +233,9 @@ export const mockProvider: GenerationProvider = {
     return {
       ok: true,
       data: {
-        image: renderMockResult(
-          TRY_ON_SIZE.width,
-          TRY_ON_SIZE.height,
-          "prueba virtual"
+        imageUrl: await entregar(
+          renderMockResult(TRY_ON_SIZE.width, TRY_ON_SIZE.height, "prueba virtual"),
+          request.uploadTo
         ),
         costUsd: TRY_ON_COST_USD,
         taskId: crypto.randomUUID(),
@@ -216,6 +244,39 @@ export const mockProvider: GenerationProvider = {
         // Null, like the real one: this model declares no step count, and a
         // borrowed constant here would be a number nobody could defend.
         steps: null,
+        latencyMs: Date.now() - started,
+      },
+    };
+  },
+
+  /** A person, simulated at the price the real one was measured to charge. */
+  async generateModel(request: ModelRequest): Promise<GenerationOutcome> {
+    const started = Date.now();
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, between(LATENCY_MS.min, LATENCY_MS.max))
+    );
+
+    if (Math.random() < FAILURE_RATE) {
+      return {
+        ok: false,
+        error:
+          "El servicio de generación no respondió. No se te cobró; puedes intentar de nuevo.",
+      };
+    }
+
+    return {
+      ok: true,
+      data: {
+        imageUrl: await entregar(
+          renderMockResult(MODEL_SIZE.width, MODEL_SIZE.height, request.description),
+          request.uploadTo
+        ),
+        costUsd: MODEL_COST_USD,
+        taskId: crypto.randomUUID(),
+        seed: request.seed,
+        model: MOCK_MODEL_MODEL,
+        steps: STEPS,
         latencyMs: Date.now() - started,
       },
     };

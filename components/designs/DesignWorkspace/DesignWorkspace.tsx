@@ -13,6 +13,7 @@ import { LogoBackground } from "@/components/designs/LogoBackground/LogoBackgrou
 import { LayerList } from "@/components/designs/LayerList/LayerList";
 import { GenerationPanel } from "@/components/designs/GenerationPanel/GenerationPanel";
 import { InstructionPanel } from "@/components/designs/InstructionPanel/InstructionPanel";
+import { WorkingOverlay } from "@/components/ui/WorkingOverlay/WorkingOverlay";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
 import {
@@ -1376,17 +1377,10 @@ export function DesignWorkspace({
 
       <div className={styles.canvasColumn}>
         <div className={styles.stageBox} ref={containerRef}>
-          {/* Over the image, not just a disabled button.
-              A generation takes 5 to 20 seconds. The only signal used to be the
-              button going grey, which is the same thing a button does when a
-              field is empty — so a long wait looked like a refusal. The work
-              happens TO the garment, so that is where it has to be visible. */}
-          {isGenerating && (
-            <div className={styles.working} role="status">
-              <span className={styles.workingSweep} aria-hidden="true" />
-              <p className={styles.workingText}>Generando…</p>
-            </div>
-          )}
+          {/* El velo vive en `WorkingOverlay` desde que la prueba virtual
+              necesitó el mismo: se midió acá primero, y dos copias de una
+              animación son dos animaciones que se separan con el tiempo. */}
+          {isGenerating && <WorkingOverlay label="Generando…" />}
           {!workingImageUrl ? (
             <div className={styles.stageMessage}>
               <p className={styles.stageMessageTitle}>Sin prenda base todavía</p>

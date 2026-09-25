@@ -20,6 +20,13 @@ interface DialogProps {
  *
  * Declarative wrapper over an imperative element — the parent owns `open` and
  * this syncs showModal()/close() to it.
+ *
+ * **Un cierre es de su propio diálogo y de ningún otro.** El `close` nativo no
+ * burbujea, pero el de React sí: sus eventos sintéticos viajan por el árbol de
+ * componentes, no por el DOM. Un diálogo dentro de otro —las sugerencias de
+ * prompt dentro del generador de modelos— cerraba los dos de un golpe, y el
+ * síntoma era desconcertante: el texto elegido sí quedaba puesto, pero había
+ * que volver a abrir para verlo.
  */
 export function Dialog({
   open,
@@ -43,7 +50,10 @@ export function Dialog({
       ref={ref}
       className={[styles.dialog, className].filter(Boolean).join(" ")}
       aria-labelledby={labelledBy}
-      onClose={onClose}
+      onClose={(event) => {
+        event.stopPropagation();
+        onClose();
+      }}
     >
       {children}
     </dialog>

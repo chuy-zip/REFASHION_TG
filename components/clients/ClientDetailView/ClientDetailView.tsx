@@ -44,6 +44,8 @@ interface ClientDetailViewProps {
   canManageMembers: boolean;
   /** What deleting this client would destroy; null when it could not be read. */
   contents: ClientContents | null;
+  /** True while the provider is the simulator: generating costs nothing. */
+  isSimulated: boolean;
   /** The current page of projects, with their sample strips. */
   projects: Project[];
   projectsTotal: number;
@@ -76,6 +78,7 @@ export function ClientDetailView({
   assets,
   products,
   currentUserId,
+  isSimulated,
 }: ClientDetailViewProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -204,6 +207,7 @@ export function ClientDetailView({
             clientId={client.id}
             assets={assets}
             canManage={canEdit}
+            isSimulated={isSimulated}
           />
         )}
 

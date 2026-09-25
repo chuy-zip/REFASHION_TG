@@ -42,3 +42,17 @@ export const EDIT_COST_USD = 0.013;
  * bill by megapixel, so the figure shown before the call is the figure charged.
  */
 export const TRY_ON_COST_USD = 0.0045;
+
+/**
+ * FLUX.1 [dev] drawing a person at 832×1216 with 28 steps.
+ *
+ * **It varies, and that is measured too.** Ten identical calls — same canvas,
+ * same steps — were billed between $0.0013 and $0.0026, so this one is charged
+ * by compute time rather than by configuration. $0.0019 is the middle of that
+ * range and what the UI says, with "unos" in front of it.
+ *
+ * Cheap in the place it matters: a model photo is paid once and reused across
+ * every design of that client, because it is stored in the catalogue rather
+ * than regenerated per try-on.
+ */
+export const MODEL_COST_USD = 0.0019;

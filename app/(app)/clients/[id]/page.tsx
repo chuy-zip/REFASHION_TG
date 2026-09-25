@@ -4,6 +4,7 @@ import {
   createClient as createSupabaseClient,
   getAuthenticatedUser,
 } from "@/lib/supabase/server";
+import { isSimulated } from "@/lib/generation";
 import { ClientDetailView } from "@/components/clients/ClientDetailView/ClientDetailView";
 import { Icon } from "@/components/ui/Icon/Icon";
 import { getClientAccess } from "@/lib/access";
@@ -94,6 +95,7 @@ export default async function ClientDetailPage({
       </Link>
 
       <ClientDetailView
+        isSimulated={isSimulated()}
         client={client}
         canEdit={access.canEdit}
         canDelete={access.canManage}

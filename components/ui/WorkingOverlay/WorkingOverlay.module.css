@@ -1,0 +1,46 @@
+/* Veils rather than hides: the image stays readable underneath, because what
+   the user is waiting to see is a change to THAT image. */
+.working {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-10);
+  background: color-mix(in srgb, var(--color-surface-sunken) 65%, transparent);
+  border-radius: inherit;
+}
+
+/* A band travelling down the frame, the way a scanner reads. Chosen over a
+   spinner because a spinner says "the page is busy" and this says "something is
+   being done to this image", which is the actual truth. Stopped under
+   prefers-reduced-motion by the global rule in globals.css. */
+.sweep {
+  width: 60%;
+  height: var(--border-hairline);
+  background: var(--color-accent);
+  /* No glow. §4 keeps shadows for things that actually float, and hierarchy
+     here comes from the line itself moving. */
+  animation: working-sweep var(--duration-waiting) ease-in-out infinite;
+}
+
+.text {
+  font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+@keyframes working-sweep {
+  0%,
+  100% {
+    transform: translateY(-2.5rem);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(2.5rem);
+    opacity: 1;
+  }
+}

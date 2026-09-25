@@ -379,6 +379,28 @@ export const tryOnSchema = z.object({
 
 export type TryOnRequestInput = z.infer<typeof tryOnSchema>;
 
+/**
+ * A model photo drawn from a description.
+ *
+ * It belongs to a **client**, not to a design: a generated person is reused
+ * across every design of that client, which is the whole reason it is paid for
+ * once and stored in the catalogue.
+ *
+ * The floor on the text is high for the same reason as on the instruction path:
+ * a description of three words gives the model nothing to hold on to, and the
+ * suggestions show what a usable one looks like.
+ */
+export const generateModelSchema = z.object({
+  client_id: z.uuid("El cliente no es válido."),
+  description: z
+    .string()
+    .trim()
+    .min(20, "Describe al modelo con un poco más de detalle.")
+    .max(3000, "La descripción es demasiado larga."),
+});
+
+export type GenerateModelInput = z.infer<typeof generateModelSchema>;
+
 /* -------------------------------------------------------------------------- */
 /* Design layers (Módulo 1)                                                    */
 /* -------------------------------------------------------------------------- */

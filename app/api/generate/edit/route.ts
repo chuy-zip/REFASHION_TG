@@ -9,12 +9,12 @@ import {
   getDownloadUrl,
   discardObject,
 } from "@/lib/r2";
+import { storeGeneratedImage } from "@/lib/generation/store";
 import { resolveDesignPath } from "@/lib/designs";
 import { assetDisplayName } from "@/lib/assets";
 import { getGenerationProvider } from "@/lib/generation";
 import { resolveEditInput } from "@/lib/generation/inputs";
 import { newSeed } from "@/lib/generation/seed";
-import { readPngSize } from "@/lib/png-size";
 import { editSchema } from "@/lib/validation";
 import {
   jsonError,
@@ -91,12 +91,21 @@ export async function POST(request: Request) {
   // sentences the user cannot see is an order they did not give.
   const seed = newSeed();
 
+  // **La clave y su URL firmada se preparan ANTES de llamar**, porque el
+  // proveedor necesita saber dónde escribir. Es la inversión que hace que los
+  // bytes no vuelvan a pasar por acá: antes se pedía la imagen y después se
+  // decidía dónde iba; ahora el destino viaja con el pedido.
+  const assetId = crypto.randomUUID();
+  const r2Key = `clients/${path.clientId}/projects/${path.projectId}/designs/${design_id}/${assetId}.png`;
+  const uploadTo = await getUploadUrl(r2Key, "image/png");
+
   const provider = getGenerationProvider();
   const outcome = await provider.edit({
     imageUrl,
     size,
     instruction,
     seed,
+    uploadTo,
   });
 
   // A failed generation is not charged and nothing is written. Unlike the mask
@@ -106,23 +115,12 @@ export async function POST(request: Request) {
 
   const result = outcome.data;
 
-  // Measured, not assumed. This model reframes, so the delivered size can
-  // differ from the requested one by more than rounding.
-  const entregado = readPngSize(await result.image.arrayBuffer());
-
-  const assetId = crypto.randomUUID();
-  const r2Key = `clients/${path.clientId}/projects/${path.projectId}/designs/${design_id}/${assetId}.png`;
-
-  const uploadUrl = await getUploadUrl(r2Key, "image/png");
-  const put = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "image/png" },
-    body: result.image,
-  });
-
-  if (!put.ok) {
-    return jsonError("No se pudo guardar la imagen generada.", 502);
-  }
+  // **El objeto ya se está escribiendo solo.** Runware recibió el destino
+  // firmado y escribe ahí de forma asíncrona, así que acá solo se espera a que
+  // aparezca y se lo mide con 32 bytes. Si nunca aparece, `storeGeneratedImage`
+  // cae al camino de antes y baja la imagen de la URL del proveedor.
+  const stored = await storeGeneratedImage(r2Key, result.imageUrl);
+  if (!stored.ok) return jsonError(stored.error, 502);
 
   const { data, error } = await supabase
     .from("assets")
@@ -138,9 +136,11 @@ export async function POST(request: Request) {
       asset_type: "edit",
       original_filename: `edit-${Date.now()}.png`,
       mime_type: "image/png",
-      file_size_bytes: result.image.size,
-      width_px: entregado?.width ?? size.width,
-      height_px: entregado?.height ?? size.height,
+      file_size_bytes: stored.measurement.bytes,
+      // Medido, no supuesto: este modelo reencuadra, así que el tamaño
+      // entregado puede diferir del pedido por más que un redondeo.
+      width_px: stored.measurement.width,
+      height_px: stored.measurement.height,
       origin: "generated",
       runware_task_id: result.taskId,
       cost_usd: result.costUsd,

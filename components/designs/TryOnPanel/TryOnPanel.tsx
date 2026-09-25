@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button/Button";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
+import { WorkingOverlay } from "@/components/ui/WorkingOverlay/WorkingOverlay";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
 import { apiPost } from "@/lib/api-client";
+import { ModelGenerator } from "@/components/designs/ModelGenerator/ModelGenerator";
 import { assetDisplayName, type AssetWithUrl } from "@/lib/assets";
 import { TRY_ON_COST_USD } from "@/lib/generation/pricing";
 import styles from "./TryOnPanel.module.css";
@@ -94,13 +96,30 @@ export function TryOnPanel({
   const { notify } = useToast();
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [description, setDescription] = useState("");
+  /**
+   * El modelo que se acaba de generar en esta pantalla.
+   *
+   * `models` viene del servidor y no lo incluye hasta que la página se
+   * recargue, así que sin esto alguien genera un modelo y la prueba
+   * virtual no encuentra a quién vestir.
+   */
+  const [generatedModel, setGeneratedModel] = useState<AssetWithUrl | null>(
+    null
+  );
   const [isGenerating, setIsGenerating] = useState(false);
+  /**
+   * True mientras el generador de modelos trabaja.
+   *
+   * Vive acá y no adentro del generador porque lo que hay que mostrar está
+   * acá: el casillero de la persona, que es lo que se está llenando.
+   */
+  const [isDrawingModel, setIsDrawingModel] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
 
+  const disponibles = generatedModel ? [...models, generatedModel] : models;
   const selectedModel =
-    models.find((model) => model.id === selectedModelId) ?? null;
+    disponibles.find((model) => model.id === selectedModelId) ?? null;
 
   if (blockedReason) {
     return (
@@ -194,14 +213,21 @@ export function TryOnPanel({
     <div className={styles.panel}>
       {/* The request, drawn: what goes in, the operation, and who wears it. */}
       <div className={styles.composition}>
+        {/* Sobre la imagen y no solo en el botón apagado, igual que en la
+            pantalla de edición: la prueba tarda y el trabajo se le hace a
+            esto, así que es acá donde se tiene que ver. */}
+        {isGenerating && <WorkingOverlay label="Generando la prueba…" />}
+
         <figure className={styles.slot}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL */}
-          <img
-            className={styles.slotImage}
-            src={garmentUrl}
-            alt="La prenda que se va a probar"
-            crossOrigin="anonymous"
-          />
+          <div className={styles.slotFrame}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL */}
+            <img
+              className={styles.slotImage}
+              src={garmentUrl}
+              alt="La prenda que se va a probar"
+              crossOrigin="anonymous"
+            />
+          </div>
           <figcaption className={styles.slotCaption}>
             {hasLogos ? "Composición con logotipos" : "Prenda sin logotipos"}
           </figcaption>
@@ -212,18 +238,27 @@ export function TryOnPanel({
         </span>
 
         <figure className={styles.slot}>
-          {source === "saved" && selectedModel ? (
+          {/* The person that is going to be sent, whichever way she was
+              chosen. This used to be `source === "saved" && selectedModel`, so
+              a model drawn on this very screen left the slot reading "Describe
+              el modelo" while its photo sat somewhere else on the page. */}
+          {selectedModel ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL */}
-              <img
-                className={styles.slotImage}
-                src={selectedModel.url}
-                alt={assetDisplayName(selectedModel)}
-                crossOrigin="anonymous"
-              />
+              <div className={styles.slotFrame}>
+                {isDrawingModel && (
+                  <WorkingOverlay label="Dibujando al modelo…" />
+                )}
+                {/* eslint-disable-next-line @next/next/no-img-element -- private, short-lived signed URL */}
+                <img
+                  className={styles.slotImage}
+                  src={selectedModel.url}
+                  alt={assetDisplayName(selectedModel)}
+                  crossOrigin="anonymous"
+                />
+              </div>
               <figcaption className={styles.slotCaption}>
                 {assetDisplayName(selectedModel)}
-                {models.length > 1 && (
+                {source === "saved" && disponibles.length > 1 && (
                   <button
                     type="button"
                     className={styles.change}
@@ -242,47 +277,49 @@ export function TryOnPanel({
               type="button"
               className={styles.slotEmpty}
               onClick={() => setPickerOpen(true)}
-              disabled={isGenerating || models.length === 0}
+              disabled={isGenerating || disponibles.length === 0}
             >
               <span className={styles.slotEmptyText}>
-                {models.length === 0
+                {disponibles.length === 0
                   ? "Sin fotos de modelo"
                   : "Elige un modelo"}
               </span>
             </button>
           ) : (
-            <div className={styles.slotEmpty}>
-              <span className={styles.slotEmptyText}>Describe el modelo</span>
+            <div className={styles.slotFrame}>
+              {isDrawingModel && <WorkingOverlay label="Dibujando al modelo…" />}
+              <div className={styles.slotEmpty}>
+                <span className={styles.slotEmptyText}>Describe el modelo</span>
+              </div>
             </div>
           )}
         </figure>
       </div>
 
       {source === "saved" ? (
-        models.length === 0 && (
+        disponibles.length === 0 && (
           <p className={styles.hint}>
             Este cliente todavía no tiene fotos de modelo. Súbelas en su pestaña
             de Recursos para poder usarlas aquí.
           </p>
         )
       ) : (
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor={`${fieldId}-prompt`}>
-            Cómo es el modelo
-          </label>
-          <textarea
-            id={`${fieldId}-prompt`}
-            className={styles.prompt}
-            rows={3}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="mujer de pie, plano medio, fondo gris liso…"
-          />
-          <p className={styles.hint}>
-            El modelo generado se guarda en el catálogo del cliente, así que
-            puedes reutilizarlo en otros diseños sin volver a generarlo.
-          </p>
-        </div>
+        /* **Generar acá deja el modelo elegido acá.** Uno que se crea desde la
+           prueba virtual y después hay que ir a buscar a otra pestaña sería
+           pedirle al usuario que recuerde un nombre que todavía no tiene. Se
+           guarda igual en el catálogo del cliente, que es lo que lo vuelve
+           reutilizable en los demás diseños. */
+        <ModelGenerator
+          clientId={clientId}
+          isSimulated={isSimulated}
+          embedded
+          busy={isGenerating}
+          onBusyChange={setIsDrawingModel}
+          onGenerated={(asset) => {
+            setGeneratedModel(asset);
+            setSelectedModelId(asset.id);
+          }}
+        />
       )}
 
       {hasLogos && (
@@ -294,27 +331,20 @@ export function TryOnPanel({
 
       {error && <p className={styles.error}>{error}</p>}
 
-      {source === "saved" ? (
-        <Button
-          variant="primary"
-          onClick={handleGenerate}
-          disabled={isGenerating || !selectedModelId}
-        >
-          {isGenerating ? "Generando…" : "Generar prueba virtual"}
-        </Button>
-      ) : (
-        <Button variant="primary" disabled>
-          Generar modelo
-        </Button>
-      )}
+      {/* One button, both sources. The "ai" tab used to end in a disabled
+          placeholder left over from before models could be generated, which
+          meant that tab could never run a try-on: the person was drawn and
+          saved, and the request she was drawn for had no way to be sent. */}
+      <Button
+        variant="primary"
+        onClick={handleGenerate}
+        disabled={isGenerating || isDrawingModel || !selectedModelId}
+      >
+        {isGenerating ? "Generando…" : "Generar prueba virtual"}
+      </Button>
 
       <p className={styles.status}>
-        {source === "ai" ? (
-          <>
-            <span className={styles.pending}>Sin conectar</span>. Generar
-            modelos todavía no llama a ningún servicio.
-          </>
-        ) : isSimulated ? (
+        {isSimulated ? (
           <>
             <span className={styles.pending}>Simulado</span>. No se llama a
             ningún servicio y no se cobra nada.
@@ -346,11 +376,11 @@ export function TryOnPanel({
             <h2 className={styles.pickerTitle} id={`${fieldId}-picker`}>
               Elige un modelo
             </h2>
-            <span className={styles.count}>{models.length}</span>
+            <span className={styles.count}>{disponibles.length}</span>
           </div>
 
           <div className={styles.models} role="group">
-            {models.map((model) => (
+            {disponibles.map((model) => (
               <button
                 key={model.id}
                 type="button"
@@ -373,6 +403,14 @@ export function TryOnPanel({
                 </span>
               </button>
             ))}
+          </div>
+
+          {/* Elegir cierra, pero cambiar de opinión también tiene que poder:
+              el `<dialog>` nativo solo responde a Esc. */}
+          <div className={styles.pickerActions}>
+            <Button variant="secondary" onClick={() => setPickerOpen(false)}>
+              Cerrar
+            </Button>
           </div>
         </div>
       </Dialog>

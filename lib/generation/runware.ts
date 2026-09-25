@@ -4,6 +4,7 @@ import type {
   GenerationOutcome,
   GenerationProvider,
   InpaintRequest,
+  ModelRequest,
   TryOnRequest,
 } from "@/lib/generation/types";
 
@@ -87,28 +88,70 @@ const EDIT_MODEL = "runware:106@1";
  */
 const TRY_ON_MODEL = "prunaai:p-image@try-on";
 
+/**
+ * FLUX.1 [dev], for drawing a person from a description.
+ *
+ * Plain text-to-image. Kontext was the obvious candidate and it is the wrong
+ * tool: it edits an image it receives, and this task has none to give it, while
+ * costing five times more. Schnell costs half of this one but is the four-step
+ * distilled build, and what is being drawn here are **faces**, which is exactly
+ * where four steps show.
+ */
+const MODEL_MODEL = "runware:101@1";
+
+/**
+ * The canvas a model photo is drawn on, fixed and not offered as a choice.
+ *
+ * 832×1216: both multiples of 64, 1.01 MP, ratio 1.46. It is the size the next
+ * step wants — P-Image returns the try-on at the person photo's resolution, and
+ * FLUX VTO passes anything under 2 MP through untouched — so a size the user
+ * could vary would only vary what the try-on gives back.
+ */
+const MODEL_SIZE = { width: 832, height: 1216 } as const;
+
 /** The value every measured run used. See `EXPERIMENTO_3_*` in herramientas. */
 const STEPS = 28;
 
 /**
- * Budgets, and they add up to just under the route's own ceiling on purpose.
+ * **Cuánto se espera a que el modelo responda**, y ya no incluye una descarga.
  *
- * The route allows 60 s (`maxDuration`), so 48 plus 10 leaves two seconds of
- * slack and still fails with a message the user can read instead of a platform
- * timeout they cannot.
+ * Bajó de 55 a 35 segundos cuando los bytes dejaron de pasar por acá. No es un
+ * recorte de prudencia: el que tiene que caber en los 60 de la ruta es el
+ * total, y ahora después de esto viene la espera a que el objeto aparezca en R2
+ * más, en el peor caso, el respaldo que lo baja y lo sube
+ * (`lib/generation/store.ts`). Dejar 55 acá habría sumado más de 60 entre los
+ * tres tramos, y el que corta entonces es Vercel, sin mensaje.
  *
- * **They started at 40 and 15, and Kontext hit the 40.** Fill had measured
- * 10 s to 20 s, and the instruction model is slower: it re-renders the whole
- * frame rather than a masked patch. The same request succeeded on the retry, so
- * the ceiling was the problem and not the request.
+ * 35 es casi el doble de la generación más lenta medida, que fueron 20.
  *
- * Raising them further means raising `maxDuration` past 60 first, because the
- * platform kills the function regardless of what this file hopes for. That is a
- * deployment decision (300 s needs fluid compute enabled, and fails the build
- * otherwise), so it waits for evidence that real calls need it.
+ * ---
+ *
+ * **Y antes eran dos plazos fijos, lo que estuvo mal.**
+ *
+ * Antes eran dos topes fijos, 48 segundos para la inferencia y 10 para bajar la
+ * imagen, sumando poco menos que los 60 que permite la ruta. Parecía prudente y
+ * estaba mal: los dos tramos compiten por el mismo tiempo, y repartirlo de
+ * antemano le regala a uno lo que al otro le falta.
+ *
+ * Se rompió exactamente así. Generar una persona tarda unos 5 segundos y deja
+ * 43 sin usar, pero la descarga seguía limitada a 10; un PNG de 1 MP sobre una
+ * conexión lenta no entró, y se abortó una imagen **que ya estaba pagada**.
+ *
+ * Con un plazo único, la descarga hereda todo lo que la inferencia no gastó.
+ * El caso que falló habría tenido 50 segundos en vez de 10.
+ *
+ * 55 y no 60 para dejarle margen a la ruta: el plazo propio tiene que vencer
+ * antes que el de la plataforma, porque el nuestro devuelve un mensaje que se
+ * puede leer y el suyo corta la función sin explicación.
  */
-const INFERENCE_TIMEOUT_MS = 48_000;
-const DOWNLOAD_TIMEOUT_MS = 10_000;
+const TOTAL_BUDGET_MS = 35_000;
+
+/** Nunca se pide un plazo de cero o negativo, por tarde que sea. */
+const MIN_TIMEOUT_MS = 2_000;
+
+function restante(vence: number): number {
+  return Math.max(MIN_TIMEOUT_MS, vence - Date.now());
+}
 
 interface RunwareImage {
   taskUUID?: string;
@@ -162,6 +205,7 @@ async function run(
   requestedSeed: number
 ): Promise<GenerationOutcome> {
   const started = Date.now();
+  const vence = started + TOTAL_BUDGET_MS;
 
   let response: Response;
   try {
@@ -172,7 +216,7 @@ async function run(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify([task]),
-      signal: AbortSignal.timeout(INFERENCE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(restante(vence)),
     });
   } catch (error) {
     logIssue(`fetch failed: ${String(error)}`);
@@ -223,27 +267,15 @@ async function run(
     );
   }
 
-  // From here on the task succeeded and was charged, so every failure below
-  // has to say so: the money is gone whether or not the bytes arrive, and a
-  // message claiming otherwise would be false.
-  let image: Blob;
-  try {
-    const download = await fetch(result.imageURL, {
-      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
-    });
-    if (!download.ok) throw new Error(`HTTP ${download.status}`);
-    image = await download.blob();
-  } catch (error) {
-    logIssue(`download failed: ${String(error)}`);
-    return fail(
-      "La imagen se generó pero no se pudo descargar. Esta generación sí se cobró. Vuelve a intentar."
-    );
-  }
-
+  // **Acá ya no se baja nada.** Runware está escribiendo la imagen en el
+  // destino firmado que recibió en `uploadEndpoint`, de forma asíncrona, así
+  // que los bytes nunca pasan por esta función. Esperar a que llegue y medirla
+  // es trabajo de `lib/generation/store.ts`, que además sabe caer a esta
+  // `imageURL` si el atajo falla.
   return {
     ok: true,
     data: {
-      image,
+      imageUrl: result.imageURL,
       // Null rather than zero when the provider stays quiet. A zero would add
       // itself to the running total of the design as if the generation had
       // been free, and a total that is quietly wrong is worse than one that
@@ -304,6 +336,8 @@ export const runwareProvider: GenerationProvider = {
         numberResults: 1,
         outputFormat: "PNG",
         includeCost: true,
+        // Runware escribe el resultado acá y nunca pasa por esta función.
+        uploadEndpoint: request.uploadTo,
         // Nested, as the current schema declares them. The first experiments
         // sent these at the root and Runware accepted it, which is precisely
         // why it is worth pinning down: an accepted-but-undeclared shape is one
@@ -354,6 +388,8 @@ export const runwareProvider: GenerationProvider = {
         numberResults: 1,
         outputFormat: "PNG",
         includeCost: true,
+        // Runware escribe el resultado acá y nunca pasa por esta función.
+        uploadEndpoint: request.uploadTo,
         inputs: { referenceImages: [request.imageUrl] },
       },
       EDIT_MODEL,
@@ -388,6 +424,8 @@ export const runwareProvider: GenerationProvider = {
         numberResults: 1,
         outputFormat: "PNG",
         includeCost: true,
+        // Runware escribe el resultado acá y nunca pasa por esta función.
+        uploadEndpoint: request.uploadTo,
         inputs: {
           referenceImages: [
             { image: request.personUrl, role: "person" },
@@ -398,6 +436,42 @@ export const runwareProvider: GenerationProvider = {
       },
       TRY_ON_MODEL,
       null,
+      request.seed
+    );
+  },
+
+  /**
+   * The person, from words.
+   *
+   * Nothing is sent that was not measured. No `negativePrompt`: this model does
+   * accept one with guidance on, unlike Fill, but the project has measured that
+   * naming a thing to exclude it summons it, and that measurement has not been
+   * repeated here. No `CFGScale`: the schema declares no default, so sending a
+   * number would be choosing one without a basis.
+   */
+  async generateModel(request: ModelRequest): Promise<GenerationOutcome> {
+    const apiKey = readKey();
+    if (!apiKey) return fail(SIN_LLAVE);
+
+    return run(
+      apiKey,
+      {
+        taskType: "imageInference",
+        taskUUID: crypto.randomUUID(),
+        model: MODEL_MODEL,
+        positivePrompt: request.description,
+        seed: request.seed,
+        width: MODEL_SIZE.width,
+        height: MODEL_SIZE.height,
+        steps: STEPS,
+        numberResults: 1,
+        outputFormat: "PNG",
+        includeCost: true,
+        // Runware escribe el resultado acá y nunca pasa por esta función.
+        uploadEndpoint: request.uploadTo,
+      },
+      MODEL_MODEL,
+      STEPS,
       request.seed
     );
   },

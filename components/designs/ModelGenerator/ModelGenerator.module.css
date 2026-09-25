@@ -1,0 +1,121 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  width: 100%;
+  max-width: 34rem;
+}
+
+/* The result first: it is what the person came for, and it stays above the box
+   so generating again is an option rather than the only thing on screen. */
+.result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  margin: 0;
+}
+
+.resultImage {
+  width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.resultNote {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Label and the suggestions trigger on one line: the trigger acts on the box
+   below, so it belongs to it and not to the panel. */
+.fieldHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-stretch: var(--font-stretch-condensed);
+  color: var(--color-text-secondary);
+}
+
+/* A link and not a Button: it opens something to read, it does not act. */
+.suggest {
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.suggest:disabled {
+  color: var(--color-text-secondary);
+  cursor: default;
+}
+
+.prompt {
+  padding: var(--space-8) var(--space-10);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.hint,
+.blocked,
+.status {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.error {
+  padding: var(--space-10) var(--space-12);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.pending {
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+/* Adentro de otro panel es una herramienta, no la pantalla: el borde dice
+   dónde empieza y dónde termina, y sin él su botón se lee como una segunda
+   acción principal compitiendo con la de abajo. */
+.framed {
+  max-width: 100%;
+  padding: var(--space-16);
+  background: var(--color-surface-raised);
+  border: var(--border-hairline) solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.frameTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}

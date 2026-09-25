@@ -6,6 +6,7 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import { readPngSize } from "@/lib/png-size";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
@@ -199,4 +200,62 @@ export function isAssetKeyForOwner(
   }
 
   return false;
+}
+
+/**
+ * Las medidas de un objeto sin bajarlo entero.
+ *
+ * **Treinta y dos bytes alcanzan**, y esa es toda la razón por la que esta
+ * función existe. Un PNG declara su ancho y su alto en los primeros veinticuatro
+ * (`lib/png-size.ts`), así que un `Range` los trae sin mover el megabyte que
+ * pesa la imagen. Y el denominador del `Content-Range` que vuelve es el tamaño
+ * total del archivo, o sea que la misma petición contesta las tres preguntas:
+ * si el objeto está, cuánto mide y cuánto pesa.
+ *
+ * Verificado contra el proveedor real: un PNG de 512×512 subido por Runware
+ * devolvió `bytes 0-31/787271` y midió exacto.
+ *
+ * Null cuando el objeto todavía no existe, que en el camino de generación es
+ * información y no un fallo: Runware escribe de forma asíncrona.
+ */
+export interface ObjectMeasurement {
+  width: number;
+  height: number;
+  bytes: number;
+}
+
+export async function measureObject(
+  key: string
+): Promise<ObjectMeasurement | null> {
+  try {
+    const salida = await getClient().send(
+      new GetObjectCommand({
+        Bucket: getBucket(),
+        Key: key,
+        Range: "bytes=0-31",
+      })
+    );
+
+    const cabecera = await salida.Body?.transformToByteArray();
+    if (!cabecera) return null;
+
+    const size = readPngSize(
+      cabecera.buffer.slice(
+        cabecera.byteOffset,
+        cabecera.byteOffset + cabecera.byteLength
+      ) as ArrayBuffer
+    );
+    if (!size) return null;
+
+    // `bytes 0-31/787271`: lo que importa es el denominador.
+    const total = Number(salida.ContentRange?.split("/")[1]);
+    if (!Number.isFinite(total) || total <= 0) return null;
+
+    return { width: size.width, height: size.height, bytes: total };
+  } catch {
+    // Incluye el 404 de un objeto que todavía no llegó, que es el caso normal
+    // mientras se espera. Distinguirlo de un fallo de red no cambiaría nada:
+    // el que llama reintenta igual y después se rinde.
+    return null;
+  }
 }

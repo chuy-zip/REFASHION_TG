@@ -40,7 +40,7 @@ import type { Size } from "@/lib/generation/dimensions";
  */
 export type InpaintIntent = "clean" | "shape" | "texture";
 
-export interface InpaintRequest {
+export interface InpaintRequest extends Destination {
   /** Public URL of the clean garment. Presigned R2 URLs qualify. */
   imageUrl: string;
   /** Public URL of the mask. White = edit, black = keep. Same size as the image. */
@@ -77,9 +77,33 @@ export interface InpaintRequest {
   seed: number;
 }
 
+/**
+ * Dónde debe quedar el resultado, dicho por quien manda a generar.
+ *
+ * **El proveedor recibe una URL, no un bucket.** No sabe qué es R2 ni cómo se
+ * nombran las claves: la ruta sigue siendo la dueña del almacenamiento y lo
+ * único que delega es el acto de escribir. Ese es el límite que hace que
+ * cambiar de proveedor no toque nada de infraestructura.
+ *
+ * Se pasa en todas las peticiones porque las cuatro producen una imagen y las
+ * cuatro tienen que guardarla; un campo opcional habría sido una invitación a
+ * que alguna se lo olvide y vuelva a bajar el megabyte.
+ */
+export interface Destination {
+  /** URL firmada de un solo uso donde el proveedor escribe la imagen. */
+  uploadTo: string;
+}
+
 export interface GenerationResult {
-  /** The generated image, ready to be stored like any other design asset. */
-  image: Blob;
+  /**
+   * La URL propia del proveedor, que sigue viniendo aunque se le pida que suba.
+   *
+   * **No es el camino normal, es el respaldo.** El resultado lo escribe el
+   * proveedor directamente en el destino; esto es de dónde bajarlo si ese
+   * atajo falla, para que una imagen ya pagada no se pierda
+   * (`lib/generation/store.ts`).
+   */
+  imageUrl: string;
   /**
    * USD actually spent, as the provider reported it — never estimated here.
    * Goes straight to `assets.cost_usd`, which is what makes H-18 and H-37
@@ -155,7 +179,7 @@ export type GenerationOutcome =
  * verified correct, and succeeded by instruction on the same photograph
  * (`herramientas/docs/EXPERIMENTO_3_quitar_y_agregar.md`).
  */
-export interface EditRequest {
+export interface EditRequest extends Destination {
   /** Public URL of the image to edit. Presigned R2 URLs qualify. */
   imageUrl: string;
   /**
@@ -187,11 +211,31 @@ export interface EditRequest {
  * one path that was measured without it
  * (`herramientas/docs/EXPERIMENTO_4_vton.md`).
  */
-export interface TryOnRequest {
+export interface TryOnRequest extends Destination {
   /** Public URL of the person. The output follows this image's size. */
   personUrl: string;
   /** Public URL of the garment: the composition, or the clean garment. */
   garmentUrl: string;
+  /** Same contract as everywhere else: always set, never optional. */
+  seed: number;
+}
+
+/**
+ * A person, drawn from a description and nothing else.
+ *
+ * **Plain text-to-image, and that is the whole point of it being separate.**
+ * The instruction model was the obvious candidate and it is the wrong one: it
+ * edits a picture it is given, and here there is no picture. It also costs
+ * $0.0098 against $0.0019, five times more for a capability the task does not
+ * use (`herramientas/probar_modelos.py`).
+ *
+ * There is no `size` because the caller does not get to choose one: the output
+ * is a model photo, and the pipeline that consumes it wants a portrait near one
+ * megapixel. A size that varied would only vary what the try-on then returns.
+ */
+export interface ModelRequest extends Destination {
+  /** What the person looks like, in the words that will be sent. */
+  description: string;
   /** Same contract as everywhere else: always set, never optional. */
   seed: number;
 }
@@ -207,4 +251,6 @@ export interface GenerationProvider {
   edit(request: EditRequest): Promise<GenerationOutcome>;
   /** Put the garment on a person. */
   tryOn(request: TryOnRequest): Promise<GenerationOutcome>;
+  /** Draw a person from a description. */
+  generateModel(request: ModelRequest): Promise<GenerationOutcome>;
 }

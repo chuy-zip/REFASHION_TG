@@ -118,10 +118,23 @@
   --shadow-md: 0 4px 12px rgba(22, 24, 29, 0.1);
   --shadow-lg: 0 8px 32px rgba(22, 24, 29, 0.14);
 
-  /* Motion — explains causality, never decorates. Nothing exceeds 200ms. */
+  /* Motion — explains causality, never decorates. Nothing that explains a
+     state change exceeds 200ms. */
   --duration-fast: 120ms; /* state change: hover, focus, active */
   --duration-enter: 160ms; /* something appears: dialog, popover */
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* The one exception to the ceiling above, and it is not a state change: the
+     band that sweeps while a model works (WorkingOverlay). It accompanies a
+     wait of seconds, and at 200ms it would read as nervousness rather than as
+     work in progress.
+
+     Whoever edits this block: a `@theme` edit did NOT reach the dev bundle
+     until the file was saved a second time, and the animation that consumes
+     this died silently, because an undefined variable inside an `animation`
+     shorthand invalidates the whole declaration. Restart `next dev` after
+     touching this block rather than trusting what the screen shows. */
+  --duration-waiting: 1.8s;
 
   /* Height of the sticky bar. A token because three unrelated files need the
      same number: the bar sets it, the editor subtracts it from the viewport,
