@@ -146,6 +146,7 @@ export async function POST(request: Request) {
       // to null or a positive number, precisely so that "not applicable" and
       // "ran nothing" cannot be written as the same value.
       generation_steps: result.steps,
+      generation_latency_ms: result.latencyMs,
       // No prompt, and that is the request as it was actually sent. The chosen
       // model takes `positivePrompt` only to disambiguate a garment reference
       // showing several items, and ours show one.

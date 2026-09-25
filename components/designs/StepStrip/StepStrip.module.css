@@ -158,17 +158,29 @@
   color: var(--color-accent);
 }
 
+/* En columna y no en fila: acá conviven hasta tres cosas —mirar los datos,
+   retomar el paso y la frase que explica por qué no se puede retomar— y en
+   fila quedaban pegadas entre sí y contra el texto. */
 .actions {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  /* Estirados al ancho de la columna. Lo que pesaba de más no era el estirón
+     sino la columna: media 16rem porque la reservaba una frase de ayuda, y un
+     botón secundario de 16rem competía con la acción principal. Con la columna
+     en 11rem, estirar es lo que hace que los dos botones se vean como un par. */
+  align-items: stretch;
   flex-shrink: 0;
-  max-width: 16rem;
+  gap: var(--space-12);
+  /* Antes 16rem, que era el ancho de la frase de ayuda. Esa frase se lee una
+     vez y el botón se usa siempre, así que ahora manda el botón y el texto
+     envuelve debajo. */
+  max-width: 11rem;
   padding-top: var(--space-16);
 }
 
 .hint {
-  font-size: var(--text-sm);
-  line-height: 1.4;
+  font-size: var(--text-xs);
+  line-height: 1.45;
   color: var(--color-text-secondary);
 }
 
@@ -176,4 +188,48 @@
   .step {
     width: 7.5rem;
   }
+}
+
+/* Plegar sin saber cuánto mide.
+ *
+ * `max-height` obliga a inventar un número, y el número se queda corto el día
+ * que la tira tenga doce pasos en vez de ocho. Una rejilla de una fila que va
+ * de `0fr` a `1fr` anima el alto real del contenido, sea el que sea. El hijo
+ * necesita `min-height: 0` y `overflow: hidden` o se niega a encogerse.
+ *
+ * Se detiene bajo prefers-reduced-motion por la regla global de globals.css.
+ */
+.collapsible {
+  display: grid;
+  /* `minmax(0, …)` y no `1fr` a secas, que es la diferencia entre plegarse y
+     encogerse. Una pista `fr` tiene un mínimo automático igual a su contenido,
+     así que con `0fr` la fila se quedaba del alto mínimo de los botones:
+     el riel no desaparecía, se apretujaba. `minmax(0, …)` le quita ese piso. */
+  grid-template-rows: minmax(0, 1fr);
+  transition: grid-template-rows var(--duration-collapse) var(--ease-out);
+}
+
+.collapsed {
+  grid-template-rows: minmax(0, 0fr);
+}
+
+.collapsible > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Un botón de texto, no uno con caja: compite con "Retomar desde aquí", que sí
+   es una acción sobre el diseño, y esto solo cambia cómo se ve la pantalla. */
+.toggle {
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  text-decoration: underline;
 }

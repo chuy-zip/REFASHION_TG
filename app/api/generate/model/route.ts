@@ -126,6 +126,7 @@ export async function POST(request: Request) {
       generation_seed: result.seed,
       generation_model: result.model,
       generation_steps: result.steps,
+      generation_latency_ms: result.latencyMs,
       // Exactly the text that was sent, which on this path is exactly what the
       // user read on screen: there is no hidden frame around it.
       generation_prompt: description,

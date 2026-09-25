@@ -127,6 +127,9 @@ export default async function DesignEditPage({ params }: PageProps) {
             kind: "origin" as const,
             width: baseAsset.width_px,
             height: baseAsset.height_px,
+            bytes: baseAsset.file_size_bytes,
+            origin: baseAsset.origin,
+            generation: null,
           },
         ]
       : []),
@@ -144,6 +147,23 @@ export default async function DesignEditPage({ params }: PageProps) {
         kind: workStepKind(asset.asset_type, asset.origin),
         width: asset.width_px,
         height: asset.height_px,
+        bytes: asset.file_size_bytes,
+        origin: asset.origin,
+        // `origin` y no el tipo: es el eje que separa lo que costó dinero de
+        // lo que hizo el navegador, y los dos se guardan como 'inpainting'.
+        generation:
+          asset.origin === "generated"
+            ? {
+                prompt: asset.generation_prompt,
+                model: asset.generation_model,
+                seed: asset.generation_seed,
+                steps: asset.generation_steps,
+                strength: asset.generation_strength,
+                latencyMs: asset.generation_latency_ms,
+                parentId: asset.parent_asset_id,
+                maskId: asset.mask_asset_id,
+              }
+            : null,
       })),
   ];
 

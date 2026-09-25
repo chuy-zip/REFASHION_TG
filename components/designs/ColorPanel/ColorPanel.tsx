@@ -294,8 +294,8 @@ export function ColorPanel({
           them to. The reason is on the button itself rather than in prose that
           comes and goes. */}
       <p className={styles.hint}>
-        Se aplica mientras eliges. Conserva los pliegues y las sombras, y el
-        color es exactamente el que pediste.
+        Se aplica mientras eliges, con el color exacto y conservando pliegues y
+        sombras.
       </p>
 
       {/* Visible, not a tooltip on the disabled button: a disabled control

@@ -76,6 +76,13 @@ export function Thumbnail({
         className={`${styles.image} ${isLoaded ? styles.loaded : ""}`}
         src={src}
         alt={alt}
+        // Una miniatura nunca es lo primero que hay que mirar, y acá se cargan
+        // ocho a la vez de imágenes que pesan megabytes. Bajar su prioridad y
+        // sacar la decodificación del hilo principal no ahorra un solo byte,
+        // pero deja que la imagen grande y la pantalla lleguen antes.
+        loading="lazy"
+        decoding="async"
+        fetchPriority="low"
         // ONE request mode for every R2 image in the app, and it is not
         // optional here.
         //

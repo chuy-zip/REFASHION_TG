@@ -1,0 +1,172 @@
+/* El relleno lo pone el contenido, no el diálogo. `Dialog` trae `padding: 0`
+   a propósito para que cada uno decida el suyo, y este se lo había olvidado:
+   el título quedaba pegado al borde y la imagen iba de lado a lado. Mismo
+   valor que el resto de los diálogos de la app. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  width: 100%;
+  padding: var(--space-20);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.when {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Contenida en alto y no en ancho: el diálogo es angosto y una prenda es más
+   alta que ancha, así que limitar el alto es lo que evita que los datos queden
+   fuera de la pantalla en un portátil. */
+.image {
+  width: 100%;
+  height: auto;
+  max-height: 20rem;
+  object-fit: contain;
+  background: var(--color-surface-sunken);
+  border: var(--border-hairline) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+/* Una lista de definiciones de verdad, no dos columnas de divs: el par clave y
+   valor es lo que un lector de pantalla necesita para leer "Semilla, 20260925"
+   en vez de dos textos sueltos. */
+.data {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-8) var(--space-16);
+  margin: 0;
+  /* La etiqueta es más chica que el valor, así que alinearlos por caja los
+     deja escalonados. Por línea base se leen como una sola fila. */
+  align-items: baseline;
+}
+
+.pair {
+  display: contents;
+}
+
+.key {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.value {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  /* Cifras de ancho fijo: acá se comparan tamaños y costos de un paso contra
+     otro, y con cifras proporcionales las columnas bailan. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* El modelo y la semilla se copian a mano y se comparan carácter por carácter:
+   ahí una tipografía de ancho fijo no es decoración. */
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.promptBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.promptHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.copy {
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.copy:hover {
+  text-decoration: underline;
+}
+
+/* El texto entero y seleccionable, nunca recortado: quien abre esto viene a
+   leer qué se pidió, y un prompt cortado con puntos suspensivos no se puede
+   ni leer ni reusar. */
+.prompt {
+  padding: var(--space-12);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  /* Un prompt puede traer una palabra larguísima o una URL pegada. Sin esto se
+     sale del diálogo en vez de cortarse. */
+  overflow-wrap: anywhere;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+}
+
+/* Reserva su línea aunque esté vacío: si apareciera y desapareciera, el
+   diálogo entero daría un salto cada vez que alguien copia. */
+.copiado {
+  min-height: 1rem;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.sinModelo {
+  padding: var(--space-12);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-sunken);
+  border-left: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+/* Lo que hace reproducible una generación, a un clic de distancia. Plegado
+   porque se consulta de vez en cuando y abierto empujaba el costo y el prompt
+   fuera de la pantalla. */
+.avanzado {
+  border-top: var(--border-hairline) solid var(--color-border-subtle);
+  padding-top: var(--space-12);
+}
+
+.avanzadoTitulo {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* El contenido respira cuando se abre, y no antes. */
+.avanzado[open] .avanzadoTitulo {
+  margin-bottom: var(--space-12);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+}

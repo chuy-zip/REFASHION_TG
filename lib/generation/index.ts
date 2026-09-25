@@ -6,7 +6,7 @@ import type { GenerationProvider } from "@/lib/generation/types";
 export type {
   GenerationOutcome,
   GenerationProvider,
-  InpaintIntent,
+  InpaintMode,
   InpaintRequest,
   GenerationResult,
 } from "@/lib/generation/types";

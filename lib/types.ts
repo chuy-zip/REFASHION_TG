@@ -189,6 +189,26 @@ export interface Asset {
   runware_task_id: string | null;
   cost_usd: number | null;
   generation_prompt: string | null;
+  /**
+   * What it takes to produce THIS image again (migración 018), plus the knob
+   * the second model added (migración 020).
+   *
+   * They were written from the day 018 ran and **read by nobody until the step
+   * dialog existed**: this interface never listed them, so the data was in the
+   * table and invisible to the app. Declaring them here is what turns a column
+   * into something a screen can show.
+   *
+   * Null in three different situations, and they are not the same: rows older
+   * than the migration, rows that never went through a model, and —only for
+   * `generation_strength`— a model that does not have that knob, which is the
+   * case of FLUX Fill. Null is never zero.
+   */
+  generation_seed: number | null;
+  generation_model: string | null;
+  generation_steps: number | null;
+  generation_strength: number | null;
+  /** How long the call took. Measurement, not reproducibility (migración 020). */
+  generation_latency_ms: number | null;
   /** Traces the iteration chain back to the source asset. */
   parent_asset_id: string | null;
   /**

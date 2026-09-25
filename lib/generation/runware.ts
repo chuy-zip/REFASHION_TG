@@ -59,6 +59,21 @@ const API_URL = "https://api.runware.ai/v1";
 const MODEL = "runware:102@1";
 
 /**
+ * FLUX.1 [dev] con máscara, para DIBUJAR dentro de una zona.
+ *
+ * Es el mismo modelo que genera personas, usado de otra forma: acá recibe
+ * `seedImage`, `maskImage` y `strength`, y esa última es la diferencia que lo
+ * hace servir para algo que Fill no puede hacer. Fill completa lo que ve;
+ * este llena la zona de ruido en proporción a `strength` y dibuja lo que el
+ * prompt pide, sin que haga falta pintar nada debajo.
+ *
+ * Medido (`EXPERIMENTO_6`): con este camino salieron un bolsillo, un cuello
+ * distinto, una gorra, un estampado y un cambio de tela. Con Fill, ninguno de
+ * los cinco sin pintar antes.
+ */
+const DRAW_MODEL = "runware:101@1";
+
+/**
  * FLUX.1 Kontext [dev], for editing by instruction.
  *
  * A different model, not a different setting, and the difference shows up in
@@ -322,12 +337,20 @@ export const runwareProvider: GenerationProvider = {
     // One task per request. `numberResults` stays at 1 because the cost is per
     // image and the strip advances one step at a time: two results would mean
     // paying twice to throw one away.
+    // **El modo elige el modelo, no un parámetro.** Los dos toman la misma
+    // máscara y la misma semilla de imagen, y ahí se acaba el parecido: Fill
+    // completa lo que ve debajo y dev dibuja lo que se le pide. Mandarlos por
+    // la misma función es correcto porque la orquestación es idéntica; elegir
+    // con un `if` acá y no en la ruta es lo que mantiene a la ruta ignorante
+    // de qué modelo existe.
+    const dibuja = request.mode === "draw";
+
     return run(
       apiKey,
       {
         taskType: "imageInference",
         taskUUID: crypto.randomUUID(),
-        model: MODEL,
+        model: dibuja ? DRAW_MODEL : MODEL,
         positivePrompt: request.prompt,
         seed: request.seed,
         width: request.size.width,
@@ -336,6 +359,12 @@ export const runwareProvider: GenerationProvider = {
         numberResults: 1,
         outputFormat: "PNG",
         includeCost: true,
+        // Solo cuando el modelo la tiene. Mandársela a Fill no es inofensivo:
+        // la convierte en un multiplicador de pasos, así que cambiaría el
+        // cómputo y el precio sin cambiar la edición.
+        ...(dibuja && request.strength !== null
+          ? { strength: request.strength }
+          : {}),
         // Runware escribe el resultado acá y nunca pasa por esta función.
         uploadEndpoint: request.uploadTo,
         // Nested, as the current schema declares them. The first experiments
@@ -349,7 +378,7 @@ export const runwareProvider: GenerationProvider = {
           maskImage: request.maskUrl,
         },
       },
-      MODEL,
+      dibuja ? DRAW_MODEL : MODEL,
       STEPS,
       request.seed
     );

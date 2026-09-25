@@ -117,6 +117,20 @@ interface RasterBase {
   mask: Mask;
   width: number;
   height: number;
+  /**
+   * Cuánto ensanchar lo pintado, en píxeles, antes de entregarlo.
+   *
+   * **Existe por una medición.** El modelo que dibuja dentro de una zona
+   * necesita que la zona sea más grande que el objeto: con la máscara justa
+   * sobre el contorno de un bolsillo devolvió una etiqueta plana, y con la
+   * misma orden sobre una zona 4 veces más grande devolvió un bolsillo con su
+   * costura y su volumen (`EXPERIMENTO_6`, celdas p y q). Lo que le falta con
+   * la zona justa no es información, es lugar.
+   *
+   * Cero, o sin poner, para todo lo demás: completar una zona y recolorear
+   * quieren exactamente lo que el usuario pintó.
+   */
+  grow?: number;
 }
 
 /**
@@ -241,7 +255,62 @@ export function rasterizeMask(options: RasterOptions): HTMLCanvasElement {
 
   ctx.filter = "none";
   ctx.globalCompositeOperation = "source-over";
+
+  // También en el overlay: es la única forma de que el usuario vea la zona que
+  // de verdad se va a enviar. Con `lighter` el fondo transparente no aporta
+  // nada y la tinta se esparce, así que el mismo procedimiento sirve para los
+  // dos modos.
+  if (options.grow && options.grow > 0) {
+    engordar(canvas, options.grow);
+  }
+
   return canvas;
+}
+
+/** En cuántas direcciones se estampa la copia, y en cuántos anillos. */
+const DIRECCIONES = 16;
+const ANILLOS = [1, 0.6, 0.3] as const;
+
+/**
+ * Ensancha lo blanco sin tocar lo negro.
+ *
+ * **Por qué `lighter` y no un desenfoque.** Sobre una imagen en blanco y negro,
+ * dibujar la copia desplazada en modo `lighter` suma los valores: el negro
+ * suma cero y se queda donde está, y el blanco se esparce. Un desenfoque, en
+ * cambio, ablandaría el borde en las dos direcciones y habría que volver a
+ * umbralizarlo, que es un paso más y un umbral más que elegir.
+ *
+ * **Y por qué estampar en vez de escalar.** Escalar la máscara desde su centro
+ * mueve la zona además de agrandarla: un bolsillo pintado en el pecho izquierdo
+ * terminaría más cerca del centro. Estampar en 16 direcciones la agranda donde
+ * está.
+ *
+ * Tres anillos porque uno solo deja huecos entre los estampados en las formas
+ * angostas, como el trazo de un pincel fino.
+ */
+function engordar(canvas: HTMLCanvasElement, radio: number): void {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const copia = document.createElement("canvas");
+  copia.width = canvas.width;
+  copia.height = canvas.height;
+  const copiaCtx = copia.getContext("2d");
+  if (!copiaCtx) return;
+  copiaCtx.drawImage(canvas, 0, 0);
+
+  ctx.globalCompositeOperation = "lighter";
+  for (const anillo of ANILLOS) {
+    for (let i = 0; i < DIRECCIONES; i += 1) {
+      const angulo = (i / DIRECCIONES) * Math.PI * 2;
+      ctx.drawImage(
+        copia,
+        Math.cos(angulo) * radio * anillo,
+        Math.sin(angulo) * radio * anillo
+      );
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
 }
 
 /** The mask as a PNG, ready to be stored as an `asset_type = 'mask'`. */

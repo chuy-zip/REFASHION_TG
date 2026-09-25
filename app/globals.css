@@ -123,6 +123,17 @@
   --duration-fast: 120ms; /* state change: hover, focus, active */
   --duration-enter: 160ms; /* something appears: dialog, popover */
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  /* Plegar y desplegar. Más que un cambio de estado porque lo que se mueve es
+     una franja entera de la pantalla y el ojo tiene que seguirla, y bastante
+     menos que la espera de abajo, porque acá no se espera nada.
+
+     AVISO, por segunda vez: este token no llegó al bundle de desarrollo el día
+     que se escribió, y la animación abrió de golpe sin un solo error. Pasó
+     igual con `--duration-waiting`. Los dos viven en `@theme` y los dos se usan
+     solo desde un módulo, así que no es Tailwind descartando variables: es que
+     `next dev` no recompila este archivo en la primera edición. **Al tocar este
+     bloque, reiniciar `next dev`.** */
+  --duration-collapse: 320ms; /* medido a ojo contra la tira de pasos */
 
   /* The one exception to the ceiling above, and it is not a state change: the
      band that sweeps while a model works (WorkingOverlay). It accompanies a

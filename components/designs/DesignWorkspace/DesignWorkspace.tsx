@@ -11,7 +11,10 @@ import { StepStrip, type WorkStep } from "@/components/designs/StepStrip/StepStr
 import { LogoPicker } from "@/components/designs/LogoPicker/LogoPicker";
 import { LogoBackground } from "@/components/designs/LogoBackground/LogoBackground";
 import { LayerList } from "@/components/designs/LayerList/LayerList";
-import { GenerationPanel } from "@/components/designs/GenerationPanel/GenerationPanel";
+import {
+  DEFAULT_STRENGTH,
+  GenerationPanel,
+} from "@/components/designs/GenerationPanel/GenerationPanel";
 import { InstructionPanel } from "@/components/designs/InstructionPanel/InstructionPanel";
 import { WorkingOverlay } from "@/components/ui/WorkingOverlay/WorkingOverlay";
 import { useToast } from "@/components/ui/Toast/ToastProvider";
@@ -42,7 +45,22 @@ import {
   type Mask,
 } from "@/lib/mask";
 import { isUsefulSelection, selectGarment } from "@/lib/garment-select";
-import type { InpaintIntent } from "@/lib/generation/types";
+
+/**
+ * Cuánto se ensancha la zona al dibujar, como fracción del lado menor.
+ *
+ * 6% sobre una imagen de 896x1344 son 54 px, que sobre el bolsillo medido
+ * (126 px de ancho) lo lleva a poco menos del doble: casi exactamente la zona
+ * ancha que en el experimento sí devolvió un bolsillo.
+ */
+const MASK_GROW_RATIO = 0.06;
+
+/** El ensanchado en píxeles de una imagen, o 0 cuando el modo no lo usa. */
+function growParaModo(mode: InpaintMode, width: number, height: number): number {
+  if (mode !== "draw") return 0;
+  return Math.round(Math.min(width, height) * MASK_GROW_RATIO);
+}
+import type { InpaintMode } from "@/lib/generation/types";
 import { fillRegion, parseHex, recolorRegion, samplePixel } from "@/lib/recolor";
 import type { DesignLayer } from "@/lib/types";
 import {
@@ -226,7 +244,14 @@ export function DesignWorkspace({
    * valor inicial quedó señalando la cuarta opción, así que la pantalla
    * abría en el paso que el orden acababa de declarar último.
    */
-  const [mode, setMode] = useState<WorkspaceMode>("zones");
+  /**
+   * Se abre en "Pintar prenda", no en "Editar por zonas".
+   *
+   * Es el orden real del trabajo: primero se limpia y se pinta la prenda con
+   * herramientas exactas y gratis, y recién después se le pide algo a un
+   * modelo. Abrir en el modo que gasta invita a gastar antes de mirar.
+   */
+  const [mode, setMode] = useState<WorkspaceMode>("paint");
 
   // The mask: the garment picked in one gesture plus the brush and eraser
   // passes over it, kept as gestures rather than as pixels so it survives the
@@ -320,7 +345,16 @@ export function DesignWorkspace({
   // itself says which one is exact.
   // Opens on the one with evidence behind it rather than on the first tab:
   // removing an element is the job this model was measured to do well.
-  const [intent, setIntent] = useState<InpaintIntent>("clean");
+  const [zoneMode, setZoneMode] = useState<InpaintMode>("fill");
+  /**
+   * La intensidad del modo "Dibujar", con su valor recomendado ya puesto.
+   *
+   * Vive acá y no en el panel porque sobrevive a cambiar de modo: quien la
+   * ajustó a 0.95, se fue a completar una zona y volvió, espera encontrarla
+   * donde la dejó. Un control que se reinicia solo es un control que hay que
+   * volver a tocar cada vez.
+   */
+  const [strength, setStrength] = useState(DEFAULT_STRENGTH);
   const [description, setDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -847,6 +881,17 @@ export function DesignWorkspace({
         width: workingImage.naturalWidth,
         height: workingImage.naturalHeight,
         mode: "mask",
+        // **La app ensancha la zona sola en el modo que dibuja**, porque el
+        // usuario pinta el objeto y el modelo necesita el objeto más su
+        // alrededor. Medido en `EXPERIMENTO_6`: con la zona justa devolvió una
+        // etiqueta plana, con margen devolvió un bolsillo. Proporcional al
+        // lado menor y no en píxeles fijos, para que valga igual en una foto
+        // de 900 px y en una de 2000.
+        grow: growParaModo(
+          zoneMode,
+          workingImage.naturalWidth,
+          workingImage.naturalHeight
+        ),
       })
     );
 
@@ -875,7 +920,9 @@ export function DesignWorkspace({
       design_id: designId,
       image_asset_id: workingAssetId,
       mask_asset_id: stored.data.id,
-      intent,
+      mode: zoneMode,
+      // Solo viaja en el modo que la usa; el servidor rechaza lo contrario.
+      strength: zoneMode === "draw" ? strength : null,
       prompt: description,
     });
 
@@ -1342,7 +1389,15 @@ export function DesignWorkspace({
 
   return (
     <div className={styles.workspace}>
-      {hasBrush && (
+      {/* Siempre montado, y el ancho es lo que cambia. Con el condicional
+          el riel se esfumaba de un cuadro al siguiente y el lienzo daba un
+          salto lateral en cada cambio de modo. `inert` lo saca del
+          tabulador mientras está plegado, que es lo que un display:none
+          daba gratis y una animación de ancho no. */}
+      <div
+        className={`${styles.railWrap} ${hasBrush ? "" : styles.railCollapsed}`}
+        inert={!hasBrush}
+      >
         <MaskTools
           tool={tool}
           onToolChange={setTool}
@@ -1373,7 +1428,7 @@ export function DesignWorkspace({
           isEmpty={isMaskEmpty(mask)}
           disabled={!canPaint}
         />
-      )}
+      </div>
 
       <div className={styles.canvasColumn}>
         <div className={styles.stageBox} ref={containerRef}>
@@ -1509,6 +1564,9 @@ export function DesignWorkspace({
                   naturalWidth={naturalWidth}
                   naturalHeight={naturalHeight}
                   color={designToken("--color-accent")}
+                  // El mismo número que va a viajar con el pedido: la zona
+                  // que se ve en pantalla es la zona que se manda.
+                  grow={growParaModo(zoneMode, naturalWidth, naturalHeight)}
                 />
               )}
 
@@ -1579,9 +1637,15 @@ export function DesignWorkspace({
                   Las capas sobreviven a ese error, porque sus coordenadas son
                   proporciones y no píxeles (migración 013), pero una
                   composición ya creada no: es un aplanado, y queda vieja. */}
+              {/* El orden es el del trabajo, y ahora coincide con el modo en
+                  que se abre: primero pintar, que es exacto y gratis; después
+                  las dos formas de pedirle algo a un modelo; y al final los
+                  logotipos, por la razón de arriba. Tener el primero de la
+                  lista y el que se abre por omisión en desacuerdo hacía dudar
+                  de si la pantalla había recordado algo. */}
+              <option value="paint">Pintar prenda</option>
               <option value="zones">Editar por zonas</option>
               <option value="instruction">Editar por instrucción</option>
-              <option value="paint">Pintar prenda</option>
               <option value="logos">Componer logos</option>
             </select>
           </div>
@@ -1641,14 +1705,16 @@ export function DesignWorkspace({
           <div className={styles.group}>
             <span className={styles.groupLabel}>Cambiar con IA</span>
             <GenerationPanel
-              intent={intent}
-              // Nothing is proposed on switching any more. It used to drop the
-              // picker's hex in when the colour intent was chosen, so both
-              // paths were asked for the same colour and the comparison meant
-              // something. That intent is gone: the comparison was run, the
-              // model does not honour an exact colour, and the answer is in
-              // `EXPERIMENTO_1_color_generativo.md` rather than in a control.
-              onIntentChange={setIntent}
+              mode={zoneMode}
+              // Al cambiar de modo no se propone nada. Hubo una versión que
+              // metía el hexadecimal del selector cuando se elegía el color,
+              // para que los dos caminos recibieran el mismo y la comparación
+              // significara algo. Esa comparación ya se corrió: el modelo no
+              // respeta un color exacto, y la respuesta está en
+              // `EXPERIMENTO_1_color_generativo.md`, no en un control.
+              onModeChange={setZoneMode}
+              strength={strength}
+              onStrengthChange={setStrength}
               description={description}
               onDescriptionChange={setDescription}
               onGenerate={handleGenerate}
@@ -1734,9 +1800,8 @@ export function DesignWorkspace({
             client sees and the virtual try-on consumes.
           */}
           <p className={styles.hint}>
-            Los logotipos ya quedaron guardados en el diseño. Esto crea una
-            imagen con ellos aplicados, para descargarla o usarla en la prueba
-            virtual.
+            Tus logotipos ya están guardados. Esto aplana la prenda con ellos
+            encima: es la imagen que descargas y la que usa la prueba virtual.
           </p>
           {/* Steps aside while a cut is on screen, so the panel keeps exactly
               one primary: there, the decision is the tolerance. Same rule as

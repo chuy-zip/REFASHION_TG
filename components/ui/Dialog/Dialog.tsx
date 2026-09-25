@@ -28,6 +28,16 @@ interface DialogProps {
  * síntoma era desconcertante: el texto elegido sí quedaba puesto, pero había
  * que volver a abrir para verlo.
  */
+/**
+ * **El relleno lo pone el contenido, no este componente.** `.dialog` va con
+ * `padding: 0` a propósito, para que un diálogo pueda mostrar una imagen de
+ * borde a borde si le hace falta. Todos los que no lo necesitan envuelven su
+ * contenido en un elemento con `padding: var(--space-20)`.
+ *
+ * Está escrito acá porque no estaba: un contenido nuevo salió sin relleno, con
+ * el título pegado al borde, y la convención solo existía en los tres que ya
+ * la cumplían.
+ */
 export function Dialog({
   open,
   onClose,

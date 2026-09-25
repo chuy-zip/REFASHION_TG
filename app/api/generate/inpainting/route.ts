@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { design_id, image_asset_id, mask_asset_id, intent, prompt } =
+  const { design_id, image_asset_id, mask_asset_id, mode, prompt, strength } =
     parsed.data;
 
   const supabase = await createSupabaseClient();
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
   // change. Composed here rather than in the browser so there is exactly one
   // answer to "what was actually asked for", and so the frame can be tuned
   // without shipping a new client (`lib/generation/prompt.ts`).
-  const composed = composePrompt(intent, prompt);
+  const composed = composePrompt(prompt);
 
   // Chosen here and not in the browser, for the same reason the prompt is: one
   // answer to "what was actually asked for". A seed the client could pick would
@@ -134,7 +134,10 @@ export async function POST(request: Request) {
     maskUrl,
     size,
     prompt: composed,
-    intent,
+    mode,
+    // Null explícito y no `undefined`: en `fill` significa "este modelo no
+    // tiene esta perilla", y esa distinción viaja hasta la columna.
+    strength: mode === "draw" ? strength ?? null : null,
     seed,
     uploadTo,
   });
@@ -159,7 +162,7 @@ export async function POST(request: Request) {
       design_id,
       r2_key: r2Key,
       asset_type: "inpainting",
-      original_filename: `${intent}-${Date.now()}.png`,
+      original_filename: `${mode}-${Date.now()}.png`,
       mime_type: "image/png",
       file_size_bytes: stored.measurement.bytes,
       // MEDIDO, no supuesto. Antes decía `size.width`, o sea el tamaño que
@@ -181,6 +184,11 @@ export async function POST(request: Request) {
       generation_seed: result.seed,
       generation_model: result.model,
       generation_steps: result.steps,
+      // Lo que decidió el resultado (migración 020). Null en `fill`, porque
+      // ese modelo no lee el parámetro: guardarle un número sería dejar la
+      // fila afirmando algo que no ocurrió.
+      generation_strength: mode === "draw" ? strength ?? null : null,
+      generation_latency_ms: result.latencyMs,
       // The COMPOSED text, not the user's fragment: this column is the record
       // of what the model was actually asked, and it is what makes a result
       // reproducible months later. The user's own words are the tail of it.

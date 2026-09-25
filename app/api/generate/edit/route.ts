@@ -147,6 +147,7 @@ export async function POST(request: Request) {
       generation_seed: result.seed,
       generation_model: result.model,
       generation_steps: result.steps,
+      generation_latency_ms: result.latencyMs,
       // Exactly what was sent, which on this path is exactly what was typed.
       generation_prompt: instruction,
       parent_asset_id: image_asset_id,

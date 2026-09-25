@@ -23,6 +23,16 @@ interface MaskLayerProps {
   naturalHeight: number;
   /** Accent, read from the design tokens by the workspace. */
   color: string;
+  /**
+   * Cuánto se ensancha la zona antes de enviarla, en píxeles de la imagen.
+   *
+   * **Se dibuja acá porque si no sería invisible.** El modo que dibuja agranda
+   * la zona antes de mandarla, porque el modelo necesita lugar alrededor del
+   * objeto. Agrandarla sin mostrarlo sería mandar algo distinto de lo que el
+   * usuario pintó y no decírselo, justo lo contrario de la regla que este
+   * proyecto se puso: lo que llega al proveedor es lo que se ve en pantalla.
+   */
+  grow?: number;
 }
 
 /**
@@ -59,6 +69,7 @@ export function MaskLayer({
   naturalWidth,
   naturalHeight,
   color,
+  grow = 0,
 }: MaskLayerProps) {
   const overlay = useMemo(() => {
     if (naturalWidth === 0 || naturalHeight === 0) return null;
@@ -76,8 +87,12 @@ export function MaskLayer({
       height: Math.max(1, Math.round(naturalHeight * scale)),
       mode: "overlay",
       color,
+      // A la escala del overlay, que no es la de la imagen: la previsualización
+      // se dibuja más chica, así que el mismo ensanchado en píxeles se vería
+      // más grande de lo que va a ser.
+      grow: grow * scale,
     });
-  }, [mask, naturalWidth, naturalHeight, color]);
+  }, [mask, naturalWidth, naturalHeight, color, grow]);
 
   if (!overlay) return null;
 

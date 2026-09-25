@@ -81,3 +81,17 @@
   line-height: 1.45;
   color: var(--color-text-secondary);
 }
+
+/* El número a la par de la etiqueta, no debajo del control: quien mueve el
+   deslizador mira la etiqueta, no el extremo del riel. */
+.strengthValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.strength {
+  width: 100%;
+  accent-color: var(--color-accent);
+}

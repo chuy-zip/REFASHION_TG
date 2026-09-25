@@ -308,11 +308,12 @@ export type ConfirmAssetInput = z.infer<typeof confirmAssetSchema>;
 /**
  * What kind of edit was asked for. Decides the suggestions, not the plumbing.
  *
- * Kept in step with `InpaintIntent` by hand, and `color` is gone from both: the
- * project measured that this model does not honour an exact colour, so an old
- * client still sending it gets a clear rejection rather than a bad result.
+ * Kept in step with `InpaintMode` by hand. Eran tres —clean, shape, texture— y
+ * armaban el mismo pedido; ahora son dos y cada uno llama a un modelo distinto.
+ * Un cliente viejo que siga mandando `intent` recibe un rechazo claro en vez de
+ * un resultado que no cambia nada, que es lo que venía pasando con "texture".
  */
-export const inpaintIntent = z.enum(["clean", "shape", "texture"], {
+export const inpaintMode = z.enum(["fill", "draw"], {
   message: "El tipo de edición no es válido.",
 });
 
@@ -322,18 +323,42 @@ export const inpaintSchema = z.object({
   image_asset_id: z.uuid("La imagen de trabajo no es válida."),
   /** Already stored as an `asset_type = 'mask'` of this same design. */
   mask_asset_id: z.uuid("La máscara no es válida."),
-  intent: inpaintIntent,
+  mode: inpaintMode,
+  /**
+   * Solo tiene sentido en `draw`, y el refine de abajo lo exige.
+   *
+   * El rango no es un capricho de la API —acepta 0 a 1— sino lo medido: por
+   * debajo de 0.70 el pedido no llega a mandar y en 1.00 la prenda se pierde.
+   * El piso y el techo se dejan en los extremos que la API acepta igual, para
+   * que la interfaz pueda ofrecer valores fuera de lo recomendado sin que el
+   * servidor mienta sobre qué es válido.
+   */
+  strength: z
+    .number()
+    .min(0, "La intensidad no puede ser negativa.")
+    .max(1, "La intensidad no puede pasar de 1.")
+    .nullish(),
   prompt: z
     .string()
     .trim()
     .min(3, "Describe qué quieres cambiar.")
     .max(3000, "La descripción es demasiado larga."),
-  // `strength` used to be accepted here. It is gone on purpose: FLUX Fill does
-  // not use it, and Runware turns it into a step count instead, so the value
-  // changed the compute without changing what the caller asked for. Dropping it
-  // from the schema means an old client sending it gets a clear rejection
-  // rather than a silent no-op.
-});
+})
+  /**
+   * La intensidad pertenece a un solo modo, y el servidor lo exige.
+   *
+   * Aceptarla en `fill` sería aceptar un número que el proveedor no va a
+   * mandar: la fila quedaría diciendo que se generó con 0.85 algo que ignoró
+   * ese valor, y esa fila es justo la que alguien va a leer dentro de seis
+   * meses para reproducir el resultado.
+   */
+  .refine(
+    (datos) => datos.mode === "draw" || datos.strength == null,
+    {
+      path: ["strength"],
+      message: "Completar la zona no usa intensidad.",
+    }
+  );
 
 export type InpaintRequestInput = z.infer<typeof inpaintSchema>;
 

@@ -26,6 +26,58 @@
   }
 }
 
+/* El riel de herramientas, que aparece y desaparece según el modo.
+ *
+ * Mismo procedimiento que la tira de pasos, girado: una rejilla de una columna
+ * que va de `1fr` a `0fr` anima el ancho real sin que nadie tenga que saber
+ * cuánto mide el riel. Antes desaparecía de golpe y el lienzo daba un salto
+ * lateral cada vez que se cambiaba de modo.
+ *
+ * Se detiene bajo prefers-reduced-motion por la regla global de globals.css.
+ */
+.railWrap {
+  display: grid;
+  grid-template-columns: 1fr;
+  /* Recorta el envoltorio, no solo al hijo. El riel mide 2.5rem fijos, así que
+     con la pista en `0fr` seguía dibujándose entero por fuera: quedaba una
+     tira de iconos a la vista. Los tooltips no se pierden porque son `title`
+     nativos y el navegador los dibuja fuera del documento. */
+  overflow: hidden;
+  /* `minmax(0, …)` y no `1fr` a secas, que es la diferencia entre plegarse y
+     encogerse. Una pista `fr` tiene un mínimo automático igual a su contenido,
+     así que con `0fr` la columna se quedaba del ancho mínimo de los botones:
+     el riel no desaparecía, se apretujaba. `minmax(0, …)` le quita ese piso. */
+  grid-template-columns: minmax(0, 1fr);
+  transition: grid-template-columns var(--duration-collapse) var(--ease-out);
+}
+
+.railCollapsed {
+  grid-template-columns: minmax(0, 0fr);
+}
+
+.railWrap > * {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Debajo del punto de quiebre el riel va bajo el lienzo, así que lo que hay
+   que animar es el alto y no el ancho. */
+@media (max-width: 48rem) {
+  .railWrap {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    transition: grid-template-rows var(--duration-collapse) var(--ease-out);
+  }
+
+  .railCollapsed {
+    grid-template-rows: minmax(0, 0fr);
+  }
+
+  .railWrap > * {
+    min-height: 0;
+  }
+}
+
 /* Reserves the canvas height while the Konva chunk downloads, so the page does
    not jump once it arrives. Used by DesignWorkspaceLoader — the SIBLING file,
    which is why an audit that pairs each .tsx with its own stylesheet cannot

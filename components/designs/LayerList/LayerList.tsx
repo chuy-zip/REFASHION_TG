@@ -39,7 +39,7 @@ export function LayerList({
   if (layers.length === 0) {
     return (
       <p className={styles.hint}>
-        Todavía no hay capas. Elige un logotipo para colocarlo sobre la prenda.
+        Elige un logotipo de arriba para colocarlo sobre la prenda.
       </p>
     );
   }

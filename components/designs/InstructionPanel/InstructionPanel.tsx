@@ -7,7 +7,18 @@ import {
   INSTRUCTION_PLACEHOLDER,
   INSTRUCTION_SUGGESTIONS,
 } from "@/lib/generation/prompt";
+import { EDIT_COST_USD } from "@/lib/generation/pricing";
 import styles from "./InstructionPanel.module.css";
+
+// El precio antes del botón, con el mismo formato que las otras dos pantallas
+// que gastan. Decía "unas tres veces una edición con máscara", que además de
+// vago se quedó corto: medido, Kontext cobró entre 3.4 y 5.3 veces lo de Fill.
+const money = new Intl.NumberFormat("es-GT", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4,
+});
 
 interface InstructionPanelProps {
   instruction: string;
@@ -85,10 +96,6 @@ export function InstructionPanel({
           placeholder={INSTRUCTION_PLACEHOLDER}
           disabled={disabled || isGenerating}
         />
-        <p className={styles.hint}>
-          Aquí no pintas nada. Describes el cambio y el modelo decide qué parte
-          de la imagen toca.
-        </p>
       </div>
 
       <PromptSuggestions
@@ -100,17 +107,17 @@ export function InstructionPanel({
         onUse={onInstructionChange}
       />
 
+      {/* Un solo aviso, y el que no se puede adivinar mirando la pantalla.
+          Acá vivían tres párrafos: este, uno que repetía casi palabra por
+          palabra la ayuda que ya está dentro de "Sugerencias" —no listes lo
+          que debe quedarse igual, nombrar un detalle es pedirlo— y otro que
+          decía lo mismo que la línea bajo la caja de texto. La regla del imán
+          no se perdió: vive donde alguien la busca, que es el diálogo de
+          sugerencias, a un clic. */}
       <p className={styles.caution}>
-        Este camino vuelve a dibujar la imagen completa. Conserva a la persona,
-        pero reencuadra y deforma lo que esté estampado en la prenda. Los
-        logotipos no se ven afectados porque se componen después, en su propia
-        capa.
-      </p>
-
-      <p className={styles.hint}>
-        Di solo qué quieres cambiar. No hace falta listar lo que debe quedarse
-        igual, y cuidado con nombrar un detalle de la prenda: nombrarlo es
-        pedirlo, así que te lo dibuja aunque ya lo hayas quitado.
+        Redibuja la imagen completa, no solo una zona: conserva a la persona,
+        pero puede reencuadrar y deformar lo que esté estampado. Los logotipos
+        no, porque se componen después.
       </p>
 
       <Button variant="primary" onClick={onGenerate} disabled={!canGenerate}>
@@ -121,9 +128,7 @@ export function InstructionPanel({
           mask panel: a disabled control does not reliably fire hover and never
           does on touch. */}
       {!disabled && !isGenerating && instruction.trim().length < 10 && (
-        <p className={styles.blocked}>
-          Escribe qué quieres cambiar, con un poco de detalle.
-        </p>
+        <p className={styles.blocked}>Escribe qué quieres cambiar.</p>
       )}
 
       <p className={styles.status}>
@@ -133,7 +138,10 @@ export function InstructionPanel({
             ningún servicio y no se cobra nada.
           </>
         ) : (
-          "Este camino cuesta unas tres veces lo que una edición con máscara. El costo real se registra en el diseño."
+          <>
+            Cuesta unos <strong>{money.format(EDIT_COST_USD)}</strong> por
+            edición. El costo real se registra en el diseño.
+          </>
         )}
       </p>
     </div>

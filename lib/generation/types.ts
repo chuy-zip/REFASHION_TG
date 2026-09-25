@@ -38,7 +38,24 @@ import type { Size } from "@/lib/generation/dimensions";
  * and leaving continuous fabric came back with zero artefacts and a texture
  * matching the surrounding cloth to within 2%.
  */
-export type InpaintIntent = "clean" | "shape" | "texture";
+/**
+ * Los dos caminos de una edición por zonas, y son dos MODELOS distintos.
+ *
+ * Antes eran tres —limpiar, forma, textura— y armaban exactamente el mismo
+ * pedido: solo cambiaba el texto sugerido. Por eso "textura" nunca cambió una
+ * textura. El experimento 6 midió dónde cae la diferencia de verdad:
+ *
+ *   * `fill` — FLUX Fill. **Completa** la zona con lo que la rodea o con lo que
+ *     se haya pintado debajo. Es el que quita un logotipo y el que convierte
+ *     una mancha de color en paño. No obedece órdenes: renderiza lo que la
+ *     semilla ya afirma, y no tiene `strength`.
+ *
+ *   * `draw` — FLUX dev con máscara. **Dibuja** lo que el prompt pide sin que
+ *     haga falta pintar nada, porque llena la zona de ruido en proporción a
+ *     `strength`. Hace bolsillos, cuellos, gorras, estampados y cambios de
+ *     tela, todos medidos.
+ */
+export type InpaintMode = "fill" | "draw";
 
 export interface InpaintRequest extends Destination {
   /** Public URL of the clean garment. Presigned R2 URLs qualify. */
@@ -48,22 +65,27 @@ export interface InpaintRequest extends Destination {
   /** Already snapped (`snapToInferenceSize`); providers reject anything else. */
   size: Size;
   prompt: string;
-  intent: InpaintIntent;
+  mode: InpaintMode;
   /**
-   * There is deliberately no `strength` here, and the note is worth keeping
-   * because the field existed and was wrong.
+   * Cuánto se le permite al modelo apartarse de lo que ve bajo la máscara.
    *
-   * It was documented as the knob that separates "adjust this tone" from "put a
-   * collar here", and as the reason FLUX Fill [dev] was picked over [pro]. Both
-   * claims turned out to be false. The model's own documentation says Fill
-   * *"does not use the strength parameter"*, and this project's billing data
-   * agrees in a more telling way: a request at 0.45 cost 46% of one at 0.85,
-   * which is what happens when the value is quietly multiplied into the step
-   * count. So it changed the compute, not the edit.
+   * **Null en `fill`, y no es una omisión.** Acá vivía una nota que decía que
+   * este campo no debía existir, y tenía razón a medias: la documentación
+   * oficial dice que Fill *"does not use the strength parameter"*, y la
+   * facturación lo confirmaba de forma más elocuente todavía, porque un pedido
+   * a 0.45 costó el 46% de uno a 0.85, que es lo que pasa cuando el valor se
+   * multiplica contra el número de pasos. Cambiaba el cómputo, no la edición.
    *
-   * Steps stay at the value every measured run used. If a reason to expose them
-   * ever appears, the field to add is `steps`, named after what it does.
+   * Lo que faltaba era que el parámetro **sí existe en el otro modelo**, y que
+   * ahí manda. Medido sobre la misma prenda, la misma máscara y la misma
+   * semilla (`EXPERIMENTO_6`): a 0.70 no alcanza, a 0.85 cambia la tela y
+   * conserva a la persona, a 1.00 destruye la prenda.
+   *
+   * Por eso vuelve, atado al modo: el proveedor lo manda solo en `draw`, y la
+   * base lo guarda en `generation_strength` (migración 020), donde null
+   * significa "este modelo no tiene esta perilla" y nunca cero.
    */
+  strength: number | null;
   /**
    * Which noise the diffusion starts from, and therefore whether this request
    * can ever be run again with the same answer.
