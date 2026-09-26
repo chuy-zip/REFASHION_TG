@@ -115,6 +115,15 @@ function between(min: number, max: number): number {
 
 export const mockProvider: GenerationProvider = {
   name: "mock",
+  /**
+   * PNG, y se queda así.
+   *
+   * Arma la imagen byte a byte con un codificador propio (`mock-image.ts`), y
+   * escribir uno de WEBP para un simulador no tiene ningún sentido. Que los dos
+   * formatos convivan es además una prueba viva: si el medidor de tamaños se
+   * rompiera para PNG, el simulador lo delataría sin gastar un centavo.
+   */
+  format: { mime: "image/png", extension: "png" },
   billable: false,
 
   async inpaint(request: InpaintRequest): Promise<GenerationOutcome> {

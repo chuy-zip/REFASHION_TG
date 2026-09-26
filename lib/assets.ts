@@ -118,6 +118,25 @@ export function stripExtension(filename: string): string {
   return lastDot > 0 ? filename.slice(0, lastDot) : filename;
 }
 
+/**
+ * El nombre que alguien le puso, sin la extensión, o null si nadie lo nombró.
+ *
+ * Distinto de `assetDisplayName`, y la diferencia es el destino: aquel arma el
+ * nombre del **archivo** que se descarga, así que siempre devuelve algo y
+ * siempre con extensión. Este es para **leer en pantalla**, donde ".webp" no
+ * aporta nada y donde no tener nombre es una respuesta válida: quien llama
+ * decide con qué rellenar el hueco, que en la galería es el nombre del diseño.
+ *
+ * Desde que las generaciones guardan null en esa columna, un valor acá
+ * significa que alguien la nombró a mano.
+ */
+export function assetTitle(
+  asset: Pick<Asset, "original_filename">
+): string | null {
+  const nombre = asset.original_filename?.trim();
+  return nombre ? stripExtension(nombre) : null;
+}
+
 /** Assets uploaded before migration 008 have no original_filename to show. */
 export function assetDisplayName(asset: Pick<Asset, "asset_type" | "mime_type" | "original_filename">): string {
   if (asset.original_filename) return asset.original_filename;

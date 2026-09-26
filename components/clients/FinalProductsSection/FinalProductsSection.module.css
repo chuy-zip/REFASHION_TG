@@ -130,3 +130,15 @@
   flex-wrap: wrap;
   gap: var(--space-8);
 }
+
+/* Los controles antes de la galería, en una fila que envuelve: en un monitor
+   ancho conviven, y en un portátil la búsqueda baja bajo las pestañas en vez
+   de encogerse hasta no poder escribir. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-bottom: var(--space-12);
+}

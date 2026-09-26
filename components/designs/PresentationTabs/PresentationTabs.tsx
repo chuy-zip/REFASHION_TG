@@ -310,6 +310,23 @@ export function PresentationTabs({
              right answer rather than a fallback: a design with no logo layers
              still has something to try on. */
           <TryOnPanel
+            /**
+             * Una instancia por pestaña, y esto no es cosmético.
+             *
+             * Las dos pestañas de modelo montan este mismo componente en la
+             * misma posición, así que sin `key` React reusa la instancia y el
+             * estado interno sobrevive al cambio: el modelo elegido, el que se
+             * acaba de generar y, sobre todo, el resultado. Y como el panel
+             * muestra el resultado apenas lo tiene, pasar de "Foto del cliente"
+             * a "Modelo IA" después de una prueba seguía mostrando la prueba
+             * anterior. Iba a "Plana" y volvía, y ahí sí andaba: eso era el
+             * desmontaje haciendo lo que este `key` hace ahora.
+             *
+             * Empezar limpio es además lo correcto: lo elegido pertenece a la
+             * pestaña donde se eligió, y el resultado no se pierde, queda
+             * guardado en los productos finales del cliente.
+             */
+            key={activeTab}
             source={activeTab === "modelo_guardado" ? "saved" : "ai"}
             designId={designId}
             clientId={clientId}

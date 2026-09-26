@@ -6,7 +6,7 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
-import { readPngSize } from "@/lib/png-size";
+import { readPixelSize } from "@/lib/pixel-size";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
@@ -207,7 +207,7 @@ export function isAssetKeyForOwner(
  *
  * **Treinta y dos bytes alcanzan**, y esa es toda la razón por la que esta
  * función existe. Un PNG declara su ancho y su alto en los primeros veinticuatro
- * (`lib/png-size.ts`), así que un `Range` los trae sin mover el megabyte que
+ * (`lib/pixel-size.ts`), así que un `Range` los trae sin mover el megabyte que
  * pesa la imagen. Y el denominador del `Content-Range` que vuelve es el tamaño
  * total del archivo, o sea que la misma petición contesta las tres preguntas:
  * si el objeto está, cuánto mide y cuánto pesa.
@@ -239,7 +239,7 @@ export async function measureObject(
     const cabecera = await salida.Body?.transformToByteArray();
     if (!cabecera) return null;
 
-    const size = readPngSize(
+    const size = readPixelSize(
       cabecera.buffer.slice(
         cabecera.byteOffset,
         cabecera.byteOffset + cabecera.byteLength

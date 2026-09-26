@@ -56,6 +56,29 @@ import type {
 const API_URL = "https://api.runware.ai/v1";
 
 /** FLUX.1 Fill [dev]. The AIR id, as the provider spells it and as it is stored. */
+/**
+ * En qué formato se piden los resultados, y por qué dejó de ser PNG.
+ *
+ * **Medido el 25-sep sobre una generación real de 896x1344**: el mismo dibujo
+ * pesa 3.45 MB en PNG y 0.13 MB en WEBP a calidad 95, veintiséis veces menos,
+ * con una diferencia media de 1 sobre 255. Un diseño con ocho pasos bajaba 22
+ * MB para dibujar ocho miniaturas, y esa era la espera de siete segundos al
+ * abrir la pantalla.
+ *
+ * **Con pérdida, porque no hay otra opción.** `outputQuality` llega hasta 99;
+ * el WEBP sin pérdida daría 3.9x con cero diferencia, pero solo se consigue
+ * recodificando de este lado, y eso obligaría a bajar y volver a subir cada
+ * imagen, que es justo lo que `uploadEndpoint` vino a evitar. 95 es además el
+ * valor por omisión del proveedor.
+ *
+ * **Y los cuatro modelos lo aceptan de ENTRADA**, que era el bloqueante: en
+ * esta cadena cada generación alimenta a la siguiente. No está documentado en
+ * ningún lado, así que se midió con una llamada por modelo
+ * (`herramientas/probar_webp.py`, $0.0149).
+ */
+const OUTPUT_FORMAT = "WEBP";
+const OUTPUT_QUALITY = 95;
+
 const MODEL = "runware:102@1";
 
 /**
@@ -329,6 +352,7 @@ const SIN_LLAVE =
 export const runwareProvider: GenerationProvider = {
   name: "runware",
   billable: true,
+  format: { mime: "image/webp", extension: "webp" },
 
   async inpaint(request: InpaintRequest): Promise<GenerationOutcome> {
     const apiKey = readKey();
@@ -357,7 +381,8 @@ export const runwareProvider: GenerationProvider = {
         height: request.size.height,
         steps: STEPS,
         numberResults: 1,
-        outputFormat: "PNG",
+        outputFormat: OUTPUT_FORMAT,
+        outputQuality: OUTPUT_QUALITY,
         includeCost: true,
         // Solo cuando el modelo la tiene. Mandársela a Fill no es inofensivo:
         // la convierte en un multiplicador de pasos, así que cambiaría el
@@ -415,7 +440,8 @@ export const runwareProvider: GenerationProvider = {
         height: request.size.height,
         steps: STEPS,
         numberResults: 1,
-        outputFormat: "PNG",
+        outputFormat: OUTPUT_FORMAT,
+        outputQuality: OUTPUT_QUALITY,
         includeCost: true,
         // Runware escribe el resultado acá y nunca pasa por esta función.
         uploadEndpoint: request.uploadTo,
@@ -451,7 +477,8 @@ export const runwareProvider: GenerationProvider = {
         model: TRY_ON_MODEL,
         seed: request.seed,
         numberResults: 1,
-        outputFormat: "PNG",
+        outputFormat: OUTPUT_FORMAT,
+        outputQuality: OUTPUT_QUALITY,
         includeCost: true,
         // Runware escribe el resultado acá y nunca pasa por esta función.
         uploadEndpoint: request.uploadTo,
@@ -494,7 +521,8 @@ export const runwareProvider: GenerationProvider = {
         height: MODEL_SIZE.height,
         steps: STEPS,
         numberResults: 1,
-        outputFormat: "PNG",
+        outputFormat: OUTPUT_FORMAT,
+        outputQuality: OUTPUT_QUALITY,
         includeCost: true,
         // Runware escribe el resultado acá y nunca pasa por esta función.
         uploadEndpoint: request.uploadTo,

@@ -5,7 +5,10 @@ import Link from "next/link";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
 import buttonStyles from "@/components/ui/Button/Button.module.css";
-import { assetTypeLabel } from "@/lib/assets";
+import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
+import { SearchInput } from "@/components/ui/SearchInput/SearchInput";
+import { RenameAssetDialog } from "@/components/assets/RenameAssetDialog/RenameAssetDialog";
+import { assetTitle, assetTypeLabel } from "@/lib/assets";
 import type { FinalProduct } from "@/lib/assets-server";
 import styles from "./FinalProductsSection.module.css";
 
@@ -41,10 +44,49 @@ interface FinalProductsSectionProps {
  * The trade is that order runs **down each column** rather than across, which
  * is acceptable here precisely because nobody is comparing positions.
  */
+/**
+ * Los tipos que llegan acá, en el orden en que se producen.
+ *
+ * Las tres exportaciones están declaradas en el esquema desde la 001 y todavía
+ * no las escribe nadie (H-45). Se listan igual: una pestaña vacía es una
+ * promesa visible, y el día que existan aparecen solas.
+ */
+const TIPOS = [
+  "composition",
+  "vton",
+  "export_flat",
+  "export_model",
+  "export_ai",
+] as const;
+
 export function FinalProductsSection({ products }: FinalProductsSectionProps) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [tipo, setTipo] = useState<string>("todos");
+  const [busqueda, setBusqueda] = useState("");
 
   const open = products.find((product) => product.id === openId) ?? null;
+  const renaming = products.find((product) => product.id === renameId) ?? null;
+
+  // Solo los tipos que este cliente tiene de verdad: una pestaña que siempre
+  // devuelve cero es una pestaña que enseña a no usar el filtro.
+  const presentes = TIPOS.filter((t) =>
+    products.some((product) => product.asset_type === t)
+  );
+
+  const termino = busqueda.trim().toLowerCase();
+  const visibles = products.filter((product) => {
+    if (tipo !== "todos" && product.asset_type !== tipo) return false;
+    if (!termino) return true;
+    // Sobre el nombre propio y el del diseño: quien busca se acuerda de uno de
+    // los dos, y no sabe cuál de ellos escribió.
+    const campos = [
+      assetTitle(product) ?? "",
+      product.design_name,
+      product.project_name,
+    ];
+    return campos.some((campo) => campo.toLowerCase().includes(termino));
+  });
 
   if (products.length === 0) {
     return (
@@ -57,14 +99,35 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
 
   return (
     <>
+      {presentes.length > 1 && (
+        <div className={styles.filters}>
+          <PillTabs
+            label="Tipo de producto"
+            selected={tipo}
+            onSelect={setTipo}
+            options={[
+              { key: "todos", label: "Todos" },
+              ...presentes.map((t) => ({ key: t, label: assetTypeLabel(t) })),
+            ]}
+          />
+          <SearchInput
+            value={busqueda}
+            onChange={setBusqueda}
+            scope="productos terminados"
+          />
+        </div>
+      )}
+
       <p className={styles.count}>
-        {products.length === 1
-          ? "1 producto terminado"
-          : `${products.length} productos terminados`}
+        {visibles.length === products.length
+          ? products.length === 1
+            ? "1 producto terminado"
+            : `${products.length} productos terminados`
+          : `${visibles.length} de ${products.length}`}
       </p>
 
       <div className={styles.gallery}>
-        {products.map((product) => (
+        {visibles.map((product) => (
           <button
             key={product.id}
             type="button"
@@ -84,7 +147,12 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
                 and the design's name is how anyone recognises which of five
                 similar shirts they are looking at. */}
             <span className={styles.caption}>
-              <span className={styles.captionName}>{product.design_name}</span>
+              {/* El nombre propio manda cuando existe. Sin él, el del diseño,
+                  que es lo que había antes: cuatro pruebas del mismo diseño se
+                  veían idénticas y no había forma de distinguirlas. */}
+              <span className={styles.captionName}>
+                {assetTitle(product) ?? product.design_name}
+              </span>
               <span className={styles.captionMeta}>
                 v{product.design_version} · {assetTypeLabel(product.asset_type)}
               </span>
@@ -110,7 +178,7 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
 
             <div className={styles.detailBody}>
               <h2 className={styles.detailTitle} id="final-product-title">
-                {open.design_name}
+                {assetTitle(open) ?? open.design_name}
               </h2>
 
               <dl className={styles.facts}>
@@ -145,6 +213,18 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
               </dl>
 
               <div className={styles.actions}>
+                {/* Renombrar vive acá y no en la tarjeta: es donde se está
+                    mirando el producto de cerca y donde se nota que cuatro
+                    pruebas del mismo diseño necesitan nombres. Reusa el mismo
+                    diálogo del catálogo, que ya sabe conservar la extensión a
+                    partir del tipo guardado. */}
+                <button
+                  type="button"
+                  className={`${buttonStyles.base} ${buttonStyles.secondary}`}
+                  onClick={() => setRenameId(open.id)}
+                >
+                  Renombrar
+                </button>
                 {/* An anchor, not a Button: downloading is a navigation to a
                     file, and the signed URL already carries the filename. */}
                 <a
@@ -167,6 +247,17 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
           </div>
         )}
       </Dialog>
+
+      {/* Montado aparte y no dentro del diálogo de detalle: dos `<dialog>`
+          anidados se cierran en cascada, que fue un defecto real de este
+          proyecto y se arregló en el componente `Dialog`. Aun así, dos
+          diálogos hermanos son más simples de leer que dos anidados. */}
+      {renaming && (
+        <RenameAssetDialog
+          asset={renaming}
+          onClose={() => setRenameId(null)}
+        />
+      )}
     </>
   );
 }

@@ -56,7 +56,16 @@ function dormir(ms: number): Promise<void> {
 
 export async function storeGeneratedImage(
   r2Key: string,
-  imageUrl: string
+  imageUrl: string,
+  /**
+   * El tipo con el que se firmó la subida, que es el que el proveedor entrega.
+   *
+   * Estaba fijo en `image/png` y dejó de ser cierto el día que las
+   * generaciones pasaron a WEBP. Un respaldo que sube con el tipo equivocado
+   * no falla: guarda el objeto con una etiqueta que miente, y eso se descubre
+   * meses después en una descarga con la extensión que no corresponde.
+   */
+  mime: string
 ): Promise<StoredImage> {
   for (const espera of ESPERAS) {
     await dormir(espera);
@@ -75,10 +84,10 @@ export async function storeGeneratedImage(
     if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
     const imagen = await respuesta.blob();
 
-    const destino = await getUploadUrl(r2Key, "image/png");
+    const destino = await getUploadUrl(r2Key, mime);
     const put = await fetch(destino, {
       method: "PUT",
-      headers: { "Content-Type": "image/png" },
+      headers: { "Content-Type": mime },
       body: imagen,
       signal: AbortSignal.timeout(RESPALDO_TIMEOUT_MS),
     });

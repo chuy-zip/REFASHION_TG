@@ -262,9 +262,27 @@ export interface ModelRequest extends Destination {
   seed: number;
 }
 
+/**
+ * En qué formato entrega un proveedor lo que genera.
+ *
+ * **Lo declara el proveedor y no la ruta**, y eso no es una preferencia de
+ * diseño: la ruta firma la URL de subida con un `Content-Type` concreto, y el
+ * que sube tiene que mandar exactamente ese. El simulador arma PNG byte a byte
+ * y el proveedor real pide WEBP, así que una ruta que firmara un formato fijo
+ * rompería a uno de los dos. Se descubrió mirando, antes de romperlo.
+ */
+export interface GeneratedFormat {
+  /** Con el que se firma la subida y se guarda la fila. */
+  mime: string;
+  /** El de la clave en R2. No se interpreta al leer: es solo el nombre. */
+  extension: string;
+}
+
 export interface GenerationProvider {
   /** Shown in logs and in dev, so it is obvious which one answered. */
   readonly name: string;
+  /** Qué produce, para que la ruta firme y guarde lo correcto. */
+  readonly format: GeneratedFormat;
   /** True when calls cost real money. The UI warns differently. */
   readonly billable: boolean;
   /** Edit inside a painted region. */

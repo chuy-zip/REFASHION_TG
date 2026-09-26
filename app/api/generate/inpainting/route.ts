@@ -124,11 +124,17 @@ export async function POST(request: Request) {
   // proveedor necesita saber dónde escribir. Es la inversión que hace que los
   // bytes no vuelvan a pasar por acá: antes se pedía la imagen y después se
   // decidía dónde iba; ahora el destino viaja con el pedido.
-  const assetId = crypto.randomUUID();
-  const r2Key = `clients/${path.clientId}/projects/${path.projectId}/designs/${design_id}/${assetId}.png`;
-  const uploadTo = await getUploadUrl(r2Key, "image/png");
-
+  // El proveedor primero, porque **él decide el formato** y de eso dependen
+  // la extensión de la clave y el tipo con el que se firma la subida. El
+  // simulador entrega PNG y el real WEBP; firmar un tipo fijo rompería a uno
+  // de los dos, porque la URL firmada exige que el PUT mande ese mismo tipo.
   const provider = getGenerationProvider();
+  const { mime, extension } = provider.format;
+
+  const assetId = crypto.randomUUID();
+  const r2Key = `clients/${path.clientId}/projects/${path.projectId}/designs/${design_id}/${assetId}.${extension}`;
+  const uploadTo = await getUploadUrl(r2Key, mime);
+
   const outcome = await provider.inpaint({
     imageUrl,
     maskUrl,
@@ -152,7 +158,7 @@ export async function POST(request: Request) {
   // firmado y escribe ahí de forma asíncrona, así que acá solo se espera a que
   // aparezca y se lo mide con 32 bytes. Si nunca aparece, `storeGeneratedImage`
   // cae al camino de antes y baja la imagen de la URL del proveedor.
-  const stored = await storeGeneratedImage(r2Key, result.imageUrl);
+  const stored = await storeGeneratedImage(r2Key, result.imageUrl, mime);
   if (!stored.ok) return jsonError(stored.error, 502);
 
   const { data, error } = await supabase
@@ -162,8 +168,14 @@ export async function POST(request: Request) {
       design_id,
       r2_key: r2Key,
       asset_type: "inpainting",
-      original_filename: `${mode}-${Date.now()}.png`,
-      mime_type: "image/png",
+      // **Sin nombre, y eso es lo correcto.** Acá iba un `prueba-virtual-1758…`
+      // con marca de tiempo, que no lo eligió nadie y que no dice nada: la
+      // columna es "el nombre que el usuario le puso" y una imagen generada no
+      // tuvo quién se lo pusiera. En null, la pantalla muestra el diseño y el
+      // tipo, la descarga sale como "Prueba virtual.webp", y **un valor en esta
+      // columna pasa a significar que alguien la nombró de verdad**.
+      original_filename: null,
+      mime_type: mime,
       file_size_bytes: stored.measurement.bytes,
       // MEDIDO, no supuesto. Antes decía `size.width`, o sea el tamaño que
       // se pidió, que con el simulador es cierto por construcción y con un

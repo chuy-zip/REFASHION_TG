@@ -77,6 +77,14 @@ export const PROMPT_LANGUAGE_COPY: Record<PromptLanguage, string> = {
  * es repetirle lo que ya está viendo. Pedirle al usuario un párrafo sería
  * cobrarle esfuerzo por nada.
  *
+ * **Y ninguna de `fill` nombra un color, a propósito.** Las celdas j y k del
+ * experimento 6 eran el mismo pedido con la única diferencia de nombrar el
+ * color, y el resultado se movió **cuatro unidades sobre 255**: en este modo el
+ * color lo decide lo que está pintado debajo de la máscara, no el texto. Decían
+ * "negra" y "blanca", y sobre una camiseta amarilla eso no era neutral: era un
+ * imán tirando hacia un color que nadie pidió. Tampoco se usa un hueco tipo
+ * `<color>`, porque el día que alguien no lo reemplace entra literal al prompt.
+ *
  * **Y ninguna enumera lo que no quiere.** Este modelo no tiene canal negativo,
  * así que esas palabras caen en el condicionamiento positivo y actúan de imán:
  * medido, la misma edición con una lista de negativos dejó 542 píxeles de
@@ -88,14 +96,14 @@ export const PROMPT_SUGGESTIONS: Record<
 > = {
   fill: {
     es: [
-      "Tela de punto negra lisa, una extensión continua de tejido sin interrupciones. Trama fina y pareja con una dirección constante, pliegues suaves y sombreado gradual, que concuerden con el tono, el acabado mate, la escala del hilo, la luz de ambiente, la nitidez del borde y la profundidad de campo de la tela que la rodea.",
-      "Tela de algodón blanca lisa, una superficie continua sin marcas. Tejido fino y uniforme, pliegues naturales y un sombreado que sigue la caída de la prenda, con el mismo acabado mate, la misma escala de hilo y la misma iluminación que el resto de la tela.",
-      "Una bufanda de lana roja sobre los hombros, de punto suave con fibras visibles, con pliegues naturales donde cae sobre sí misma y la misma luz de ambiente y nitidez de borde que la tela que la rodea.",
+      "Tela de punto lisa, una extensión continua de tejido sin interrupciones. Trama fina y pareja con una dirección constante, pliegues suaves y sombreado gradual, que concuerden con el tono, el acabado mate, la escala del hilo, la luz de ambiente, la nitidez del borde y la profundidad de campo de la tela que la rodea.",
+      "Tela de algodón lisa, una superficie continua sin marcas. Tejido fino y uniforme, pliegues naturales y un sombreado que sigue la caída de la prenda, con el mismo acabado mate, la misma escala de hilo y la misma iluminación que el resto de la tela.",
+      "Tejido de lana suave con fibras visibles de cerca, con pliegues naturales donde la tela cae sobre sí misma y la misma luz de ambiente y nitidez de borde que la tela que la rodea.",
     ],
     en: [
-      "Plain black knit fabric, a smooth uninterrupted expanse of cloth. Fine even weave with a consistent thread direction, soft natural folds and gradual shading, matching the tone, matte finish, thread scale, ambient lighting, edge sharpness and depth of field of the surrounding cloth.",
-      "Plain white cotton fabric, a continuous unmarked surface. Fine uniform weave, natural folds and shading that follows the drape of the garment, with the same matte finish, thread scale and lighting as the rest of the cloth.",
-      "A red wool scarf over the shoulders, in soft knitted wool with visible fibres, natural folds where it drapes over itself, and the same ambient lighting and edge sharpness as the cloth around it.",
+      "Plain knit fabric, a smooth uninterrupted expanse of cloth. Fine even weave with a consistent thread direction, soft natural folds and gradual shading, matching the tone, matte finish, thread scale, ambient lighting, edge sharpness and depth of field of the surrounding cloth.",
+      "Plain cotton fabric, a continuous unmarked surface. Fine uniform weave, natural folds and shading that follows the drape of the garment, with the same matte finish, thread scale and lighting as the rest of the cloth.",
+      "Soft wool knit with fibres visible up close, natural folds where the cloth drapes over itself, and the same ambient lighting and edge sharpness as the cloth around it.",
     ],
   },
   draw: {
@@ -222,7 +230,7 @@ export function composePrompt(description: string): string {
  * teaches the shape of an answer, and the suggestions teach its depth.
  */
 export const PROMPT_PLACEHOLDER: Record<InpaintMode, string> = {
-  fill: "tela negra lisa, sin marcas…",
+  fill: "tela de punto lisa, sin marcas…",
   draw: "un bolsillo de parche negro en el pecho…",
 };
 
@@ -236,7 +244,7 @@ export const PROMPT_PLACEHOLDER: Record<InpaintMode, string> = {
 export const MODE_COPY: Record<InpaintMode, { label: string; hint: string }> = {
   fill: {
     label: "Completar la zona",
-    hint: "Quita algo, o convierte en tela lo que pintaste. Describe la tela con detalle.",
+    hint: "Quita algo, o convierte en tela lo que pintaste. Describe el tejido, no el color: el color sale de lo que ya está ahí.",
   },
   draw: {
     label: "Dibujar algo nuevo",
