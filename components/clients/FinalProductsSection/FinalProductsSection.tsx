@@ -9,7 +9,7 @@ import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { SearchInput } from "@/components/ui/SearchInput/SearchInput";
 import { RenameAssetDialog } from "@/components/assets/RenameAssetDialog/RenameAssetDialog";
 import { assetTitle, assetTypeLabel } from "@/lib/assets";
-import type { FinalProduct } from "@/lib/assets-server";
+import type { FinalProduct, Presentation } from "@/lib/assets-server";
 import styles from "./FinalProductsSection.module.css";
 
 const dateFormat = new Intl.DateTimeFormat("es-GT", {
@@ -45,19 +45,23 @@ interface FinalProductsSectionProps {
  * is acceptable here precisely because nobody is comparing positions.
  */
 /**
- * Los tipos que llegan acá, en el orden en que se producen.
+ * Las tres presentaciones del objetivo específico 3, con su nombre en pantalla.
  *
- * Las tres exportaciones están declaradas en el esquema desde la 001 y todavía
- * no las escribe nadie (H-45). Se listan igual: una pestaña vacía es una
- * promesa visible, y el día que existan aparecen solas.
+ * **Esto es lo que el objetivo pide demostrar**, y hasta ahora estaba guardado
+ * pero invisible: dos de las tres se almacenan como `vton` y la galería las
+ * mostraba iguales. La diferencia no es el tipo, es de quién era la persona, y
+ * `assets-server` la resuelve leyendo el origen de la foto que se usó.
+ *
+ * El orden es el del objetivo, no el de frecuencia: plana, sobre foto del
+ * cliente, sobre modelo generado.
  */
-const TIPOS = [
-  "composition",
-  "vton",
-  "export_flat",
-  "export_model",
-  "export_ai",
-] as const;
+const PRESENTACIONES: { key: Presentation; label: string }[] = [
+  { key: "plana", label: "Prenda plana" },
+  { key: "foto_cliente", label: "Sobre modelo" },
+  { key: "modelo_ia", label: "Sobre modelo IA" },
+];
+
+const ETIQUETA = new Map(PRESENTACIONES.map((p) => [p.key, p.label]));
 
 export function FinalProductsSection({ products }: FinalProductsSectionProps) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -70,13 +74,13 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
 
   // Solo los tipos que este cliente tiene de verdad: una pestaña que siempre
   // devuelve cero es una pestaña que enseña a no usar el filtro.
-  const presentes = TIPOS.filter((t) =>
-    products.some((product) => product.asset_type === t)
+  const presentes = PRESENTACIONES.filter((p) =>
+    products.some((product) => product.presentation === p.key)
   );
 
   const termino = busqueda.trim().toLowerCase();
   const visibles = products.filter((product) => {
-    if (tipo !== "todos" && product.asset_type !== tipo) return false;
+    if (tipo !== "todos" && product.presentation !== tipo) return false;
     if (!termino) return true;
     // Sobre el nombre propio y el del diseño: quien busca se acuerda de uno de
     // los dos, y no sabe cuál de ellos escribió.
@@ -102,12 +106,12 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
       {presentes.length > 1 && (
         <div className={styles.filters}>
           <PillTabs
-            label="Tipo de producto"
+            label="Presentación"
             selected={tipo}
             onSelect={setTipo}
             options={[
-              { key: "todos", label: "Todos" },
-              ...presentes.map((t) => ({ key: t, label: assetTypeLabel(t) })),
+              { key: "todos", label: "Todas" },
+              ...presentes.map((p) => ({ key: p.key, label: p.label })),
             ]}
           />
           <SearchInput
@@ -154,7 +158,12 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
                 {assetTitle(product) ?? product.design_name}
               </span>
               <span className={styles.captionMeta}>
-                v{product.design_version} · {assetTypeLabel(product.asset_type)}
+                v{product.design_version} ·{" "}
+                {/* La presentación, que es lo que el objetivo distingue. El
+                    tipo de archivo queda de respaldo para lo que no es una de
+                    las tres, como una persona borrada del catálogo. */}
+                {(product.presentation && ETIQUETA.get(product.presentation)) ??
+                  assetTypeLabel(product.asset_type)}
               </span>
             </span>
           </button>
@@ -183,9 +192,10 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
 
               <dl className={styles.facts}>
                 <div className={styles.fact}>
-                  <dt className={styles.factLabel}>Tipo</dt>
+                  <dt className={styles.factLabel}>Presentación</dt>
                   <dd className={styles.factValue}>
-                    {assetTypeLabel(open.asset_type)}
+                    {(open.presentation && ETIQUETA.get(open.presentation)) ??
+                      assetTypeLabel(open.asset_type)}
                   </dd>
                 </div>
                 <div className={styles.fact}>

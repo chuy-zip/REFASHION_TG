@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDownloadUrl, getReadUrl } from "@/lib/r2";
 import { assetDisplayName, type AssetWithUrl } from "@/lib/assets";
 import { resolveDesignPath } from "@/lib/designs";
-import type { Asset } from "@/lib/types";
+import type { Asset, AssetOrigin } from "@/lib/types";
 
 /**
  * Asset queries that sign R2 URLs. Split out of `lib/assets.ts` because that
@@ -397,11 +397,33 @@ export async function listR2KeysUnderClient(
 }
 
 /** A finished image a design produced, with the design it belongs to. */
+/**
+ * Cuál de las tres presentaciones del objetivo específico 3 es este producto.
+ *
+ * **No es una columna, y no hace falta que lo sea.** El objetivo pide tres
+ * presentaciones: prenda plana, prenda sobre una foto que trae el cliente, y
+ * prenda sobre un modelo generado. El esquema ya las distingue sin saberlo: la
+ * plana es una composición, y las otras dos son pruebas virtuales que se
+ * diferencian por **el origen de la persona** que consumieron, que está en
+ * `person_asset_id` desde la migración 019.
+ *
+ * Se calcula acá, una vez, y no en la pantalla: es una afirmación sobre el
+ * dato, y dejarla en la interfaz sería tenerla escrita tantas veces como
+ * pantallas la necesiten.
+ *
+ * Null en las exportaciones, que no existen: `exportar` en este proyecto
+ * significa descargar, y lo que se descarga ya está guardado como composición
+ * o como prueba virtual. Un tipo `export_*` sería la misma imagen dos veces.
+ */
+export type Presentation = "plana" | "foto_cliente" | "modelo_ia";
+
 export interface FinalProduct extends AssetWithUrl {
   design_id_of: string;
   design_name: string;
   design_version: number;
   project_name: string;
+  /** Null cuando no es ninguna de las tres, o cuando la persona ya no está. */
+  presentation: Presentation | null;
 }
 
 /**
@@ -482,6 +504,48 @@ export async function listClientFinalProducts(
   const assets = (assetData ?? []) as Asset[];
   if (assets.length === 0) return [];
 
+  /**
+   * El origen de cada persona que alguna prueba virtual consumió.
+   *
+   * Una consulta más, y solo cuando hay pruebas virtuales. Las fotos de modelo
+   * viven en el catálogo del cliente y no en el diseño, así que no vinieron en
+   * la consulta de arriba: se reutilizan entre diseños a propósito, que es la
+   * razón por la que `person_asset_id` no lleva `unique` (migración 019).
+   */
+  const personaIds = [
+    ...new Set(
+      assets.flatMap((asset) =>
+        asset.person_asset_id ? [asset.person_asset_id] : []
+      )
+    ),
+  ];
+
+  const origenPorPersona = new Map<string, AssetOrigin>();
+  if (personaIds.length > 0) {
+    const { data: personaData } = await supabase
+      .from("assets")
+      .select("id, origin")
+      .in("id", personaIds);
+    for (const persona of (personaData ?? []) as Pick<
+      Asset,
+      "id" | "origin"
+    >[]) {
+      origenPorPersona.set(persona.id, persona.origin);
+    }
+  }
+
+  function presentacion(asset: Asset): Presentation | null {
+    if (asset.asset_type === "composition") return "plana";
+    if (asset.asset_type !== "vton") return null;
+    const origen = asset.person_asset_id
+      ? origenPorPersona.get(asset.person_asset_id)
+      : undefined;
+    // Sin persona no se afirma nada: la foto pudo borrarse del catálogo, y la
+    // FK la puso en null a propósito para no perder el resultado.
+    if (!origen) return null;
+    return origen === "generated" ? "modelo_ia" : "foto_cliente";
+  }
+
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const designById = new Map(designs.map((design) => [design.id, design]));
 
@@ -497,6 +561,7 @@ export async function listClientFinalProducts(
     return [
       {
         ...asset,
+        presentation: presentacion(asset),
         design_id_of: design.id,
         design_name: design.name,
         design_version: design.version,
