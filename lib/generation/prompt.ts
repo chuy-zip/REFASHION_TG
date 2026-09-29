@@ -248,6 +248,6 @@ export const MODE_COPY: Record<InpaintMode, { label: string; hint: string }> = {
   },
   draw: {
     label: "Dibujar algo nuevo",
-    hint: "Agrega un bolsillo, un cuello o un estampado, o cambia el tejido. Escribe corto; la zona se agranda sola y la ves marcada en la prenda.",
+    hint: "Escribe corto; la zona se agranda sola y la ves marcada en la prenda.",
   },
 };
