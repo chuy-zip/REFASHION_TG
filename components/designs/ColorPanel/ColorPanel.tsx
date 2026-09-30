@@ -65,7 +65,15 @@ export function ColorPanel({
   //
   // This is also what keeps a literal fallback out of the file: the parent's
   // colour is valid by construction, so there is never a moment that needs one.
-  const [draft, setDraft] = useState(color);
+  //
+  // The draft is tagged with the colour it was written against. The colour can
+  // also change from outside, and the eyedropper does exactly that: the swatch
+  // and the square followed it while the field kept showing the old code, next
+  // to the one number the client is supposed to approve. When the tag no longer
+  // matches, the field shows the colour itself.
+  const [typed, setTyped] = useState({ text: color, against: color });
+  const draft = typed.against === color ? typed.text : color;
+  const setDraft = (text: string, against: string) => setTyped({ text, against });
   const isValid = parseHex(draft) !== null;
 
   // The same tag-and-derive as everywhere else in the workspace (APRENDIZAJES
@@ -113,7 +121,7 @@ export function ColorPanel({
     const next = { ...hsl, [axis]: value };
     const hex = toHex(hslToRgb(next));
     setAxes({ hex, hsl: next });
-    setDraft(hex);
+    setDraft(hex, hex);
     onColorChange(hex);
   }
 
@@ -126,18 +134,21 @@ export function ColorPanel({
    */
   function handleReset() {
     setAxes(null);
-    setDraft(initialColor);
+    setDraft(initialColor, initialColor);
     onColorChange(initialColor);
   }
 
   function handleTyping(value: string) {
-    setDraft(value);
+    // Half a hex stays tagged to the current colour, which has not moved; a
+    // whole one is tagged to the colour it is about to become.
     const parsed = parseHex(value);
-    if (parsed) onColorChange(value.trim().toUpperCase());
+    const next = parsed ? value.trim().toUpperCase() : color;
+    setDraft(value, next);
+    if (parsed) onColorChange(next);
   }
 
   function handlePicker(value: string) {
-    setDraft(value.toUpperCase());
+    setDraft(value.toUpperCase(), value.toUpperCase());
     onColorChange(value.toUpperCase());
   }
 
