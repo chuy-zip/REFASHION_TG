@@ -40,13 +40,22 @@ import type { Asset } from "@/lib/types";
  * upload and the insert follow the same three steps, so a fix to one is a fix
  * to both.
  *
- * Synchronous, like its sibling and for the same reason: Kontext takes about
- * the same time as Fill, and a queue would be machinery for a problem that does
- * not exist yet.
+ * Synchronous, like its sibling and for the same reason: a queue would be
+ * machinery for a problem that does not exist yet.
+ *
+ * **It used to say Kontext takes about the same time as Fill. That stopped
+ * being true on 30-sep** (`lib/generation/runware.ts`, `EDIT_BUDGET_MS`):
+ * measured at 51s against the 15s of three days before, still correct, just
+ * slower. This route's ceiling is its own, not its sibling's, because of that.
  */
 
-/** Same ceiling and same reasoning as `/inpainting`. */
-export const maxDuration = 60;
+/**
+ * 150, not 60. `EDIT_BUDGET_MS` alone can now take 120s, plus up to 6s of
+ * polling and 18s of fallback in `storeGeneratedImage` (`store.ts`): 144 en el
+ * peor caso, y 150 le deja el mismo margen que el resto de las rutas le deja a
+ * su propio total.
+ */
+export const maxDuration = 150;
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
