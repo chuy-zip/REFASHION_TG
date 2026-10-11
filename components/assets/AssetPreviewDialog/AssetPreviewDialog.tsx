@@ -14,6 +14,20 @@ interface AssetPreviewDialogProps {
   onClose: () => void;
 }
 
+/**
+ * What the date means, which depends on where the image came from.
+ *
+ * It said "Subido" for everything, including a model photo the system drew and
+ * a composition it flattened. `derived` gets "Creado" rather than "Generado"
+ * because those come from a deterministic step (a cut-out, a composition, a
+ * recolour), and "generado" reads as AI everywhere else in the app.
+ */
+const DATE_LABEL: Record<AssetWithUrl["origin"], string> = {
+  upload: "Subido",
+  generated: "Generado",
+  derived: "Creado",
+};
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es-GT", {
     day: "2-digit",
@@ -69,11 +83,23 @@ export function AssetPreviewDialog({ asset, onClose }: AssetPreviewDialogProps) 
             </div>
           )}
           <div className={styles.attr}>
-            <dt className={styles.attrLabel}>Subido</dt>
+            <dt className={styles.attrLabel}>{DATE_LABEL[asset.origin]}</dt>
             <dd className={styles.attrValue}>
               {formatDate(asset.created_at)}
             </dd>
           </div>
+          {/* Only when there is one. A model photo is paid once and lives in
+              the client's catalogue, outside any design's running total, so
+              this is the one place its price can be read. Null means free or
+              unknown, and showing $0.0000 would claim the first. */}
+          {asset.cost_usd !== null && (
+            <div className={styles.attr}>
+              <dt className={styles.attrLabel}>Costo</dt>
+              <dd className={`${styles.attrValue} ${styles.mono}`}>
+                ${asset.cost_usd.toFixed(4)}
+              </dd>
+            </div>
+          )}
         </dl>
 
         <div className={styles.actions}>

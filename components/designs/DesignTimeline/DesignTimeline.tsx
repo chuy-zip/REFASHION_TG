@@ -103,6 +103,17 @@ export function DesignTimeline({
               : `${workStepCount} pasos de edición`}
           </Link>
         )}
+        {/* The total leaves out generated model photos on purpose: they live
+            in the client's catalogue and are reused across designs, so adding
+            one to every design that used it would count it once per design.
+            Said here because a total that is quietly partial reads as wrong
+            the first time someone adds it up. */}
+        {totalCostUsd > 0 && (
+          <span className={styles.totalNote}>
+            No incluye los modelos generados: se guardan en el catálogo del
+            cliente y se reusan entre diseños.
+          </span>
+        )}
       </div>
 
       {!originAsset && assets.length === 0 ? (

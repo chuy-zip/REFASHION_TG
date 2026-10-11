@@ -36,6 +36,15 @@
   color: var(--color-text-secondary);
 }
 
+/* Its own line under the total, aligned with it: it qualifies that number and
+   nothing else, so it sits where the eye already is. */
+.totalNote {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
 /* Horizontal on purpose: chronology reads left to right, and this is the strip
    the position cursor will live on once current_asset_id exists. */
 .strip {
