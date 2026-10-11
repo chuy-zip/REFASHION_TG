@@ -155,28 +155,44 @@ export const PROMPT_SUGGESTIONS: Record<
  * > never measured to help in the first place; it would not be enough to claim
  * > the clause is harmful.
  *
- * **The last one in each list is a test, not a measured text.** It asks for a
- * studio product photograph of "the garment" and describes only the picture it
- * wants, so it works on a flat photo and on one with a person wearing it, and
- * it needs no slot for the garment type. It lists nothing to keep, on purpose,
- * for the reason above; if the logos or the fabric come back changed, the
- * comparison to run is this same order with the clause added, on the same
- * photo.
+ * **The last one in each list turns a phone photo into a studio product shot**,
+ * and it carries the only slot in these lists, `[...]`, for the garment type.
+ *
+ * It started without one, asking for "the garment", and that held on a flat
+ * photo and on a hanger. On a person it did not: the same photo came back as a
+ * long-sleeve dress shirt with "the garment" and as the right short-sleeve polo
+ * with "the short-sleeve polo shirt" (`docs/CASOS_DE_USO_VALIDADOS.md` §1, runs
+ * 7 and 8). The photo held two garments and an arm over one of them, so the
+ * model had to choose. Naming the garment wanted in the output is not the
+ * magnet above: that rule is about naming what should not appear.
+ *
+ * The slot is guarded in `InstructionPanel`: "Generar" stays off while the text
+ * still holds brackets, because an unreplaced slot would be sent and billed.
  */
 export const INSTRUCTION_SUGGESTIONS: Record<PromptLanguage, string[]> = {
   es: [
     "Convierte la camisa de manga corta en una de manga larga, con la misma tela continuando por los dos brazos hasta las muñecas y terminando en puño acanalado.",
     "Cambia el cuello redondo de la camiseta por un cuello tipo polo con cartera de tres botones, en la misma tela y del mismo color.",
     "Agrega un bolsillo de parche en el pecho izquierdo, de la misma tela y con costura al tono.",
-    "Muestra solo la prenda de esta foto, como fotografía de producto de estudio, extendida y centrada sobre un fondo continuo gris claro y liso, con luz pareja de frente y la prenda completa a la vista.",
+    "Muestra solo [la prenda, por ejemplo la polo de manga corta] de esta foto, como fotografía de producto de estudio, extendida y centrada sobre un fondo continuo gris claro y liso, con tela lisa, luz pareja de frente y la prenda completa a la vista.",
   ],
   en: [
     "Change the short-sleeve shirt into a long-sleeve one, with the same fabric continuing down both arms to the wrists and ending in a ribbed cuff.",
     "Change the t-shirt's crew neck into a polo collar with a three-button placket, in the same fabric and the same colour.",
     "Add a patch pocket on the left chest, in the same fabric with tonal stitching.",
-    "Show only the garment from this photo, as a studio product photograph, laid flat and centered on a plain light grey seamless background, evenly lit from the front, with the whole garment in view.",
+    "Show only the [garment type, e.g. short-sleeve polo shirt] from this photo, as a studio product photograph, laid flat and centered on a plain light grey seamless background, with smooth fabric, evenly lit from the front, with the whole garment in view.",
   ],
 };
+
+/**
+ * A slot the user still has to fill: anything between square brackets.
+ *
+ * Shared by the suggestion that carries one and the panel that refuses to send
+ * it, so the two cannot disagree about what counts as unreplaced.
+ */
+export function hasUnfilledSlot(text: string): boolean {
+  return /\[[^\]]*\]/.test(text);
+}
 
 /**
  * Descriptions that produce a model photo this pipeline can use.

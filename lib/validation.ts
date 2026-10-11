@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CLIENT_ASSET_TYPES, DESIGN_ASSET_TYPES } from "@/lib/assets";
+import { hasUnfilledSlot } from "@/lib/generation/prompt";
 
 /**
  * Zod schemas for API request bodies.
@@ -379,7 +380,14 @@ export const editSchema = z.object({
     .string()
     .trim()
     .min(10, "Describe el cambio con un poco más de detalle.")
-    .max(3000, "La instrucción es demasiado larga."),
+    .max(3000, "La instrucción es demasiado larga.")
+    // The same check as the panel, here because the panel can be bypassed and
+    // what it protects is a billed call: a slot left as `[...]` reaches the
+    // model as literal text.
+    .refine(
+      (text) => !hasUnfilledSlot(text),
+      "Reemplaza lo que está entre corchetes antes de generar."
+    ),
 });
 
 export type EditRequestInput = z.infer<typeof editSchema>;

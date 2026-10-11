@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button/Button";
 import { PromptSuggestions } from "@/components/designs/PromptSuggestions/PromptSuggestions";
 import {
+  hasUnfilledSlot,
   INSTRUCTION_PLACEHOLDER,
   INSTRUCTION_SUGGESTIONS,
 } from "@/lib/generation/prompt";
@@ -69,7 +70,11 @@ export function InstructionPanel({
   const fieldId = useId();
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
-  const canGenerate = !disabled && !isGenerating && instruction.trim().length >= 10;
+  // One suggestion carries a slot, `[...]`, for the garment type. Sent as it
+  // is, the brackets reach the model literally and the call is billed anyway.
+  const slotPending = hasUnfilledSlot(instruction);
+  const canGenerate =
+    !disabled && !isGenerating && instruction.trim().length >= 10 && !slotPending;
 
   return (
     <div className={styles.panel}>
@@ -100,7 +105,7 @@ export function InstructionPanel({
 
       <PromptSuggestions
         title="Sugerencias para editar por instrucción"
-        hint="Una instrucción es una orden, no una descripción. Di solo qué cambiar: no hace falta listar lo que debe quedarse igual, y nombrar un detalle de la prenda es pedirlo, aunque lo pidas para conservarlo."
+        hint="Una instrucción es una orden, no una descripción. Di solo qué cambiar: no hace falta listar lo que debe quedarse igual, y nombrar un detalle de la prenda es pedirlo, aunque lo pidas para conservarlo. Si una sugerencia tiene algo entre corchetes, cámbialo por tu prenda."
         examples={INSTRUCTION_SUGGESTIONS}
         open={suggestionsOpen}
         onClose={() => setSuggestionsOpen(false)}
@@ -129,6 +134,11 @@ export function InstructionPanel({
           does on touch. */}
       {!disabled && !isGenerating && instruction.trim().length < 10 && (
         <p className={styles.blocked}>Escribe qué quieres cambiar.</p>
+      )}
+      {!disabled && !isGenerating && slotPending && (
+        <p className={styles.blocked}>
+          Reemplaza lo que está entre corchetes antes de generar.
+        </p>
       )}
 
       <p className={styles.status}>
