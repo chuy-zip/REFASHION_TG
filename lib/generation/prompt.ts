@@ -154,17 +154,27 @@ export const PROMPT_SUGGESTIONS: Record<
  * > than the ladder that measured Fill. It is enough to drop a clause that was
  * > never measured to help in the first place; it would not be enough to claim
  * > the clause is harmful.
+ *
+ * **The last one in each list is a test, not a measured text.** It asks for a
+ * studio product photograph of "the garment" and describes only the picture it
+ * wants, so it works on a flat photo and on one with a person wearing it, and
+ * it needs no slot for the garment type. It lists nothing to keep, on purpose,
+ * for the reason above; if the logos or the fabric come back changed, the
+ * comparison to run is this same order with the clause added, on the same
+ * photo.
  */
 export const INSTRUCTION_SUGGESTIONS: Record<PromptLanguage, string[]> = {
   es: [
     "Convierte la camisa de manga corta en una de manga larga, con la misma tela continuando por los dos brazos hasta las muñecas y terminando en puño acanalado.",
     "Cambia el cuello redondo de la camiseta por un cuello tipo polo con cartera de tres botones, en la misma tela y del mismo color.",
     "Agrega un bolsillo de parche en el pecho izquierdo, de la misma tela y con costura al tono.",
+    "Muestra solo la prenda de esta foto, como fotografía de producto de estudio, extendida y centrada sobre un fondo continuo gris claro y liso, con luz pareja de frente y la prenda completa a la vista.",
   ],
   en: [
     "Change the short-sleeve shirt into a long-sleeve one, with the same fabric continuing down both arms to the wrists and ending in a ribbed cuff.",
     "Change the t-shirt's crew neck into a polo collar with a three-button placket, in the same fabric and the same colour.",
     "Add a patch pocket on the left chest, in the same fabric with tonal stitching.",
+    "Show only the garment from this photo, as a studio product photograph, laid flat and centered on a plain light grey seamless background, evenly lit from the front, with the whole garment in view.",
   ],
 };
 

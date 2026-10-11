@@ -7,6 +7,7 @@ import type Konva from "konva";
 import { Button } from "@/components/ui/Button/Button";
 import { MaskTools, type MaskTool } from "@/components/designs/MaskTools/MaskTools";
 import { ColorPanel } from "@/components/designs/ColorPanel/ColorPanel";
+import { ModeSwitchDialog } from "@/components/designs/ModeSwitchDialog/ModeSwitchDialog";
 import { StepStrip, type WorkStep } from "@/components/designs/StepStrip/StepStrip";
 import { LogoPicker } from "@/components/designs/LogoPicker/LogoPicker";
 import { LogoBackground } from "@/components/designs/LogoBackground/LogoBackground";
@@ -252,6 +253,9 @@ export function DesignWorkspace({
    * modelo. Abrir en el modo que gasta invita a gastar antes de mirar.
    */
   const [mode, setMode] = useState<WorkspaceMode>("paint");
+  // The mode the user asked for while there was unfinished work in this one.
+  // Non-null means the "Hay cambios sin aplicar" question is on screen.
+  const [pendingMode, setPendingMode] = useState<WorkspaceMode | null>(null);
 
   // The mask: the garment picked in one gesture plus the brush and eraser
   // passes over it, kept as gestures rather than as pixels so it survives the
@@ -1024,9 +1028,15 @@ export function DesignWorkspace({
   // moving layers around underneath it would be editing two things at once.
   const canManipulate = canCompose && !isCutting;
 
-  /** The recolour only counts while it matches the mask and colour on screen. */
+  /**
+   * The recolour only counts while it matches the mask and colour on screen,
+   * and only in the mode that makes it. Leaving `paint` already drops the
+   * preview (`switchMode`); the mode check is the second lock, so no other
+   * mode can ever draw a colour it did not produce.
+   */
   const paintStyle = tool === "flat" ? "flat" : "fabric";
   const activeRecolor =
+    mode === "paint" &&
     recolorPreview &&
     recolorPreview.mask === mask &&
     recolorPreview.color === color &&
@@ -1052,10 +1062,17 @@ export function DesignWorkspace({
    * returns the garment immediately, and only when the colour still matches —
    * showing the old hue after the picker moved would be showing the wrong
    * answer rather than an old one.
+   *
+   * **And only in `paint`.** Without that check this term was the flash in
+   * "Editar por zonas": every drag of the mask brush showed the colour left
+   * behind in "Pintar prenda", and it vanished on release.
    */
   const stageImage =
     activeRecolor ??
-    (isDrawing && recolorPreview && recolorPreview.color === color
+    (mode === "paint" &&
+    isDrawing &&
+    recolorPreview &&
+    recolorPreview.color === color
       ? recolorPreview.canvas
       : null) ??
     workingImage ??
@@ -1253,23 +1270,60 @@ export function DesignWorkspace({
   }
 
   /**
-   * Switching modes drops what was painted, on purpose.
+   * What leaving this mode would throw away, worded for the person, or null.
+   *
+   * One sentence per kind of unfinished work, because "you will lose your
+   * changes" does not say which. The order matters in `paint`: a region always
+   * produces a colour, so the colour is the thing to name; the bare region is
+   * the case where the colour was not computed yet.
+   */
+  const pendingWork: string | null =
+    mode === "paint" && activeRecolor
+      ? "El color que pintaste todavía no se aplicó a la prenda. Si cambias de modo, se descarta."
+      : mode === "paint" && !isMaskEmpty(mask)
+        ? "Tienes una región pintada sin aplicar. Si cambias de modo, se descarta."
+        : mode === "zones" && !isMaskEmpty(mask)
+          ? "La zona que marcaste todavía no se generó. Si cambias de modo, se descarta."
+          : mode === "logos" && isCutting
+            ? "El recorte de fondo del logotipo todavía no se aplicó. Si cambias de modo, se descarta."
+            : null;
+
+  /**
+   * Switching modes drops everything the mode left unfinished, on purpose.
    *
    * The buffer is shared but its MEANING is not: in `paint` a region is what
    * gets recoloured, in `zones` it is what the model may rewrite. Carrying one
    * into the other would hand the next step a region that answered a different
-   * question — and it would do it silently, which is the worst version.
+   * question, and it would do it silently, which is the worst version.
    *
-   * It goes through `clearMask`, so it lands on the undo stack: a mis-click on
-   * the mode switch costs one Ctrl+Z, not a minute of painting.
+   * **It used to go through `clearMask`, and that was the leak.** Landing on
+   * the shared undo stack meant a mis-click cost one Ctrl+Z, but it also meant
+   * the same Ctrl+Z, pressed in the other mode, brought the region back there.
+   * Because it was the same object, a recolour reappeared whole in "Editar por
+   * zonas", and the next "Generar" sent it to the model. Now the stack is
+   * emptied too, and the question in `ModeSwitchDialog` is the safety net,
+   * asked before anything is lost.
    */
   function changeMode(next: WorkspaceMode) {
     if (next === mode) return;
+    if (pendingWork) {
+      setPendingMode(next);
+      return;
+    }
+    switchMode(next);
+  }
 
+  function switchMode(next: WorkspaceMode) {
     // The transformer must not come back around a logo the user stopped
     // thinking about the moment they left the composing mode.
     setSelectedId(null);
-    if (!isMaskEmpty(mask)) clearMask();
+    setMask(EMPTY_MASK);
+    setUndoStack(EMPTY_UNDO);
+    setRecolorPreview(null);
+    // An open cut draws its preview on the canvas in every mode, but the panel
+    // that applies or cancels it only exists in "Componer logos".
+    handleCancelCut();
+    setPendingMode(null);
     setMode(next);
   }
 
@@ -1627,6 +1681,18 @@ export function DesignWorkspace({
               aria-labelledby={modeLabelId}
               value={mode}
               onChange={(event) => changeMode(event.target.value as WorkspaceMode)}
+              // Locked while something is changing the garment. A generation
+              // or an apply that lands after the user moved on changes the
+              // working image under a mode that did not ask for it, and an
+              // export that is half way through captures whatever the canvas
+              // shows at that instant.
+              disabled={
+                isGenerating ||
+                isApplyingColor ||
+                isApplyingCut ||
+                isResuming ||
+                isExporting
+              }
             >
               {/* **El orden es el del flujo, y los logotipos van últimos.**
                   Lo generativo deforma lo que esté estampado en la prenda, así
@@ -1825,6 +1891,14 @@ export function DesignWorkspace({
         </div>
         )}
       </div>
+
+      <ModeSwitchDialog
+        pending={pendingMode !== null ? pendingWork : null}
+        onStay={() => setPendingMode(null)}
+        onDiscard={() => {
+          if (pendingMode) switchMode(pendingMode);
+        }}
+      />
     </div>
   );
 }
