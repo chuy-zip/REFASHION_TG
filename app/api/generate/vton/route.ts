@@ -47,8 +47,12 @@ import type { Asset } from "@/lib/types";
  * crossing person against garment.
  */
 
-/** Same ceiling as its siblings. Measured try-ons took 11 s to 13 s. */
-export const maxDuration = 60;
+/**
+ * Same ceiling as its siblings, 150; the reasoning is in `inpainting`.
+ * Measured try-ons took 11 s to 14 s, but the budget is shared with three
+ * models that have each had a slow day.
+ */
+export const maxDuration = 150;
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();

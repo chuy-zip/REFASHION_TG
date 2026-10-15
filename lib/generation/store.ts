@@ -41,12 +41,13 @@ const ESPERAS = [400, 800, 1600, 3200] as const;
  * Plazo de cada tramo del respaldo.
  *
  * Los tres presupuestos tienen que caber en el `maxDuration` de la ruta que
- * llama. Para inpainting, modelo y try-on: 35 de inferencia, 6 de espera, y
- * estos dos, 59 en el peor caso contra un techo de 60. Para `edit`, que desde
- * el 30-sep tiene su propio presupuesto más grande (`EDIT_BUDGET_MS` en
- * `runware.ts`): 120 de inferencia, 6 de espera, y estos dos, 144 contra un
- * techo de 150. El peor caso siempre es que el atajo falle **y** el respaldo
- * tarde todo lo que puede.
+ * llama: 120 de inferencia (`TOTAL_BUDGET_MS` en `runware.ts`), 6 de espera, y
+ * estos dos, 144 en el peor caso contra un techo de 150 en las cuatro rutas. El
+ * peor caso es que el atajo falle **y** el respaldo tarde todo lo que puede.
+ *
+ * Hasta el 15-oct eran 35 de inferencia contra un techo de 60, salvo `edit`,
+ * que tenía 120 desde el 30-sep. Se unificó cuando FLUX dev también se volvió
+ * lento.
  */
 const RESPALDO_TIMEOUT_MS = 9_000;
 

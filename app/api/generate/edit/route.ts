@@ -44,16 +44,17 @@ import type { Asset } from "@/lib/types";
  * machinery for a problem that does not exist yet.
  *
  * **It used to say Kontext takes about the same time as Fill. That stopped
- * being true on 30-sep** (`lib/generation/runware.ts`, `EDIT_BUDGET_MS`):
- * measured at 51s against the 15s of three days before, still correct, just
- * slower. This route's ceiling is its own, not its sibling's, because of that.
+ * being true on 30-sep**: measured at 51s against the 15s of three days before,
+ * still correct, just slower. This route got a ceiling of its own then, and on
+ * 15-oct the other three got the same one (`TOTAL_BUDGET_MS` in
+ * `lib/generation/runware.ts`).
  */
 
 /**
- * 150, not 60. `EDIT_BUDGET_MS` alone can now take 120s, plus up to 6s of
- * polling and 18s of fallback in `storeGeneratedImage` (`store.ts`): 144 en el
- * peor caso, y 150 le deja el mismo margen que el resto de las rutas le deja a
- * su propio total.
+ * 150, the same in the four generation routes. `TOTAL_BUDGET_MS` can take 120s,
+ * plus up to 6s of polling and 18s of fallback in `storeGeneratedImage`
+ * (`store.ts`): 144 in the worst case, and 150 keeps our own deadline ahead of
+ * the platform's.
  */
 export const maxDuration = 150;
 

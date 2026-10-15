@@ -46,8 +46,11 @@ import type { Asset } from "@/lib/types";
  * for, which is the wrong order to find out.
  */
 
-/** Measured at 3 s to 5 s, the fastest of the four paths. */
-export const maxDuration = 60;
+/**
+ * Measured at 3 s to 5 s until 15-oct, when one call passed 35 s and was cut.
+ * Same ceiling as the other three routes; the reasoning is in `inpainting`.
+ */
+export const maxDuration = 150;
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();

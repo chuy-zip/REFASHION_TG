@@ -53,12 +53,17 @@ import type { Asset } from "@/lib/types";
  * failed on deploy and worked on localhost, which is the worst shape a bug can
  * take.
  *
- * 60 and not 300 because 60 is valid on every Vercel configuration, while 300
- * is only valid with fluid compute enabled and fails the build otherwise. The
- * measured range is 10 s to 20 s, so this is roughly a 3x margin. Raise it the
- * day a real latency gets close, not before.
+ * It was 60, because 60 is valid on every Vercel configuration and anything
+ * above needs fluid compute, failing the build otherwise. The note said to
+ * raise it the day a real latency got close. That day was 15-oct: FLUX dev went
+ * from 6.4 s to 28.8 s in one afternoon and a model generation was cut at 35.
+ *
+ * 150 now, the same in the four generation routes: `TOTAL_BUDGET_MS` (120 s)
+ * plus 6 s of polling and 18 s of fallback in `store.ts`, 144 in the worst
+ * case. It needs fluid compute, and the project has it: the edit route has
+ * shipped with 150 since 30-sep.
  */
-export const maxDuration = 60;
+export const maxDuration = 150;
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();

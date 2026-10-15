@@ -190,25 +190,26 @@ const STEPS = 28;
  * con resultado correcto y cobrando más que antes ($0.0201 contra $0.0137).
  * No estaba caído, estaba lento (`herramientas/model_availability`).
  *
- * Subir este número global habría sido pedirle más paciencia a los otros tres
- * caminos, que no la necesitan: Fill e inpaint miden 10-20s, el modelo 3-5s,
- * el try-on 11-13s, todos lejos de 35. Por eso el presupuesto más grande vive
- * aparte, en `EDIT_BUDGET_MS`, y solo lo usa `edit()`.
- */
-const TOTAL_BUDGET_MS = 35_000;
-
-/**
- * El mismo presupuesto, pero para Kontext, que el 30-sep se midió respondiendo
- * en 51s cuando lo normal habían sido 15. 120 es "de momento": deja margen
- * para que siga más lento sin dejar de intentarlo, no una cifra medida como
- * suficiente para un mal sostenido. Si Kontext se estabiliza más lento que
- * esto también, hay que volver a medir, no a subir el número a ciegas.
+ * Entonces se le dio a Kontext un presupuesto aparte de 120s, con el argumento
+ * de que los otros tres caminos no necesitaban más paciencia: Fill e inpaint
+ * medían 10-20s, el modelo 3-5s, el try-on 11-13s.
  *
- * Obliga a subir el `maxDuration` de la ruta de `edit` en la misma proporción
- * (ver `app/api/generate/edit/route.ts`): el plazo propio tiene que seguir
- * venciendo antes que el de la plataforma.
+ * ---
+ *
+ * **15-oct: ese argumento dejó de ser cierto, y los dos presupuestos se
+ * unificaron en 120s.** Le pasó lo mismo a FLUX dev: generar una persona se
+ * abortó a los 35s en dev y en producción, y el mismo día "Dibujar algo nuevo",
+ * con el mismo modelo, fue subiendo de 6.4s a 28.8s. La lentitud no es de un
+ * modelo, es del proveedor, y puede tocarle a cualquiera de los cuatro.
+ *
+ * 120 sigue siendo "de momento", no una cifra medida como suficiente para un
+ * mal sostenido. Lo que cuesta: una llamada colgada de verdad hace esperar dos
+ * minutos antes del aviso. Lo que evita: una llamada lenta que se cobra y se
+ * pierde. Obliga a que cada ruta de generación tenga un `maxDuration` de 150
+ * (120 de espera, 6 de sondeo y 18 de respaldo en `store.ts`, 144 en el peor
+ * caso): el plazo propio tiene que vencer antes que el de la plataforma.
  */
-const EDIT_BUDGET_MS = 120_000;
+const TOTAL_BUDGET_MS = 120_000;
 
 /** Nunca se pide un plazo de cero o negativo, por tarde que sea. */
 const MIN_TIMEOUT_MS = 2_000;
@@ -266,12 +267,10 @@ async function run(
   task: Record<string, unknown>,
   model: string,
   steps: number | null,
-  requestedSeed: number,
-  /** Todos menos `edit` usan el valor por omisión. Ver `EDIT_BUDGET_MS`. */
-  budgetMs: number = TOTAL_BUDGET_MS
+  requestedSeed: number
 ): Promise<GenerationOutcome> {
   const started = Date.now();
-  const vence = started + budgetMs;
+  const vence = started + TOTAL_BUDGET_MS;
 
   let response: Response;
   try {
@@ -294,12 +293,12 @@ async function run(
     // is lost either way, but the money is not necessarily.
     const expiro = error instanceof Error && error.name === "TimeoutError";
 
-    // El número sale de `budgetMs`, no de un texto escrito aparte: un mensaje
+    // El número sale de la constante, no de un texto escrito aparte: un mensaje
     // que repite la cifra a mano es un mensaje que puede mentir el día que la
     // cifra cambie, que es exactamente lo que pasó con esta misma constante.
     return fail(
       expiro
-        ? `El servicio de generación tardó más de ${Math.round(budgetMs / 1000)} segundos y se canceló la espera. La imagen se perdió, pero es posible que la llamada sí se haya cobrado.`
+        ? `El servicio de generación tardó más de ${Math.round(TOTAL_BUDGET_MS / 1000)} segundos y se canceló la espera. La imagen se perdió, pero es posible que la llamada sí se haya cobrado.`
         : "No se pudo contactar al servicio de generación. No se te cobró; puedes intentar de nuevo."
     );
   }
@@ -480,8 +479,7 @@ export const runwareProvider: GenerationProvider = {
       },
       EDIT_MODEL,
       STEPS,
-      request.seed,
-      EDIT_BUDGET_MS
+      request.seed
     );
   },
 
