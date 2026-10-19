@@ -31,7 +31,14 @@ const money = new Intl.NumberFormat("es-GT", {
 export const DEFAULT_STRENGTH = 0.85;
 const STRENGTH_MIN = 0.5;
 const STRENGTH_MAX = 1;
-const STRENGTH_STEP = 0.05;
+/**
+ * De a 0.01, no de a 0.05. El margen útil es angosto (0.70 no alcanza, 1.00
+ * destruye la prenda) y en el uso real pasar de 0.85 a 0.90 ya cambia mucho el
+ * resultado, así que el paso de 0.05 saltaba justo por encima de los valores
+ * que hacía falta probar. Dos decimales es también lo que guarda la columna
+ * `generation_strength`, `numeric(3,2)`.
+ */
+const STRENGTH_STEP = 0.01;
 
 interface GenerationPanelProps {
   mode: InpaintMode;
