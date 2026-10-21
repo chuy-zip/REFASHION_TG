@@ -20,6 +20,11 @@ const dateFormat = new Intl.DateTimeFormat("es-GT", {
 
 interface FinalProductsSectionProps {
   products: FinalProduct[];
+  /**
+   * Owner, editor or admin. A read-only member sees and downloads the products
+   * but was offered "Renombrar", which the database then refused.
+   */
+  canEdit: boolean;
 }
 
 /**
@@ -63,7 +68,10 @@ const PRESENTACIONES: { key: Presentation; label: string }[] = [
 
 const ETIQUETA = new Map(PRESENTACIONES.map((p) => [p.key, p.label]));
 
-export function FinalProductsSection({ products }: FinalProductsSectionProps) {
+export function FinalProductsSection({
+  products,
+  canEdit,
+}: FinalProductsSectionProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [tipo, setTipo] = useState<string>("todos");
@@ -228,13 +236,15 @@ export function FinalProductsSection({ products }: FinalProductsSectionProps) {
                     pruebas del mismo diseño necesitan nombres. Reusa el mismo
                     diálogo del catálogo, que ya sabe conservar la extensión a
                     partir del tipo guardado. */}
-                <button
-                  type="button"
-                  className={`${buttonStyles.base} ${buttonStyles.secondary}`}
-                  onClick={() => setRenameId(open.id)}
-                >
-                  Renombrar
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    className={`${buttonStyles.base} ${buttonStyles.secondary}`}
+                    onClick={() => setRenameId(open.id)}
+                  >
+                    Renombrar
+                  </button>
+                )}
                 {/* An anchor, not a Button: downloading is a navigation to a
                     file, and the signed URL already carries the filename. */}
                 <a

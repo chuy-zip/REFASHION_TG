@@ -211,7 +211,9 @@ export function ClientDetailView({
           />
         )}
 
-        {tab === "products" && <FinalProductsSection products={products} />}
+        {tab === "products" && (
+          <FinalProductsSection products={products} canEdit={canEdit} />
+        )}
       </div>
     </div>
   );

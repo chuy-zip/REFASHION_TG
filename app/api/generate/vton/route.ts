@@ -11,6 +11,7 @@ import {
 } from "@/lib/r2";
 import { storeGeneratedImage } from "@/lib/generation/store";
 import { resolveDesignPath } from "@/lib/designs";
+import { getClientAccess } from "@/lib/access";
 import { assetDisplayName } from "@/lib/assets";
 import { getGenerationProvider } from "@/lib/generation";
 import { resolveTryOnInputs } from "@/lib/generation/inputs";
@@ -77,6 +78,17 @@ export async function POST(request: Request) {
 
   const path = await resolveDesignPath(supabase, design_id);
   if (!path) return notFound("El diseño no existe.");
+
+  // Antes de gastar, no después: RLS rechazaría la inserción igual, pero para
+  // entonces la generación ya estaría pagada. Un miembro de solo lectura
+  // puede leer el diseño, y con eso pasaba todas las comprobaciones de abajo.
+  const access = await getClientAccess(supabase, path.clientId, user.id);
+  if (!access.canEdit) {
+    return jsonError(
+      "Tu acceso a este cliente es de solo lectura: no puedes crear pruebas virtuales.",
+      403
+    );
+  }
 
   const resolved = await resolveTryOnInputs(
     supabase,

@@ -146,8 +146,12 @@ export function CreateUserDialog({
           </div>
 
           <div className={styles.field}>
+            {/* "Provisional" and "podrá cambiarla después" promised a feature
+                that does not exist: nobody can change a password from the app,
+                neither the user nor an admin. It is out of scope for the
+                project, so the copy says what is true instead. */}
             <label className={styles.label} htmlFor="user-password">
-              Contraseña provisional
+              Contraseña
             </label>
             <PasswordInput
               id="user-password"
@@ -159,8 +163,7 @@ export function CreateUserDialog({
               disabled={isSubmitting}
             />
             <p className={styles.help}>
-              Mínimo 8 caracteres. Compártela con la persona; podrá cambiarla
-              después.
+              Mínimo 8 caracteres. Compártela con la persona
             </p>
           </div>
 

@@ -45,6 +45,13 @@ interface TryOnPanelProps {
    * would fail. See `PresentationTabs`.
    */
   blockedReason: string | null;
+  /**
+   * Whether the user may create anything in this client: a try-on or a model
+   * photo. False for a read-only member, who can open this screen to look but
+   * used to be offered a button that charged a try-on the database then refused
+   * to save. The routes refuse it too; this keeps the screen honest.
+   */
+  canEdit: boolean;
   /** True while the provider is the simulator: no call leaves, nothing is charged. */
   isSimulated: boolean;
 }
@@ -89,6 +96,7 @@ export function TryOnPanel({
   garmentAssetId,
   hasLogos,
   blockedReason,
+  canEdit,
   isSimulated,
 }: TryOnPanelProps) {
   const fieldId = useId();
@@ -120,6 +128,18 @@ export function TryOnPanel({
   const disponibles = generatedModel ? [...models, generatedModel] : models;
   const selectedModel =
     disponibles.find((model) => model.id === selectedModelId) ?? null;
+
+  // Before the garment check: who is looking decides first. Explained rather
+  // than hidden, same reasoning as `blockedReason` below.
+  if (!canEdit) {
+    return (
+      <EmptyState
+        size="sm"
+        title="Solo lectura"
+        hint="Tu acceso a este cliente es de solo lectura, así que no puedes crear pruebas virtuales ni modelos. Las que ya existen están en los productos finales del cliente."
+      />
+    );
+  }
 
   if (blockedReason) {
     return (

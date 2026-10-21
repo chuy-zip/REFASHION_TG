@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient as createSupabaseClient } from "@/lib/supabase/server";
+import {
+  createClient as createSupabaseClient,
+  getAuthenticatedUser,
+} from "@/lib/supabase/server";
+import { getClientAccess } from "@/lib/access";
 import { getDownloadUrl, getReadUrl } from "@/lib/r2";
 import { assetDisplayName } from "@/lib/assets";
 import { isSimulated } from "@/lib/generation";
@@ -42,6 +46,12 @@ export default async function DesignPresentPage({ params }: PageProps) {
     .eq("id", project.client_id)
     .maybeSingle();
   const client = clientData as Pick<Client, "id" | "name"> | null;
+
+  // Who is looking. This screen is open to every member, read-only ones
+  // included, and the try-on tabs are the only place on it that creates
+  // anything: a try-on or a model photo, both billed.
+  const user = await getAuthenticatedUser();
+  const access = await getClientAccess(supabase, project.client_id, user?.id ?? "");
 
   // What "Plana" shows is a **composition**: the garment with its logos, which
   // is what the client is buying (objetivo específico 3a). The clean working
@@ -136,6 +146,7 @@ export default async function DesignPresentPage({ params }: PageProps) {
         workingImageCreatedAt={workingImageCreatedAt}
         workingImageAssetId={imageAssetId}
         tryOnBlockedReason={tryOnBlockedReason}
+        canEdit={access.canEdit}
         isSimulated={isSimulated()}
         models={models}
       />

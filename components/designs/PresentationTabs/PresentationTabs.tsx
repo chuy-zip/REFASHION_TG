@@ -68,6 +68,8 @@ interface PresentationTabsProps {
    * derived from it still has a person in it.
    */
   tryOnBlockedReason: string | null;
+  /** Owner, editor or admin on this client. Read-only members get the reason. */
+  canEdit: boolean;
   /** True while the provider is the simulator. */
   isSimulated: boolean;
   /**
@@ -99,6 +101,7 @@ export function PresentationTabs({
   designId,
   clientId,
   tryOnBlockedReason,
+  canEdit,
   isSimulated,
   models,
 }: PresentationTabsProps) {
@@ -335,6 +338,7 @@ export function PresentationTabs({
             garmentAssetId={flatAssetId}
             hasLogos={selected !== null}
             blockedReason={tryOnBlockedReason}
+            canEdit={canEdit}
             isSimulated={isSimulated}
           />
         )}
