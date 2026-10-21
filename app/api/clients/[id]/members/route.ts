@@ -9,7 +9,13 @@ import { listClientMembers } from "@/lib/members";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** GET /api/clients/:id/members — anyone who is a member may see the roster. */
+/**
+ * GET /api/clients/:id/members — the roster, as far as the caller may see it.
+ *
+ * Owner, editor and admin get every member; a viewer gets only their own row.
+ * No check here because the RLS already cuts the list (migración 022): this
+ * route returns whatever the caller's own session can read.
+ */
 export async function GET(_request: Request, { params }: RouteContext) {
   const user = await getAuthenticatedUser();
   if (!user) return unauthorized();

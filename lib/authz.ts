@@ -34,6 +34,21 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
   return data === true;
 }
 
+/**
+ * True when the signed-in user may add members somewhere: global admin, or
+ * owner of at least one client. That is who needs the user directory.
+ *
+ * Same function the `profiles` RLS calls (migración 022), so the route and the
+ * database cannot disagree about who sees the directory. An error reads as
+ * false: if the function is missing, the directory stays closed.
+ */
+export async function canCurrentUserManageMembers(): Promise<boolean> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase.rpc("can_manage_members");
+  if (error) return false;
+  return data === true;
+}
+
 export async function requireAdmin(): Promise<Guard> {
   const user = await getAuthenticatedUser();
   if (!user) return { ok: false, response: unauthorized() };

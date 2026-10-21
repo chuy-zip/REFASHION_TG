@@ -10,7 +10,7 @@ import { jsonError, readJsonBody } from "@/lib/api";
  * Uses the Auth Admin API, never supabase.auth.signUp(): signUp would sign the
  * new user in and replace the admin's own session.
  *
- * Listing lives at GET /api/users, which every signed-in user may call.
+ * Listing lives at GET /api/users, for admins and client owners (migración 022).
  */
 export async function POST(request: Request) {
   const guard = await requireAdmin();
