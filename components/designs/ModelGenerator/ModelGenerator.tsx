@@ -44,6 +44,12 @@ interface ModelGeneratorProps {
   busy?: boolean;
   /** Reports the other direction: this is generating, do not send anything. */
   onBusyChange?: (busy: boolean) => void;
+  /**
+   * True for a read-only member of the client. The panel stays usable to look
+   * at, type into and open the suggestions; only the button that charges is
+   * off, with the reason said next to it. The route refuses it anyway.
+   */
+  readOnly?: boolean;
 }
 
 /**
@@ -74,6 +80,7 @@ export function ModelGenerator({
   embedded = false,
   busy = false,
   onBusyChange,
+  readOnly = false,
 }: ModelGeneratorProps) {
   const fieldId = useId();
   const [description, setDescription] = useState("");
@@ -86,7 +93,8 @@ export function ModelGenerator({
   // sugerencias se apagan igual que el botón, porque escribir mientras algo
   // está en vuelo invita a apretar apenas termine con lo otro a medias.
   const locked = isGenerating || busy;
-  const canGenerate = !locked && description.trim().length >= 20;
+  const canGenerate =
+    !readOnly && !locked && description.trim().length >= 20;
 
   async function handleGenerate() {
     setIsGenerating(true);
@@ -184,7 +192,14 @@ export function ModelGenerator({
             : "Generar modelo"}
       </Button>
 
-      {!locked && description.trim().length < 20 && (
+      {readOnly && (
+        <p className={styles.blocked}>
+          Tu acceso a este cliente es de solo lectura: puedes explorar, pero no
+          generar modelos.
+        </p>
+      )}
+
+      {!readOnly && !locked && description.trim().length < 20 && (
         <p className={styles.blocked}>
           Describe al modelo con un poco más de detalle.
         </p>

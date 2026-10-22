@@ -47,9 +47,14 @@ interface TryOnPanelProps {
   blockedReason: string | null;
   /**
    * Whether the user may create anything in this client: a try-on or a model
-   * photo. False for a read-only member, who can open this screen to look but
-   * used to be offered a button that charged a try-on the database then refused
-   * to save. The routes refuse it too; this keeps the screen honest.
+   * photo. False for a read-only member, who was once offered a button that
+   * charged a try-on the database then refused to save.
+   *
+   * **It turns off the two buttons that charge, not the screen.** The first fix
+   * replaced the whole panel with a "Solo lectura" notice, and that hid the one
+   * screen a read-only account most wants to see: how a try-on is put together.
+   * Choosing a model writes nothing, so it stays usable. The routes refuse the
+   * generation anyway (`canEdit` is checked there before paying).
    */
   canEdit: boolean;
   /** True while the provider is the simulator: no call leaves, nothing is charged. */
@@ -128,18 +133,6 @@ export function TryOnPanel({
   const disponibles = generatedModel ? [...models, generatedModel] : models;
   const selectedModel =
     disponibles.find((model) => model.id === selectedModelId) ?? null;
-
-  // Before the garment check: who is looking decides first. Explained rather
-  // than hidden, same reasoning as `blockedReason` below.
-  if (!canEdit) {
-    return (
-      <EmptyState
-        size="sm"
-        title="Solo lectura"
-        hint="Tu acceso a este cliente es de solo lectura, así que no puedes crear pruebas virtuales ni modelos. Las que ya existen están en los productos finales del cliente."
-      />
-    );
-  }
 
   if (blockedReason) {
     return (
@@ -319,8 +312,11 @@ export function TryOnPanel({
       {source === "saved" ? (
         disponibles.length === 0 && (
           <p className={styles.hint}>
-            Este cliente todavía no tiene fotos de modelo. Súbelas en su pestaña
-            de Recursos para poder usarlas aquí.
+            {/* A read-only member cannot upload, so pointing them at Recursos
+                would send them to a button they do not have. */}
+            {canEdit
+              ? "Este cliente todavía no tiene fotos de modelo. Súbelas en su pestaña de Recursos para poder usarlas aquí."
+              : "Este cliente todavía no tiene fotos de modelo."}
           </p>
         )
       ) : (
@@ -335,6 +331,7 @@ export function TryOnPanel({
           embedded
           busy={isGenerating}
           onBusyChange={setIsDrawingModel}
+          readOnly={!canEdit}
           onGenerated={(asset) => {
             setGeneratedModel(asset);
             setSelectedModelId(asset.id);
@@ -358,10 +355,20 @@ export function TryOnPanel({
       <Button
         variant="primary"
         onClick={handleGenerate}
-        disabled={isGenerating || isDrawingModel || !selectedModelId}
+        disabled={!canEdit || isGenerating || isDrawingModel || !selectedModelId}
       >
         {isGenerating ? "Generando…" : "Generar prueba virtual"}
       </Button>
+
+      {/* Visible, not a tooltip on the disabled button: a disabled control does
+          not reliably fire hover and never does on touch. */}
+      {!canEdit && (
+        <p className={styles.hint} role="status">
+          Tu acceso a este cliente es de solo lectura: puedes ver la prueba y
+          elegir un modelo, pero no generarla. Las pruebas que ya existen están
+          en los productos finales del cliente.
+        </p>
+      )}
 
       <p className={styles.status}>
         {isSimulated ? (
