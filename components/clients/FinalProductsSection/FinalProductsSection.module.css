@@ -131,6 +131,14 @@
   gap: var(--space-8);
 }
 
+/* Pushed to the right edge; when the row wraps on a narrow screen it keeps
+   Cerrar and Descargar together on their own line. */
+.actionsEnd {
+  display: flex;
+  gap: var(--space-8);
+  margin-left: auto;
+}
+
 /* Los controles antes de la galería, en una fila que envuelve: en un monitor
    ancho conviven, y en un portátil la búsqueda baja bajo las pestañas en vez
    de encogerse hasta no poder escribir. */

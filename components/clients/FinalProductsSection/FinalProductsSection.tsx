@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Dialog } from "@/components/ui/Dialog/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState/EmptyState";
+import { Button } from "@/components/ui/Button/Button";
 import buttonStyles from "@/components/ui/Button/Button.module.css";
 import { PillTabs } from "@/components/ui/PillTabs/PillTabs";
 import { SearchInput } from "@/components/ui/SearchInput/SearchInput";
@@ -182,6 +183,7 @@ export function FinalProductsSection({
         open={open !== null}
         onClose={() => setOpenId(null)}
         labelledBy="final-product-title"
+        closeOnBackdrop
       >
         {open && (
           <div className={styles.detail}>
@@ -230,6 +232,9 @@ export function FinalProductsSection({
                 )}
               </dl>
 
+              {/* Two groups, as in the catalog preview: what you can do with
+                  the product on the left, and on the right Cerrar with the
+                  main action last, where the eye ends. */}
               <div className={styles.actions}>
                 {/* Renombrar vive acá y no en la tarjeta: es donde se está
                     mirando el producto de cerca y donde se nota que cuatro
@@ -245,15 +250,6 @@ export function FinalProductsSection({
                     Renombrar
                   </button>
                 )}
-                {/* An anchor, not a Button: downloading is a navigation to a
-                    file, and the signed URL already carries the filename. */}
-                <a
-                  className={`${buttonStyles.base} ${buttonStyles.primary}`}
-                  href={open.downloadUrl}
-                  download
-                >
-                  Descargar
-                </a>
                 {/* Where it came from. A result nobody can trace back to the
                     design that made it is a file, not a product. */}
                 <Link
@@ -262,6 +258,20 @@ export function FinalProductsSection({
                 >
                   Ver el diseño
                 </Link>
+                <span className={styles.actionsEnd}>
+                  <Button variant="secondary" onClick={() => setOpenId(null)}>
+                    Cerrar
+                  </Button>
+                  {/* An anchor, not a Button: downloading is a navigation to a
+                      file, and the signed URL already carries the filename. */}
+                  <a
+                    className={`${buttonStyles.base} ${buttonStyles.primary}`}
+                    href={open.downloadUrl}
+                    download
+                  >
+                    Descargar
+                  </a>
+                </span>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import styles from "./Dialog.module.css";
 
 interface DialogProps {
@@ -12,6 +12,11 @@ interface DialogProps {
   children: ReactNode;
   /** Extra class for per-instance overrides (e.g. a wider dialog for image preview). */
   className?: string;
+  /**
+   * Close on a click on the backdrop. Off by default: in a form, a stray click
+   * outside would throw away what was typed. Meant for view-only dialogs.
+   */
+  closeOnBackdrop?: boolean;
 }
 
 /**
@@ -44,8 +49,24 @@ export function Dialog({
   labelledBy,
   children,
   className,
+  closeOnBackdrop = false,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  // Where the press started. Selecting text inside and releasing outside fires
+  // a click on the dialog too, and that must not close it.
+  const pressedOutside = useRef(false);
+
+  // A click on the backdrop reaches the <dialog> itself, so the test is whether
+  // the point falls outside its box, not which element was hit.
+  const isOutside = (event: MouseEvent<HTMLDialogElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    return (
+      event.clientX < box.left ||
+      event.clientX > box.right ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom
+    );
+  };
 
   useEffect(() => {
     const element = ref.current;
@@ -64,6 +85,23 @@ export function Dialog({
         event.stopPropagation();
         onClose();
       }}
+      onMouseDown={
+        closeOnBackdrop
+          ? (event) => {
+              pressedOutside.current = isOutside(event);
+            }
+          : undefined
+      }
+      onClick={
+        closeOnBackdrop
+          ? (event) => {
+              if (pressedOutside.current && isOutside(event)) {
+                event.currentTarget.close();
+              }
+              pressedOutside.current = false;
+            }
+          : undefined
+      }
     >
       {children}
     </dialog>

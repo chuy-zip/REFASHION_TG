@@ -52,6 +52,7 @@ export function AssetPreviewDialog({ asset, onClose }: AssetPreviewDialogProps) 
       onClose={onClose}
       labelledBy={titleId}
       className={styles.dialog}
+      closeOnBackdrop
     >
       <div className={styles.content}>
         <h2 className={styles.title} id={titleId} title={filename}>
