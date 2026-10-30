@@ -203,6 +203,23 @@ grep -rEn '#[0-9a-fA-F]{3,8}\b' app components --include=*.tsx --include=*.modul
 grep -rEn '^[[:space:]]*(padding|margin|gap|row-gap|column-gap)(-(top|right|bottom|left))?[[:space:]]*:[^;]*[0-9]([.][0-9]+)?(rem|px)' app components --include=*.module.css
 ```
 
+## Lighthouse
+
+Cinco pantallas de la aplicación desplegada, evaluadas con la cuenta de solo lectura y
+Lighthouse 13.5.0 en escritorio emulado:
+
+| Pantalla | Performance | Accessibility | Best Practices | SEO |
+|---|---|---|---|---|
+| Lista de clientes | 100 | 96 | 100 | 100 |
+| Recursos de un cliente | 95 | 96 | 100 | 100 |
+| Productos de un cliente | 95 | 96 | 100 | 100 |
+| Edición de un diseño | 97 | 97 | 100 | 100 |
+| Presentación de un diseño | 91 | 96 | 100 | 100 |
+
+Best Practices llega a 100 en las cinco en parte por las cabeceras `X-Frame-Options` y
+`Cross-Origin-Opener-Policy` que fija `next.config.ts`. Los informes completos de cada corrida
+están en `lighthouse-reports/`.
+
 ## Base de datos
 
 Ocho tablas propias, más `auth.users`, que administra Supabase y que el esquema no modifica.
