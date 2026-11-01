@@ -126,6 +126,8 @@ Los archivos se copiaron tal como estaban, y solo se tocó esto:
   proyecto que no están en este repositorio.
 - `armar_figuras.py`: se agregó una nota inicial, se quitó la mención de documentos externos y `H`
   apunta a esta carpeta.
+- `probar_webp.py`: dos comentarios decían 64 bytes y ahora dicen 32, que es lo que lee el código y lo
+  que dice el registro del experimento 7. El código es idéntico.
 - `docs/EXPERIMENTO_1`, `_4` y `_7`: se quitaron cinco referencias a documentos de diseño que no
   están en este repositorio. Se conservó la explicación.
 

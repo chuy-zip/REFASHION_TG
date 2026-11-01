@@ -4,7 +4,7 @@
 --   1. designs.current_asset_id — which image the design is working on now
 --   2. design_layers            — the logo stack that sits on top of it
 --
--- Both come from the decision in FASE_1_5 §7.1: the logo is a LAYER applied at
+-- Both come from one decision: the logo is a LAYER applied at
 -- the end of the pipeline, never flattened into the working image. A design is
 -- therefore two separate things — one working image that advances through
 -- parent_asset_id as the generative modules run, and a stack of layers above
@@ -39,13 +39,13 @@ create index on public.designs (current_asset_id);
 --
 -- WHY a table and not a jsonb column on designs: referential integrity. The
 -- foreign key to assets makes "which designs use this logo?" a one-line query,
--- which is exactly what the delete warning needs (§7.3). Inside a jsonb
+-- which is exactly what the delete warning needs. Inside a jsonb
 -- document the asset id is just text, and nothing notices when the logo it
 -- names disappears. Same reasoning already validated with client_members:
 -- a join table instead of a column, so multiplicity is only data. Several logos
 -- per design come for free — several rows ordered by z_index.
 --
--- COORDINATES ARE RATIOS, NOT PIXELS. This deviates from the sketch in §7.2
+-- COORDINATES ARE RATIOS, NOT PIXELS. This deviates from the original sketch
 -- ("x, y, scale") on purpose. The layer is re-applied over whatever the working
 -- image happens to be, and that image changes size along the pipeline (an
 -- inpainting result or a VTON output need not match the base garment's
@@ -69,7 +69,7 @@ create table public.design_layers (
   design_id    uuid not null references public.designs(id) on delete cascade,
 
   -- The logo. `cascade` and not `set null`: a layer without its image is not a
-  -- degraded layer, it is nothing. §7.3 accepts that deleting a logo costs the
+  -- degraded layer, it is nothing. It is accepted that deleting a logo costs the
   -- ability to re-render past compositions; the exported PNG stays as the
   -- durable artifact.
   asset_id     uuid not null references public.assets(id) on delete cascade,
@@ -88,7 +88,7 @@ create table public.design_layers (
 
 -- Ordered read of a design's stack.
 create index on public.design_layers (design_id, z_index);
--- "Which designs use this logo?" — the delete warning of §7.3.
+-- "Which designs use this logo?" — the delete warning.
 create index on public.design_layers (asset_id);
 
 create trigger set_updated_at_design_layers
@@ -124,7 +124,7 @@ create policy "design_layers: editors can delete"
 -- 4. GRANT — the step that is easy to forget and impossible to debug.
 --     "Automatically expose new tables" is OFF, so this table was born with no
 --     privileges for the Data API roles: perfect policies would still return
---     "permission denied" (see migration 004 and APRENDIZAJES §2.4).
+--     "permission denied" (see migration 004).
 --     `service_role` needs nothing here — migration 007 set default privileges.
 -- ---------------------------------------------------------------------------
 grant select, insert, update, delete on public.design_layers to authenticated;

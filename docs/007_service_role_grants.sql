@@ -10,7 +10,7 @@
 -- changing a user's role, and likewise on client_members during user deletion.
 --
 -- service_role bypasses RLS but still needs table GRANTs — same GRANT-vs-RLS
--- split documented in SETUP_SUPABASE_R2.md, one layer down.
+-- split, one layer down.
 --
 -- Unlike `authenticated`, service_role is a trusted server-only role (it never
 -- reaches the browser), so granting it broadly is safe and matches Supabase's

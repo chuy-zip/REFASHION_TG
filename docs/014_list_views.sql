@@ -102,7 +102,7 @@ comment on view public.project_design_samples is
 -- asset of every design on screen to keep the first of each.
 --
 --   latest_composition_key — the image the design list shows. A composition,
---     because what a design *looks like* includes its logos (FASE_1_5 §7.7).
+--     because what a design *looks like* includes its logos.
 --   last_asset_at — when the design last produced ANYTHING. Deliberately not
 --     restricted to compositions: a mask or an inpainting is activity too, and
 --     filtering them out would make the date wrong the day Módulo 2 lands.

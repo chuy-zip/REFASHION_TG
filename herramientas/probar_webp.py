@@ -28,7 +28,7 @@ PNG, así que la mezcla de formatos es la que va a ocurrir de verdad.
 
 DE PASO contesta dos cosas más, gratis: qué devuelve el proveedor con
 `outputFormat: "WEBP"` y cuánto pesa con SU codificador, y si la cabecera de
-ese WEBP cae dentro de los primeros 64 bytes, que es lo que `measureObject`
+ese WEBP cae dentro de los primeros 32 bytes, que es lo que `measureObject`
 puede leer sin descargar la imagen.
 
 Pasos y tamaño al mínimo: acá importa si acepta, no qué tan lindo sale.
@@ -113,7 +113,7 @@ def llamar(clave_api, tarea):
 
 
 def cabecera(datos: bytes) -> str:
-    """Qué es y si sus medidas caben en los primeros 64 bytes."""
+    """Qué es y si sus medidas caben en los primeros 32 bytes."""
     if datos[:8] == b"\x89PNG\r\n\x1a\n":
         ancho = int.from_bytes(datos[16:20], "big")
         alto = int.from_bytes(datos[20:24], "big")

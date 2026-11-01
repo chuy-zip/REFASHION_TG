@@ -27,7 +27,7 @@
 -- NO se agrega un `check` que exija que la máscara sea del mismo diseño: eso se
 -- verifica en `lib/generation/inputs.ts`, por debajo del RLS, porque una FK se
 -- verifica por debajo del RLS y la política mira la fila que se escribe, no
--- aquello a lo que apunta (APRENDIZAJES §2.5b).
+-- aquello a lo que apunta.
 
 alter table public.assets
   add column if not exists mask_asset_id uuid

@@ -26,11 +26,11 @@
 -- NO se agrega un `check` que exija que la persona pertenezca al cliente del
 -- diseño: eso se verifica en `lib/generation/inputs.ts`, por debajo del RLS,
 -- porque una FK se verifica por debajo del RLS y la política mira la fila que
--- se escribe, no aquello a lo que apunta (APRENDIZAJES §2.5b). Novena vez que
+-- se escribe, no aquello a lo que apunta. Novena vez que
 -- se aplica la regla.
 --
 -- POR QUÉ ESTA 019 SÍ Y LA ANTERIOR NO
--- Hubo otra 019 propuesta y retirada (FASE_2_INPAINTING §4n): agregaba un
+-- Hubo otra 019 propuesta y retirada: agregaba un
 -- `asset_type` de `paint`, y el diagnóstico estaba mal, porque el esquema ya
 -- distinguía determinista de generativo con `origin`. Esta es lo contrario: no
 -- hay ninguna columna que hoy guarde este dato, ni forma de deducirlo.
