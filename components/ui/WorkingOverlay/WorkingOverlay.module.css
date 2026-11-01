@@ -21,7 +21,7 @@
   width: 60%;
   height: var(--border-hairline);
   background: var(--color-accent);
-  /* No glow. §4 keeps shadows for things that actually float, and hierarchy
+  /* No glow. Shadows are kept for things that actually float, and hierarchy
      here comes from the line itself moving. */
   animation: working-sweep var(--duration-waiting) ease-in-out infinite;
 }

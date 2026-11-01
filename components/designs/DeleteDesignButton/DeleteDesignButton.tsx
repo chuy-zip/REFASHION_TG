@@ -188,7 +188,7 @@ export function DeleteDesignButton({
               not: a design created from this one copied one of its images as
               its starting point, and `assets.design_id` cascades. So deleting
               this one empties that canvas. Warning and not blocking, the same
-              call §7.3 already made for images. */}
+              call already made for images. */}
           {dependents.status === "ready" && dependents.designs.length > 0 && (
             <div className={styles.usage}>
               <p className={styles.usageTitle}>

@@ -1,7 +1,7 @@
 /**
  * Taking the background off a logo, in the browser (Módulo 1, paso 4).
  *
- * FASE_1_5 §6.3 chose this over an ONNX model in WASM and over a paid
+ * This was chosen over an ONNX model in WASM and over a paid
  * background-removal endpoint, and the reasons still hold: the protocol defines
  * Módulo 1 as *composición clásica, NO generativo*, a flood fill can be
  * described and defended in the report while a downloaded model cannot, and it
@@ -13,7 +13,7 @@
  *      the tool is not offered. Most corporate logos arrive as cut-out PNGs.
  *   2. Otherwise, flood fill inward from the four corners with an adjustable
  *      tolerance. That covers the other common case, and the one that motivated
- *      the whole step: a JPEG on flat white (USER_STORIES H-13).
+ *      the whole step: a JPEG on flat white.
  *
  * Everything here is pure and synchronous: it takes a loaded image and gives
  * back a canvas. No network, no React, no state — so it can be reasoned about
@@ -23,7 +23,7 @@
  * `getImageData()` throws a SecurityError on a tainted canvas, exactly like
  * `toBlob()` does. The images arrive from `useCrossOriginImage`, which sets
  * `crossOrigin`, so this is covered — but callers still catch, because the
- * failure mode is the one that only shows up at the end (APRENDIZAJES §5.9b).
+ * failure mode is the one that only shows up at the end.
  */
 
 /** Largest possible distance between two colours in RGB: √(3·255²). */

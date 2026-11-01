@@ -33,7 +33,7 @@ import type { Asset } from "@/lib/types";
  * The route owns the *orchestration*; it owns none of the decisions:
  *
  *   - **who may read these images** is `resolveGenerationInputs` (FKs are
- *     verified below RLS — seventh time, APRENDIZAJES §2.5b);
+ *     verified below RLS — seventh time);
  *   - **what size to send** is `snapToInferenceSize`, shared with the browser
  *     so a mask can never be painted at a size the request does not use;
  *   - **who generates** is `getGenerationProvider()`, which today is the
@@ -41,7 +41,7 @@ import type { Asset } from "@/lib/types";
  *
  * Synchronous on purpose. An inpainting takes 5–20 s and Vercel allows up to
  * 300 s, so a queue, a webhook and a task table would be machinery for a
- * problem that does not exist yet (`FASE_2_INPAINTING` §5.4). If real latencies
+ * problem that does not exist yet. If real latencies
  * come close to the limit, that is when it changes.
  */
 
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
       width_px: stored.measurement.width,
       height_px: stored.measurement.height,
       // 'generated' is reserved for images that cost money and came out of a
-      // model (FASE_1_5 §3.1). The simulator claims it too, because everything
+      // model. The simulator claims it too, because everything
       // downstream — the strip, the running total, the lineage — has to behave
       // exactly as it will with the real provider.
       origin: "generated",
@@ -229,8 +229,8 @@ export async function POST(request: Request) {
       // WHICH region was edited, recorded instead of inferred (migration 017).
       // Without it a generation and its mask are siblings that have to be
       // matched by timestamp, which breaks on two generations in a row — and a
-      // result whose mask cannot be identified is not reproducible, which is
-      // what §7 needs it to be.
+      // result whose mask cannot be identified is not reproducible, and reproducibility is
+      // what the row is for.
       //
       // It also turns the leak into something findable: the mask is uploaded
       // *before* the provider is called, so a failed generation leaves one
@@ -259,7 +259,7 @@ export async function POST(request: Request) {
   const created = data as Asset;
 
   // The cursor follows the generation: what the user just made is what they are
-  // now working on. Going back is a separate, explicit act (FASE_1_5 §7.4).
+  // now working on. Going back is a separate, explicit act.
   // Best effort — the image is already registered and a failure here must not
   // undo that.
   await supabase
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
     .eq("id", design_id);
 
   // Only ever from 'draft': 'completed' records a decision the user made and
-  // nothing automatic may undo it (APRENDIZAJES §3.9). Separate statement
+  // nothing automatic may undo it. Separate statement
   // because the cursor moves unconditionally and the status does not.
   await supabase
     .from("designs")

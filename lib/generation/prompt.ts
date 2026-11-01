@@ -161,7 +161,7 @@ export const PROMPT_SUGGESTIONS: Record<
  * It started without one, asking for "the garment", and that held on a flat
  * photo and on a hanger. On a person it did not: the same photo came back as a
  * long-sleeve dress shirt with "the garment" and as the right short-sleeve polo
- * with "the short-sleeve polo shirt" (`docs/CASOS_DE_USO_VALIDADOS.md` §1, runs
+ * with "the short-sleeve polo shirt" (the studio-photo validation, runs
  * 7 and 8). The photo held two garments and an arm over one of them, so the
  * model had to choose. Naming the garment wanted in the output is not the
  * magnet above: that rule is about naming what should not appear.

@@ -30,7 +30,7 @@
 
 /* "This one is you." Not a status: it points at a row in a list of people.
    Was hand-rolled identically in UserRow and MembersSection until it moved
-   here (STYLE_GUIDE §5: a style needed in two components gets extracted). */
+   here (a style needed in two components gets extracted). */
 .accent {
   color: var(--color-accent);
   background: var(--color-accent-subtle);

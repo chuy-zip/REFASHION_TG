@@ -17,7 +17,7 @@ const OVERCUT_SHARE = 0.9;
 interface LogoBackgroundProps {
   /** The layer's image could not be read, so nothing can be cut. */
   isBroken: boolean;
-  /** Already transparent: `FASE_1_5` §6.3 step 1, the tool is not offered. */
+  /** Already transparent: the tool is not offered. */
   isCutOut: boolean;
   /** This layer is the one being cut right now. */
   isCutting: boolean;

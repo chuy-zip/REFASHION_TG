@@ -30,8 +30,8 @@ interface AssetUploadTileProps {
  * shows what to do without a sentence explaining it.
  *
  * Picking a file turns this tile into the form *for that file*, in place. That
- * second step is not the trap of §6.4.1 (a button confirming a decision already
- * made) — it exists to name the image, which is the one thing the file itself
+ * second step is not a button that only confirms a decision already made: it exists to name the image,
+ * which is the one thing the file itself
  * cannot decide. A dialog would have done the same job while covering the grid
  * the user is looking at to decide what is missing.
  */

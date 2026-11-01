@@ -78,7 +78,7 @@ async function fetchDesignActivity(
  *
  * Only the preview follows the composition. `base_asset_id` of an iteration
  * still comes from `resolveDesignImageAssetId`, so what gets inherited stays a
- * clean garment (§7.7). Looking and inheriting are different questions.
+ * clean garment. Looking and inheriting are different questions.
  *
  * Shared by the design list and the project samples, so that rule is written
  * once. A design missing from the returned map simply has no image yet.

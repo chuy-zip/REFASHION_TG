@@ -42,7 +42,7 @@ const dateFormat = new Intl.DateTimeFormat("es-GT", {
  *
  * The card **is** the image. This is the last level of the hierarchy, where the
  * distance between the label and the image reaches zero, so it takes the same
- * shape as the catalog rather than a bordered row (REFACTOR_VISUAL §7). The
+ * shape as the catalog rather than a bordered row. The
  * preview is the design's latest composition, or its working image when it has
  * composed nothing yet — what a design *looks like* includes its logos.
  *

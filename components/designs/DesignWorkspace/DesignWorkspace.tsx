@@ -189,7 +189,7 @@ function designToken(name: string): string {
  *
  * Layers autosave on gesture end. There is no "Guardar composición" button on
  * purpose: a control whose only job is to confirm a decision already made is
- * the one that gets forgotten (see FASE_1_5 §6.4).
+ * the one that gets forgotten.
  */
 export function DesignWorkspace({
   designId,
@@ -235,7 +235,7 @@ export function DesignWorkspace({
 
   // Which module has the canvas. One route with tool modes, not two screens:
   // the stage, the R2 loading, the zoom and the export are built once and
-  // shared (FASE_1_5 §7.5). The logo layer draws in BOTH modes, because
+  // shared. The logo layer draws in BOTH modes, because
   // deciding a colour without seeing the logo on it is deciding blind.
   /**
    * Abre en el primer paso del flujo, no en el último.
@@ -315,7 +315,7 @@ export function DesignWorkspace({
   const strokeInFlight = useRef(false);
 
   // The colour starts on the accent rather than on a literal: any hex written
-  // here would be a second palette living outside globals.css (§5.1). It is
+  // here would be a second palette living outside globals.css. It is
   // only a starting point — the first thing the user does is move it.
   const [color, setColor] = useState<string>(() =>
     designToken("--color-accent")
@@ -325,7 +325,7 @@ export function DesignWorkspace({
   //
   // Tagged with what produced it — the exact mask object and the exact colour —
   // and matched at render. That is the third time this project needs the
-  // pattern (APRENDIZAJES §5.14): an effect that clears state synchronously is
+  // pattern: an effect that clears state synchronously is
   // both a lint error and a race, because a result arriving after the user
   // moved on would otherwise have to be cancelled from inside the effect that
   // produced it. Here it is simply not the current one.
@@ -339,13 +339,12 @@ export function DesignWorkspace({
   const [isApplyingColor, setIsApplyingColor] = useState(false);
 
   // Which step is being LOOKED at, which is not where the design is standing.
-  // Keeping them apart is what lets a click preview without changing anything
-  // (FASE_1_5 §7.4).
+  // Keeping them apart is what lets a click preview without changing anything.
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [isResuming, setIsResuming] = useState(false);
 
   // The generative half. Colour is offered here too, but as the measured arm of
-  // the §2.3 comparison rather than as the way to change a colour — the panel
+  // the colour comparison rather than as the way to change a colour — the panel
   // itself says which one is exact.
   // Opens on the one with evidence behind it rather than on the first tab:
   // removing an element is the job this model was measured to do well.
@@ -408,7 +407,7 @@ export function DesignWorkspace({
   );
 
   /**
-   * Step 1 of §6.3: a logo that already comes cut out has nothing to remove,
+   * First step of the background removal: a logo that already comes cut out has nothing to remove,
    * so the tool is not offered for it. Cheap enough to run on selection — it
    * reads the border ring, not the whole bitmap.
    */
@@ -543,8 +542,8 @@ export function DesignWorkspace({
       } catch {
         // getImageData throws on a tainted canvas, exactly like toBlob does.
         // The images arrive through useCrossOriginImage so this should not
-        // happen — but it is the failure that only shows up at the end
-        // (APRENDIZAJES §5.9b), so it is caught rather than assumed away.
+        // happen — but it is the failure that only shows up at the end,
+        // so it is caught rather than assumed away.
         setError(
           "No se pudo leer la imagen para cambiarle el color. Recarga la página e inténtalo de nuevo."
         );
@@ -617,11 +616,11 @@ export function DesignWorkspace({
   }
 
   /**
-   * Uploading a logo without leaving the canvas (FASE_1_5 §6.4.4). Without it,
+   * Uploading a logo without leaving the canvas. Without it,
    * a client with an empty catalog strands the user on the working screen, the
    * same dead end A3 removed for base garments.
    *
-   * No confirm button, for the reason in §6.4.1: choosing the file *is* the
+   * No confirm button: choosing the file *is* the
    * decision, and a button that only ratifies it is the one that gets
    * forgotten. The name comes from the file; renaming lives in Recursos.
    */
@@ -669,8 +668,8 @@ export function DesignWorkspace({
    * at it.
    *
    * Nothing is overwritten. The original may be placed on other designs, and
-   * those keep the logo the client already saw — same reasoning as §7.8, where
-   * copying layers into a new version is a snapshot and not a link.
+   * those keep the logo the client already saw — the same reasoning as when
+   * copying layers into a new version, which is a snapshot and not a link.
    */
   async function handleApplyCut() {
     const layer = layers.find((item) => item.id === cutLayerId);
@@ -777,7 +776,7 @@ export function DesignWorkspace({
    * One column update and nothing else: the image is already in R2 and already
    * has its row, so going back never generates and never charges. That is the
    * whole economic argument for keeping the history on the server, and it is
-   * what H-15 asks for — "prefiero el azul de hace dos cambios".
+   * what a user is asking for with \"prefiero el azul de hace dos cambios\".
    *
    * The route verifies the asset actually belongs to this design before
    * pointing at it: `current_asset_id` is a foreign key writable from the API,
@@ -940,7 +939,7 @@ export function DesignWorkspace({
       //
       // Esto trata el síntoma. El arreglo de fondo es invertir el orden —
       // validar antes de subir, o subir dentro de la misma petición — y queda
-      // anotado en `FASE_2_INPAINTING` §4k. Mientras tanto, lo que no se puede
+      // pendiente. Mientras tanto, lo que no se puede
       // evitar es que el navegador se cierre a mitad; lo que sí, es dejar
       // basura cada vez que el servidor dice que no.
       void apiDelete(`/api/assets/${stored.data.id}`);
@@ -1000,7 +999,7 @@ export function DesignWorkspace({
       blob,
       baseName: `${designName} composicion`,
       // The image this one came out of. Without it objetivo específico 2 has
-      // no evidence (FASE_1_5 §3, B3).
+      // no evidence.
       parentAssetId: workingAssetId,
     });
 
@@ -1013,7 +1012,7 @@ export function DesignWorkspace({
 
     notify({ type: "success", message: "Composición creada." });
     // Una composición es un render, no un paso: deliberadamente NO se vuelve la
-    // imagen de trabajo (§7.7). El refresco es para que el hub la recoja.
+    // imagen de trabajo. El refresco es para que el hub la recoja.
     //
     // No se muestra acá una vista previa ni un botón hacia la presentación: el
     // enlace a presentación vive arriba y está siempre disponible, así que un
@@ -1353,8 +1352,7 @@ export function DesignWorkspace({
     try {
       selection = selectGarment(workingImage, DEFAULT_TOLERANCE);
     } catch {
-      // getImageData throws on a tainted canvas, exactly like toBlob does
-      // (APRENDIZAJES §5.9b).
+      // getImageData throws on a tainted canvas, exactly like toBlob does.
       setError(
         "No se pudo leer la imagen para seleccionar la prenda. Recarga la página e inténtalo de nuevo."
       );
@@ -1697,7 +1695,7 @@ export function DesignWorkspace({
               {/* **El orden es el del flujo, y los logotipos van últimos.**
                   Lo generativo deforma lo que esté estampado en la prenda, así
                   que componer el logotipo es el último paso antes de presentar
-                  (`FASE_2_INPAINTING` §5, el flujo decidido). Ponerlo primero
+                  (el flujo decidido). Ponerlo primero
                   invitaba a colocarlo y después editar la prenda debajo.
 
                   Las capas sobreviven a ese error, porque sus coordenadas son
@@ -1718,7 +1716,7 @@ export function DesignWorkspace({
         )}
 
         {/* Only the active mode's panel. Showing both was the prototype's
-            layout and was discarded (FASE_1_5 §7.5): two tasks competing for
+            layout and was discarded: two tasks competing for
             attention leave the canvas squashed between them. */}
         {/* Rendered from the moment the mode opens, not when the first stroke
             lands. Appearing on the first drag resized the panel — and therefore
@@ -1871,7 +1869,7 @@ export function DesignWorkspace({
           </p>
           {/* Steps aside while a cut is on screen, so the panel keeps exactly
               one primary: there, the decision is the tolerance. Same rule as
-              the base garment picker in FASE_1_5 §2, A4. */}
+              the base garment picker. */}
           <Button
             variant={isCutting ? "secondary" : "primary"}
             onClick={handleExport}

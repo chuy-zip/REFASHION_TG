@@ -1,5 +1,5 @@
-/* Data surface: it holds controls, not an image, so it keeps its hairline
-   (STYLE_GUIDE §4). The border is on the right because the rail sits against
+/* Data surface: it holds controls, not an image, so it keeps its hairline.
+   The border is on the right because the rail sits against
    the canvas, and the line is what separates the two surfaces. */
 .rail {
   display: flex;
@@ -105,7 +105,7 @@
   background: var(--color-text-disabled);
 }
 
-/* §7.1: the 44px floor asked of the pointer, not the viewport. */
+/* The 44px floor asked of the pointer, not the viewport. */
 @media (pointer: coarse) {
   .tool {
     width: var(--touch-target);

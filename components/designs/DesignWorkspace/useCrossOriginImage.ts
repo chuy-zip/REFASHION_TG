@@ -11,7 +11,7 @@ export type ImageStatus = "idle" | "loading" | "loaded" | "error";
  * optional: without it the canvas becomes *tainted* the moment an R2 image is
  * drawn on it, and `toBlob()` fails with a SecurityError at export time. The
  * trap is that everything looks perfect on screen until then. It needs the
- * bucket's CORS policy to allow GET as well (SETUP_SUPABASE_R2.md §2.5) —
+ * bucket's CORS policy to allow GET as well —
  * either half missing produces the same late failure.
  *
  * Setting the attribute *before* `src` matters: assigning src first starts the
@@ -47,8 +47,7 @@ export function useCrossOriginImage(src: string | null) {
       // the only way to tell them apart, and the Network tab has the status.
       //
       // Same lesson as the 42703 spike: a swallowed cause turns a specific
-      // failure into a vague one, and the vague one is the expensive kind
-      // (APRENDIZAJES §5.22).
+      // failure into a vague one, and the vague one is the expensive kind.
       if (process.env.NODE_ENV === "development") {
         console.error("[canvas] la imagen no cargó:", src);
       }

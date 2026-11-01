@@ -64,8 +64,8 @@ interface TryOnPanelProps {
 /**
  * The two presentations of objetivo específico 3 that need a model.
  *
- * **What garment goes in, and why the caller decides.** `FASE_3_VTON` §6.3 left
- * this open and `FASE_1_5` §7 settled it: the try-on consumes the
+ * **What garment goes in, and why the caller decides.** It was left open at
+ * first and then settled: the try-on consumes the
  * **composition**, because that is what the client is buying. But a design with
  * no logo layers never produces a composition, and it is still a garment
  * somebody may want to see worn. So the rule generalises: the try-on takes the

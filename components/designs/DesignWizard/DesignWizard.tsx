@@ -52,7 +52,7 @@ interface DesignWizardProps {
   /**
    * `primary` on a project's page, where creating a design IS the screen's
    * action; `secondary` in the app bar, where it is a global shortcut and must
-   * not compete with whatever the current screen is asking for (§6: one
+   * not compete with whatever the current screen is asking for (one
    * primary per screen).
    */
   triggerVariant?: ButtonVariant;

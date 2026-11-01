@@ -18,7 +18,7 @@
   cursor: not-allowed;
 }
 
-/* §7's 44px touch floor, asked of the pointer instead of the viewport.
+/* The 44px touch floor, asked of the pointer instead of the viewport.
    `max-width` was the wrong question: a narrow laptop window does not grow
    fingers, and a tablet at 1024px does. 36px stays the button on a mouse —
    inflating every toolbar in a dense work tool to satisfy a rule about thumbs

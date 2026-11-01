@@ -287,7 +287,7 @@ export const confirmAssetSchema = z
 
     // The type has to match the side it hangs off: a catalog cannot hold a
     // mask, and a design cannot hold a logo (a logo belongs to the client and
-    // is *composited onto* the design, see FASE_1_5 §7.1).
+    // is *composited onto* the design).
     const expected = data.client_id ? clientAssetType : designAssetType;
     if (!expected.safeParse(data.asset_type).success) {
       ctx.addIssue({
@@ -479,8 +479,7 @@ export type CreateLayerInput = z.infer<typeof createLayerSchema>;
  * and recreating would lose all three and open a gap where the logo is gone.
  *
  * `asset_id` is a foreign key writable from the API, so the route verifies
- * ownership by hand — RLS guards the row being updated, not what it points at
- * (APRENDIZAJES §2.5b).
+ * ownership by hand — RLS guards the row being updated, not what it points at.
  */
 export const updateLayerSchema = z
   .object({

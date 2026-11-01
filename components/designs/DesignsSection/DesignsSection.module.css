@@ -37,7 +37,7 @@
 }
 
 /* Anchor for the floating menu. No border and no raised surface: image
-   surface (STYLE_GUIDE §4). */
+   surface. */
 .card {
   position: relative;
 }

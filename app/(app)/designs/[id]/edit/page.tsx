@@ -34,8 +34,7 @@ type PageProps = { params: Promise<{ id: string }> };
  * Stays a Server Component and reads its data straight from Postgres; only the
  * canvas itself crosses into the browser (Konva cannot be server-rendered).
  * Módulos 2 and 3 land here too, as tool modes rather than separate routes —
- * the canvas, the R2 loading and the export are built once and shared
- * (FASE_1_5 §7.5).
+ * the canvas, the R2 loading and the export are built once and shared.
  */
 export default async function DesignEditPage({ params }: PageProps) {
   const { id } = await params;
@@ -84,7 +83,7 @@ export default async function DesignEditPage({ params }: PageProps) {
 
   // The clean garment the composition sits on. Never a composition itself:
   // baking the logo in would leave the generative modules working on an image
-  // that already has it (§7.7).
+  // that already has it.
   const workingAssetId = resolveDesignImageAssetId(design);
 
   let workingImageUrl: string | null = null;

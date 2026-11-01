@@ -37,7 +37,7 @@
 }
 
 @media (pointer: coarse) {
-  /* §7.1: the 44px floor asked of the pointer, not the viewport. A 4px track
+  /* The 44px floor asked of the pointer, not the viewport. A 4px track
      is a mouse target; under a finger the whole control needs room. */
   .slider {
     min-height: var(--touch-target);

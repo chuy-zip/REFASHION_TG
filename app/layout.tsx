@@ -40,7 +40,7 @@ export const metadata: Metadata = {
  *
  * THE ONE HEX OUTSIDE globals.css, and it cannot be otherwise: this becomes a
  * <meta> tag rendered on the server, where no CSS variable exists to read. If
- * the surface token ever changes, this changes with it. See STYLE_GUIDE §3.
+ * the surface token ever changes, this changes with it.
  */
 export const viewport: Viewport = {
   themeColor: "#ffffff",

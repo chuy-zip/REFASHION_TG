@@ -27,7 +27,7 @@ interface AssetsSectionProps {
 /**
  * Client-level catalog: prendas base, logotipos, modelos, dibujos técnicos.
  * Breaks from the row-list pattern used everywhere else on purpose — these are
- * images, and the image is the protagonist (STYLE_GUIDE §1). A pill per type
+ * images, and the image is the protagonist. A pill per type
  * filters a grid of thumbnails instead of mixing all four types in one list.
  */
 export function AssetsSection({

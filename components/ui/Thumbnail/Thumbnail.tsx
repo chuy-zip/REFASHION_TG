@@ -19,7 +19,7 @@ interface ThumbnailProps {
   /**
    * `top` when the frame is the head of a bordered card and only its upper
    * corners are rounded; `all` when the image stands on its own, which is what
-   * an image surface does (STYLE_GUIDE §4).
+   * an image surface does.
    */
   corners?: "all" | "top";
   /** Overlays inside the frame, above the image. */
@@ -33,7 +33,7 @@ interface ThumbnailProps {
  * It was written by hand in four modules with the same twenty lines, and the
  * copies had already drifted: the catalog faded its images in behind a
  * skeleton while the others popped them in. Extracting it settles that in the
- * direction the style guide asks for (skeleton, never a spinner), so every
+ * direction the app follows (skeleton, never a spinner), so every
  * list now behaves the same without anyone having to remember.
  *
  * The image always covers the square. That is a real decision and not laziness:
@@ -95,7 +95,7 @@ export function Thumbnail({
         //
         // It surfaced when the step strip started showing thumbnails of the
         // very images the canvas draws. It is the second time this project
-        // pays for it (APRENDIZAJES §5.9b), which is why the fix is a rule and
+        // pays for it, which is why the fix is a rule and
         // not a patch: every R2 image is requested the same way, so the two
         // can never poison each other.
         crossOrigin="anonymous"

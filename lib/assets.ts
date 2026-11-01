@@ -65,8 +65,8 @@ export const ASSET_TYPE_COPY: Record<
  * because nothing produced them; `assetTypeLabel` fell through to printing the
  * raw English column value.
  *
- * The vocabulary follows STYLE_GUIDE §6: "Máscara", "Prueba virtual". Where the
- * guide has no word (the three exports) the label says what it is *for*, since
+ * The vocabulary is fixed across the app: "Máscara", "Prueba virtual". Where the
+ * vocabulary has no word (the three exports) the label says what it is *for*, since
  * the three differ only by presentation (objetivo específico 3).
  */
 export const DESIGN_ASSET_TYPE_COPY: Record<

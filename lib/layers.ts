@@ -37,7 +37,7 @@ export async function listDesignLayers(
  * Two conditions, and both matter. It has to be a `logo` — a base garment or a
  * model photo is not something you composite *onto* a garment — and it has to
  * belong to the same client, because the foreign key is verified below RLS and
- * would happily accept a logo from another client (APRENDIZAJES §2.5b).
+ * would happily accept a logo from another client.
  */
 export async function assetIsUsableAsLayer(
   supabase: SupabaseClient,

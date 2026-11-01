@@ -143,7 +143,7 @@ export async function POST(request: Request) {
 
   // A design stops being a draft the moment it has something of its own. Only
   // from 'draft': 'completed' records a decision the user made and nothing
-  // automatic may undo it (see APRENDIZAJES §3.9). Best-effort on purpose — the
+  // automatic may undo it. Best-effort on purpose — the
   // asset is already registered, and a failure here must not undo that.
   if (design_id) {
     const { error: statusError } = await supabase

@@ -54,7 +54,7 @@
 }
 
 /* Monospace and tabular: this is an exact value the client signs off on, and
-   §3 reserves the mono family for exactly that. */
+   the mono family is reserved for exactly that. */
 .hex {
   flex-grow: 1;
   min-width: 0;
@@ -207,7 +207,7 @@
   }
 
   /* The track stays thin — it is the thumb that gets aimed at, and the whole
-     control needs room under a finger (§7.1). */
+     control needs room under a finger. */
   .axisSlider {
     min-height: var(--touch-target);
     background-position: center;

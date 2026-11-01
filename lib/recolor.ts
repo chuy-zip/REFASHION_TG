@@ -2,7 +2,7 @@
  * Changing the colour of a masked region, in the browser, without generating
  * anything (Módulo 2).
  *
- * `FASE_2_INPAINTING` §2.3 chose this after finding that **diffusion models do
+ * The project chose this after finding that **diffusion models do
  * not honour colour codes reliably** — an open research problem, not a
  * limitation of one provider (ColorPeel, arXiv 2407.07197). An exact blue in
  * the prompt comes back as *a* dark blue, not **that** blue. For a quoting tool the
@@ -52,7 +52,7 @@
  *
  * Same family as `lib/background-removal.ts`: pure, synchronous, no dependency,
  * no network — and the same CORS caveat, since `getImageData()` throws on a
- * tainted canvas exactly like `toBlob()` does (APRENDIZAJES §5.9b).
+ * tainted canvas exactly like `toBlob()` does.
  */
 
 export interface Rgb {

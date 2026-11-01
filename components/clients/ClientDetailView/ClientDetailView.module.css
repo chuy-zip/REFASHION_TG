@@ -60,7 +60,7 @@
   color: var(--color-text-primary);
 }
 
-/* Four targets shoulder to shoulder; §7.1. */
+/* Four targets shoulder to shoulder. */
 @media (pointer: coarse) {
   .tab {
     min-height: var(--touch-target);

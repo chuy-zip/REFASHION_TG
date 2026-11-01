@@ -55,8 +55,7 @@ export default async function DesignPresentPage({ params }: PageProps) {
 
   // What "Plana" shows is a **composition**: the garment with its logos, which
   // is what the client is buying (objetivo específico 3a). The clean working
-  // image is only the fallback for a design that has composed nothing yet
-  // (FASE_1_5 §7.7, Regla 3).
+  // image is only the fallback for a design that has composed nothing yet.
   const { assets: designAssets } = await listDesignAssets(supabase, design.id);
   const compositions = designAssets.filter(
     (asset) => asset.asset_type === "composition"

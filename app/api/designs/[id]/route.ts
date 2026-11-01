@@ -64,8 +64,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   const supabase = await createSupabaseClient();
 
-  // Both asset columns are FKs, and FKs are verified below RLS
-  // (APRENDIZAJES §2.5b): each one needs its own explicit ownership check, or
+  // Both asset columns are FKs, and FKs are verified below RLS:
+  // each one needs its own explicit ownership check, or
   // the API happily stores a pointer to an image from somewhere else.
   const touchesAssets =
     parsed.data.base_asset_id !== undefined ||

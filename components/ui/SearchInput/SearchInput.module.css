@@ -18,7 +18,7 @@
   width: 100%;
   min-height: 2.25rem;
   /* Left padding clears the icon: derived from its size and offset, not a step
-     of the spacing scale (one of the exceptions §5.1 expects to see). */
+     of the spacing scale (one of the expected exceptions). */
   padding: 0 var(--space-12) 0 2.125rem;
   font-size: var(--text-sm);
   font-family: inherit;

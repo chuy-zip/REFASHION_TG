@@ -46,7 +46,7 @@
 }
 
 /* Five facts in one line instead of a panel of stacked rows. It fits because
-   of Archivo's width axis: narrower text, not smaller (STYLE_GUIDE §3). */
+   of Archivo's width axis: narrower text, not smaller. */
 .meta {
   font-size: var(--text-sm);
   font-stretch: var(--font-stretch-condensed);
@@ -88,7 +88,7 @@
 }
 
 /* Image surface: no border. The sunken ground is what frames it, and the
-   garment brings its own edge (REFACTOR_VISUAL §2.3). */
+   garment brings its own edge. */
 .canvas {
   display: flex;
   align-items: center;

@@ -1,5 +1,5 @@
-/* Image surface: no border of its own, because the picture brings one
-   (STYLE_GUIDE §4). What separates one thumbnail from the next is the gap. */
+/* Image surface: no border of its own, because the picture brings one.
+   What separates one thumbnail from the next is the gap. */
 .frame {
   position: relative;
   display: flex;

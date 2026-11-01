@@ -65,7 +65,7 @@ export function resolveDesignImageAssetId(
  * base, swapping it is harmless. Once there is work on top, the working image
  * descends from the *old* base, so swapping would leave `base_asset_id`
  * describing something the design no longer came from — the same defect
- * migration 010 removed from `version` (APRENDIZAJES §3.8). The way to start
+ * migration 010 removed from `version`. The way to start
  * from another garment is to create a new version, which is what
  * `parent_design_id` is for.
  */
@@ -84,7 +84,7 @@ export function designHasWorkOnTop(
  *
  * The distinction matters and is easy to get backwards. What a design *looks
  * like* includes its logos; what an iteration *inherits* is the clean working
- * image (§7.7). Showing the clean garment in a picker misrepresents the design
+ * image. Showing the clean garment in a picker misrepresents the design
  * — the user recognises their proposal by the logo on it.
  */
 export interface DesignWithPreview extends Design {
@@ -146,7 +146,7 @@ export async function resolveDesignPath(
 /**
  * Whether a catalog asset may be referenced as a design's starting image.
  *
- * Foreign keys are verified below RLS (APRENDIZAJES §2.5b), so the FK on
+ * Foreign keys are verified below RLS, so the FK on
  * `designs.base_asset_id` would happily accept an asset belonging to another
  * client. Reading the asset here *does* go through RLS, so this answers both
  * questions at once: can this user see it, and is it in the right catalog.
@@ -186,7 +186,7 @@ export async function assetBelongsToProjectClient(
  * be a **clean garment**: `composition` has the logo baked in, `mask` is not a
  * garment at all, `ai_model` is a person, and `export_*` are deliverables.
  * Pointing `current_asset_id` at any of those would hand the next inpainting an
- * image it must never see (FASE_1_5 §7.7).
+ * image it must never see.
  *
  * `inpainting` and `edit` both qualify, and for the same reason: each returns
  * the same garment with one thing changed, which is exactly what the next step
@@ -205,7 +205,7 @@ const WORKING_IMAGE_TYPES: DesignAssetType[] = ["inpainting", "edit"];
  *
  * Two questions, both needed. Does it belong to this design's history — the FK
  * only proves the asset exists, and RLS does not guard what one table
- * *references* from another (APRENDIZAJES §2.5b). And is it the right *kind* of
+ * *references* from another. And is it the right *kind* of
  * image: the timeline shows compositions as records, but a composition is a
  * render, never a step to resume from.
  */

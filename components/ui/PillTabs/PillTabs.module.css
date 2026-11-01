@@ -15,7 +15,7 @@
   color: var(--color-text-secondary);
   background: var(--color-surface-raised);
   border: var(--border-hairline) solid var(--color-border-subtle);
-  /* Was 999px. §8 forbids radii above 8px, and a fully round pill is the one
+  /* Was 999px. The app forbids radii above 8px, and a fully round pill is the one
      shape in the app that read as a consumer product rather than a workshop
      tool — the guide had it right and the component had drifted. */
   border-radius: var(--radius-sm);

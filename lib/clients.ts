@@ -66,7 +66,7 @@ export async function getClientContents(
  * The view runs with `security_invoker`, so a user counts only the work their
  * own RLS lets them see.
  *
- * No image is signed here, by design (see `REFACTOR_VISUAL` §7): this is the
+ * No image is signed here, by design: this is the
  * only one of the three list levels that costs nothing to render.
  */
 export async function listClientsWithCounts(

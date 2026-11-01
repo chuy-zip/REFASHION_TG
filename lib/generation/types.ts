@@ -24,7 +24,7 @@ import type { Size } from "@/lib/generation/dimensions";
  * plumbing.
  *
  * **`color` was removed, and the reason is measured.** It existed as the
- * generative arm of the `FASE_2_INPAINTING` §2.3 comparison, to test whether a
+ * generative arm of the colour comparison, to test whether a
  * model honours an exact colour code. It does not: the best of five paid
  * attempts reached 38% of the requested change, and the manufacturer's own
  * showcase example for that model fails the same way. Keeping a path the
@@ -128,7 +128,7 @@ export interface GenerationResult {
   imageUrl: string;
   /**
    * USD actually spent, as the provider reported it — never estimated here.
-   * Goes straight to `assets.cost_usd`, which is what makes H-18 and H-37
+   * Goes straight to `assets.cost_usd`, which is what makes the cost per design
    * possible ("¿cuánto se gastó en este diseño?").
    *
    * **Null when the provider did not say**, which is not the same as free. A

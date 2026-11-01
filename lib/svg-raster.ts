@@ -2,8 +2,8 @@
  * Turning an SVG logo into a PNG, in the browser, at upload time.
  *
  * A corporate logo is the canonical vector graphic and it is what the client
- * hands over; a small raster one visibly pixelates when scaled over a garment
- * (FASE_1_5 §9.3c). What is *not* obvious is that accepting SVG does not have
+ * hands over; a small raster one visibly pixelates when scaled over a garment.
+ * What is *not* obvious is that accepting SVG does not have
  * to mean storing SVG, and storing it is where the cost lives:
  *
  * - **Drawing.** A browser rasterises an SVG image at whatever size it decides,

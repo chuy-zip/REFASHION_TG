@@ -128,7 +128,7 @@ export default async function DesignHubPage({ params }: PageProps) {
    * Así que se comparan las fechas. Si la composición es lo último, se muestra
    * con sus logotipos; si la prenda avanzó después, se muestra la prenda y se
    * dice por qué. La pantalla de presentación hace lo mismo y además deja
-   * elegir (`FASE_1_5` §7.7, Regla 3).
+   * elegir.
    */
   const composiciones = designAssets.filter(
     (asset) => asset.asset_type === "composition"

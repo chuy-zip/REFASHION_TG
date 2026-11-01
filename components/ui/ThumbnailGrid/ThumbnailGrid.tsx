@@ -18,7 +18,7 @@ interface ThumbnailGridProps {
 
 /**
  * Responsive grid of image cards, plus the empty state that belongs with it —
- * per the style guide an empty grid is never a blank area, it says what is
+ * in this app an empty grid is never a blank area, it says what is
  * missing. The cards themselves come from the caller: the catalog renders
  * manageable ones (gear menu), the picker selectable ones.
  */

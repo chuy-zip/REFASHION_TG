@@ -38,7 +38,7 @@
 }
 
 /* Warning tone, not danger: the deletion is allowed, this only says what it
-   costs. Danger colouring here would read as "blocked" (§7.3). Same treatment
+   costs. Danger colouring here would read as "blocked". Same treatment
    as the image dialog, so the two read as one pattern. */
 .usage {
   display: flex;

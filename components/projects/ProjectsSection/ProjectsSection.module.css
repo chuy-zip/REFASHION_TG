@@ -111,4 +111,4 @@
 }
 
 /* The empty state comes from components/ui/EmptyState. It used to be a solid
-   card here, which contradicted §4: an empty state is provisional. */
+   card here, which contradicted the rule that an empty state is provisional. */

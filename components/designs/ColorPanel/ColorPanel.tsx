@@ -24,7 +24,7 @@ interface ColorPanelProps {
  * Picking the exact colour of the garment.
  *
  * A picker and not a text field, and the reason is not convenience:
- * `FASE_2_INPAINTING` §2.3 found that **diffusion models do not honour colour
+ * The colour comparison found that **diffusion models do not honour colour
  * codes reliably** — an open research problem, not a limitation of one
  * provider. In a quoting tool the colour is the deliverable, so this path never
  * asks a model: it recolours the pixels directly and the hex that comes out is
@@ -76,8 +76,8 @@ export function ColorPanel({
   const setDraft = (text: string, against: string) => setTyped({ text, against });
   const isValid = parseHex(draft) !== null;
 
-  // The same tag-and-derive as everywhere else in the workspace (APRENDIZAJES
-  // §5.14), and here it prevents a specific annoyance: HSL and RGB do not map
+  // The same tag-and-derive as everywhere else in the workspace, and here it
+  // prevents a specific annoyance: HSL and RGB do not map
   // one to one, so converting out and back rounds. Without the tag, dragging
   // the hue across a grey — where every hue gives the same colour — would keep
   // snapping the thumb back to zero, and a slider that fights the finger is
@@ -153,7 +153,7 @@ export function ColorPanel({
   }
 
   // Built rather than written down: a rainbow spelled out as seven hex stops
-  // would be seven colours living outside globals.css (§5.1). These are
+  // would be seven colours living outside globals.css. These are
   // computed from the value the slider selects, which is what makes the track
   // a picture of the control instead of a decoration.
   const hueTrack = `linear-gradient(to right, ${Array.from(

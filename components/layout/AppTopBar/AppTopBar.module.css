@@ -80,7 +80,7 @@
   background: var(--color-border-subtle);
 }
 
-/* Says whose session this is, and nothing more. Not mono: §3 reserves that for
+/* Says whose session this is, and nothing more. Not mono: that is reserved for
    values you read precisely, and this one you only glance at. */
 .email {
   max-width: 14rem;
@@ -96,7 +96,7 @@
     padding: var(--space-8) var(--space-16);
   }
 
-  /* §7's 44px touch floor. The rail never met it either; a bar is where it
+  /* The 44px touch floor. The rail never met it either; a bar is where it
      starts to matter, because the targets now sit side by side. */
   .navLink {
     min-height: 2.75rem;

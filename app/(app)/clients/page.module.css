@@ -44,7 +44,7 @@
  * A business card, which is what a workshop actually files about a client, and
  * the only one of the three list levels with no images at all: a client is not
  * an image, and borrowing thumbnails from its designs duplicated what the
- * Proyectos tab shows better (REFACTOR_VISUAL §7).
+ * Proyectos tab shows better.
  *
  * No fixed aspect ratio. It was tried at a real card's 85 × 55 and, at the
  * width this grid gives, left a dead gap in the middle. The grid already

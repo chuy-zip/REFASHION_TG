@@ -54,7 +54,7 @@
 }
 
 /* Dashed, because it is a slot waiting to be filled and not a thing that
-   exists yet: the same provisional language as the rest of the app (§4). It is
+   exists yet: the same provisional language as the rest of the app. It is
    a button, so the empty half of the request is also the way to fill it. */
 .slotEmpty {
   display: flex;

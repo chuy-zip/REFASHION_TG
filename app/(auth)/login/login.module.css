@@ -1,7 +1,7 @@
 /*
  * Login screen. Scoped to this component only.
  * Every value comes from a token in globals.css — no literal colors here, so a
- * change to the style guide never reaches this file.
+ * change to the design tokens never reaches this file.
  */
 
 .page {
@@ -77,8 +77,8 @@
 
 /*
  * The only primary action on this screen. It used to be a hand-written copy of
- * Button's primary variant — the fourth case of the same duplication (see
- * APRENDIZAJES §5.18). Now it is the primitive, and this rule only says what is
+ * Button's primary variant — the fourth case of the same duplication.
+ * Now it is the primitive, and this rule only says what is
  * different here: full width, and taller because a login button on a phone is
  * the one control on screen.
  */

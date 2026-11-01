@@ -47,7 +47,7 @@ function usageLabel(usage: AssetUsage): string {
 /**
  * Always controlled: only ever triggered from AssetCard's gear menu.
  *
- * Warns which designs use the image, and lets the user delete anyway (§7.3).
+ * Warns which designs use the image, and lets the user delete anyway.
  * Blocking was considered and rejected: a design that loses an image degrades
  * fine, and a hard block would make the catalog impossible to tidy because of
  * some design from a project closed a year ago. The information is shown; the
@@ -118,7 +118,7 @@ export function DeleteAssetButton({
    * The friction follows the blast radius, not the kind of thing.
    *
    * An image nobody uses is catalogue tidying — the derived "X sin fondo" pile
-   * grows on purpose (§9), and gating routine cleanup behind typing is exactly
+   * grows on purpose, and gating routine cleanup behind typing is exactly
    * how the gesture becomes a reflex. An image several designs depend on is a
    * different act: it reaches across projects the user is not looking at, and
    * a list can be skimmed the same way a warning can.
@@ -195,7 +195,7 @@ export function DeleteAssetButton({
             Cancelar
           </Button>
           {/* Held until the lookup answers. The warning IS the feature here
-              (§7.3 chose to warn rather than block), so letting someone confirm
+              (the choice was to warn rather than block), so letting someone confirm
               before it arrives quietly removes the only thing this dialog adds
               over deleting straight from the menu. */}
           <Button

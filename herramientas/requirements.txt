@@ -1,0 +1,7 @@
+# Versiones instaladas el 1 de noviembre de 2026, con Python 3.12.10.
+# Salen de los imports de los scripts de esta carpeta. Los experimentos se corrieron en septiembre
+# de 2026 y no se guardó la lista de versiones de ese momento.
+pillow==12.1.0
+numpy==2.4.4
+scipy==1.17.1
+boto3==1.42.90

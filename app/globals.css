@@ -9,8 +9,6 @@
 
    Consequence: restyling the app means rewriting this block and nothing else.
    No .tsx file has to change.
-
-   Reference: docs/STYLE_GUIDE.md
    ========================================================================== */
 
 @theme {

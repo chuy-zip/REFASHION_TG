@@ -6,7 +6,7 @@
   gap: var(--space-6);
 }
 
-/* El hilván: dashed because nothing has been added yet (STYLE_GUIDE §2.3). */
+/* El hilván: dashed because nothing has been added yet. */
 .zone {
   position: relative;
   display: flex;
@@ -65,7 +65,7 @@
   object-fit: contain;
 }
 
-/* Mono because it is a filename: a literal value, not prose (§3). */
+/* Mono because it is a filename: a literal value, not prose. */
 .name {
   width: 100%;
   min-height: 2rem;

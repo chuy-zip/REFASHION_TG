@@ -1,6 +1,6 @@
 /* No border, no raised surface: this is an image, and an image brings its own
    edge. The card frame was one of the 23 identical recipes that made a shirt
-   and a form look like the same kind of object (REFACTOR_VISUAL §1). What
+   and a form look like the same kind of object. What
    separates one asset from the next is now the grid gap. */
 .card {
   position: relative;

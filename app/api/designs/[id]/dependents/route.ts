@@ -12,7 +12,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * GET /api/designs/:id/dependents — which other designs deleting it would harm.
  *
  * Read-only and RLS-filtered, so it can only ever report designs the caller may
- * already see. Feeds the warning in the delete dialog (§7.3): the decision to
+ * already see. Feeds the warning in the delete dialog: the decision to
  * delete stays with the user, the information does not.
  *
  * Mirrors `GET /api/assets/:id/usage` deliberately — same question one level

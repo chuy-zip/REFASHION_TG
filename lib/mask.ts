@@ -35,7 +35,7 @@
  * The two values of the mask protocol.
  *
  * These are **not design tokens and must never become them**, which is why they
- * live here as literals despite §5.1. They are wire format: Runware and fal
+ * live here as literals despite the no-literals rule. They are wire format: Runware and fal
  * both define white as "regenerate this" and black as "preserve this". If the
  * palette changed tomorrow these would stay exactly the same, because they
  * describe what the provider reads, not what the user sees.
@@ -66,8 +66,8 @@ export interface MaskStroke {
  * second selection that stacked would be a no-op pretending to be an action.
  *
  * Kept as one object because it is one thing. The recolour preview is tagged
- * with the exact mask that produced it and matched by identity at render
- * (APRENDIZAJES §5.14); with the halves apart, that tag would have to carry two
+ * with the exact mask that produced it and matched by identity at render;
+ * with the halves apart, that tag would have to carry two
  * references and stay in step with both.
  */
 export interface Mask {

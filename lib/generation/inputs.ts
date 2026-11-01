@@ -15,7 +15,7 @@ import type { Asset } from "@/lib/types";
  * will be a second generation route (VTON) that needs the same one.
  *
  * The rule itself is the seventh application of the same lesson: **foreign keys
- * are verified below RLS** (APRENDIZAJES §2.5b). RLS will happily let an editor
+ * are verified below RLS**. RLS will happily let an editor
  * of client A insert a row that *references* an asset of client B, because the
  * policy looks at the row being written, not at what it points to. So every
  * asset id that arrives from the browser gets resolved and checked here.
@@ -178,8 +178,7 @@ export async function resolveGenerationInputs(
  * **The same ownership rule as `resolveGenerationInputs`, minus the mask**, and
  * it lives here for the reason that one does: a rule written inside a handler
  * protects that handler only, and this is the second route that needs it. It is
- * the eighth application of "foreign keys are verified below RLS"
- * (`APRENDIZAJES` §2.5b).
+ * the eighth application of "foreign keys are verified below RLS".
  *
  * The image has the same two legal homes as before: a design-level asset of
  * this design, or a catalogue asset of the client that owns it. A design that
@@ -282,7 +281,7 @@ export async function resolveEditInput(
  * and a server that recomputed it could disagree with the image the user is
  * looking at while they press the button. What the server does not delegate is
  * **ownership**, which is the ninth application of "foreign keys are verified
- * below RLS" (`APRENDIZAJES` §2.5b).
+ * below RLS".
  *
  * No size is resolved, unlike the other two paths, because this model takes
  * none: the output follows the person photo.

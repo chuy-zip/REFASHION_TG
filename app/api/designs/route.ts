@@ -139,7 +139,7 @@ export async function POST(request: Request) {
   // Best-effort, and deliberately not undone if it fails: the design itself is
   // correct and usable, its working image is right, and deleting it to keep the
   // operation atomic would throw away more than the failure cost. supabase-js
-  // cannot span both writes in one transaction anyway (APRENDIZAJES §3.2) —
+  // cannot span both writes in one transaction anyway —
   // making this atomic would mean another plpgsql function, which is not worth
   // it for a copy the user can redo by hand.
   if (parent_design_id) {

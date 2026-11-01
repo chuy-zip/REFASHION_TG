@@ -1,7 +1,7 @@
 import styles from "./EmptyState.module.css";
 
 interface EmptyStateProps {
-  /** What is missing. Never a blank area (STYLE_GUIDE §6). */
+  /** What is missing. Never a blank area. */
   title: string;
   /** One line saying what the missing thing is *for*, or how to get one. */
   hint?: string;
@@ -13,8 +13,8 @@ interface EmptyStateProps {
  * The empty state of a list, in one place.
  *
  * It was written by hand in six modules, and **three of them used the dashed
- * outline while three used a solid card border** — a rule the style guide
- * states (§4, el hilván: an empty state is provisional by definition) that half
+ * outline while three used a solid card border** — a rule of the app's
+ * design (el hilván: an empty state is provisional by definition) that half
  * the code did not follow, because following it depended on remembering it.
  * Extracting the component is what makes the rule structural.
  *

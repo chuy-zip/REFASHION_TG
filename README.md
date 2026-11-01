@@ -149,7 +149,7 @@ Copia `.env.example` a `.env.local` y llénalo. `.env.local` está fuera del con
 | `API_KEY_RUNWARE_PROD` | solo servidor | Llave de Runware de la app. Vacía, se usa el simulador |
 
 `RUNWARE_API_KEY` también aparece en `.env.example`, pero la app no la lee: es la de los
-scripts de experimentos, que viven fuera de este repositorio. Están separadas para que correr
+scripts de experimentos de `herramientas/`. Están separadas para que correr
 un experimento no encienda el gasto de la app sin que nadie lo decida.
 
 ### 5. Desarrollo local
@@ -352,8 +352,12 @@ una decisión sin querer.
 - **El borrado en cascada de Postgres no llega a R2.** Las claves de los objetos se leen antes
   de borrar las filas, y los archivos se limpian después.
 
-## Documentación fuera del repositorio
+## Experimentos y documentación
+
+`herramientas/` reúne los scripts, los registros y los resultados de las pruebas con los modelos
+que sostienen figuras y cuadros del trabajo de graduación. No forman parte de la aplicación ni de
+su despliegue. Su `README.md` explica qué sostiene cada script y cómo correrlo en seco.
 
 El trabajo de graduación documenta la metodología, la configuración con sus referencias y los
-resultados de la caracterización de cada modelo. Los scripts de experimentos y los documentos
-de seguimiento del desarrollo viven fuera de este repositorio.
+resultados de la caracterización de cada modelo. Los documentos de seguimiento del desarrollo
+viven fuera de este repositorio.

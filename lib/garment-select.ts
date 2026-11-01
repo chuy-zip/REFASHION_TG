@@ -26,7 +26,7 @@
  * Pure and synchronous like both its neighbours: it takes a loaded image and
  * gives back a canvas. No network, no React, no state. And the same CORS
  * caveat: `getImageData()` throws on a tainted canvas exactly like `toBlob()`
- * does, so callers catch (APRENDIZAJES §5.9b).
+ * does, so callers catch.
  */
 
 import { DEFAULT_TOLERANCE, removeBackground } from "./background-removal";

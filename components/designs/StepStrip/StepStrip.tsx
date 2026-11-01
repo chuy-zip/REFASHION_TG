@@ -82,7 +82,7 @@ interface StepStripProps {
  * it was created and **nothing ever moves**: the only thing that travels is the
  * marker saying where the user is standing. Reordering the strip on selection
  * was considered and dropped, because a list that rearranges itself destroys
- * the spatial memory of the person using it (`FASE_1_5` §7.4).
+ * the spatial memory of the person using it.
  *
  * **Previewing is not resuming.** A click looks; moving the cursor is a
  * separate, explicit act. If one gesture did both, the user would change the
@@ -245,7 +245,7 @@ export function StepStrip({
             {/* Mirar los datos es un tercer verbo, distinto de previsualizar y de
                 retomar, así que es su propio botón. Cargarle esto al clic de la
                 miniatura habría hecho que un gesto significara dos cosas, que es
-                exactamente lo que §7.4 de FASE_1_5 decidió no hacer. */}
+                exactamente lo que se decidió no hacer. */}
             {shown && (
               <Button variant="secondary" onClick={() => setDetailsOpen(true)}>
                 Ver datos

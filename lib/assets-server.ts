@@ -47,8 +47,8 @@ export async function listClientAssets(
  * Assets produced against a design, **oldest first**.
  *
  * The order is deliberate and differs from the catalog's: this is the design's
- * history, and a history reads forward. It is the list the timeline will render
- * (FASE_1_5 §7.4), so the chronology has to be stable from the first day rather
+ * history, and a history reads forward. It is the list the timeline will render,
+ * so the chronology has to be stable from the first day rather
  * than reversed later once something depends on it.
  */
 export async function listDesignAssets(
@@ -70,7 +70,7 @@ export async function listDesignAssets(
  * Whether an asset may be recorded as another one's `parent_asset_id`.
  *
  * `parent_asset_id` is a foreign key writable from the API, and those are
- * verified below RLS (APRENDIZAJES §2.5b): the policy on the INSERT checks who
+ * verified below RLS: the policy on the INSERT checks who
  * owns the row being written, never what that row points at. Without this,
  * `confirm` accepted any UUID, including an asset of another client, and the
  * column that carries objetivo específico 2 would record lineage that crosses
@@ -107,7 +107,7 @@ export async function parentAssetBelongsToClient(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Where an asset is used, for the delete warning (§7.3)                        */
+/* Where an asset is used, for the delete warning                        */
 /* -------------------------------------------------------------------------- */
 
 /** One design that would be affected by deleting an asset. */
@@ -124,7 +124,7 @@ export interface AssetUsage {
 /**
  * Which designs use an asset, and how.
  *
- * Feeds the warning before deleting a catalog image. §7.3 decided **warning,
+ * Feeds the warning before deleting a catalog image. The choice was **warning,
  * not block**: the invariant "a client always has an owner" protects against a
  * broken state, but a design that loses an image degrades fine — the canvas
  * goes empty, which the UI already handles. Blocking would leave someone unable
@@ -216,7 +216,7 @@ export async function listAssetUsage(
  * Postgres cascades happen inside the engine, as part of one DELETE, with no
  * hook for application code to learn which rows disappeared. Reading the keys
  * *before* the delete is the only chance to know what to clean up in R2
- * afterwards (APRENDIZAJES §3.10).
+ * afterwards.
  *
  * Written as explicit steps instead of one query filtering through two levels
  * of embedded resources. A traversal that silently returns nothing would
@@ -284,7 +284,7 @@ export interface DesignDependent {
  * image B starts from, and B is left with an empty canvas and, because
  * `parent_design_id` is `on delete set null`, no record of where it came from.
  *
- * Same criterion as `listAssetUsage`, and §7.3 decided it once: **warn, do not
+ * Same criterion as `listAssetUsage`, and that choice was made once: **warn, do not
  * block**. Someone tidying a project should not be stopped by an iteration made
  * months ago — but they should not find out afterwards either.
  *

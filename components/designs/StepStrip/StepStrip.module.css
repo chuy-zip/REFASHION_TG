@@ -1,5 +1,5 @@
 /* Data surface: it holds a list and its controls, so it keeps the hairline that
-   separates it from the canvas above (STYLE_GUIDE §4). */
+   separates it from the canvas above. */
 .strip {
   flex-shrink: 0;
   padding: var(--space-10) var(--space-24) var(--space-14);

@@ -84,7 +84,7 @@ interface MaskToolsProps {
  * A rail and not another panel: painting means switching between brush and
  * eraser constantly, and a control you reach for that often belongs where the
  * hand already is. That is also why it is the one place in the app with a
- * left-hand rail — `FASE_1_5` §7.5 kept a single right rail for module
+ * left-hand rail — the workspace keeps a single right rail for module
  * *panels*, and this is a tool selector, which is a different thing.
  *
  * Presentational on purpose: the mask lives in the workspace, because the

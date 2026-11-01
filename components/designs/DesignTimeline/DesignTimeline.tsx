@@ -49,7 +49,7 @@ const dateFormat = new Intl.DateTimeFormat("es-GT", {
  * This is the **record** version of the strip, the one that lives on the design
  * hub: clicking a step opens it full size to look at it or download it. The
  * **control** version, with the cursor and "Retomar desde aquí", belongs on the
- * working screen — see FASE_1_5 §7.4.
+ * working screen.
  *
  * **It lists deliverables, not every asset.** It used to show everything except
  * masks, which meant it repeated the working steps that `/edit` already lets

@@ -48,7 +48,7 @@ import type {
  * erasing the structure under the mask before sending is what removes the
  * relief ghost, but that preparation is a deliberate act of the user now: the
  * flat brush and the eyedropper do it on screen, where it can be seen before it
- * is paid for (`FASE_2_INPAINTING` §4n). Doing it again in here would edit an
+ * is paid for. Doing it again in here would edit an
  * image the user already approved.
  */
 

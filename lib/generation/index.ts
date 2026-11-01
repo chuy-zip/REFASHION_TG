@@ -19,7 +19,7 @@ export type {
  * `POST /api/generate/inpainting`, and that route talks to this.
  *
  * **The default is still the mock**, and that is a deliberate stage and not an
- * oversight: `FASE_2_INPAINTING` §7 put the whole interface before the first
+ * oversight: the whole interface was built before the first
  * paid call. Runware is a second module implementing `GenerationProvider` and
  * the branch below — no screen changed to add it, because no screen ever knew a
  * provider existed.

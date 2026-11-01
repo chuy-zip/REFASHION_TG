@@ -117,7 +117,7 @@ async function upload({
   const { upload_url, r2_key, asset_id } = presign.data;
 
   // The binary goes straight to R2, never through the API. This is the request
-  // the bucket's CORS policy exists for (see SETUP_SUPABASE_R2.md §2.5).
+  // the bucket's CORS policy exists for.
   let putResponse: Response;
   try {
     putResponse = await fetch(upload_url, {
@@ -224,7 +224,7 @@ export async function uploadClientAsset(input: {
  * the two differ in what they *require*, not in an option: this one cannot be
  * called without saying which image it came from. That is `origin = 'derived'`
  * as migration 012 defined it, and it is what keeps `generated` meaning "cost
- * money and came out of a model" (FASE_1_5 §3.1).
+ * money and came out of a model".
  *
  * The result is a new asset. The original is never overwritten: it may be
  * placed on other designs, and a `.jpg` key holding a PNG would be a lie.

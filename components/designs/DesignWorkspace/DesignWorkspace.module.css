@@ -216,7 +216,7 @@
 }
 
 /* Same surface as the form inputs elsewhere, because it is one: it reports a
-   value and changes it. The 2.75rem floor is the touch target from §7.1. */
+   value and changes it. The 2.75rem floor is the touch target. */
 .modeSelect {
   min-height: 2.75rem;
   padding: 0 var(--space-12);
